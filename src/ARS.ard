@@ -1,0 +1,61 @@
+\import Data.Or
+\import HLevel
+\import Logic
+\import Paths
+\import Relation.Equivalence
+\import Set
+
+\class AbstractReductionSystem \alias ARS (A : \Set)
+  | \infix 4 ~> : A -> A -> \Prop
+  | quotient : Equivalence A
+
+{- | An Abstract Reduction System with equivalence relation defaulted to identity one. -}
+\class SimpleARS \extends AbstractReductionSystem
+  | quotient => identity-equivalence A
+  \where {
+    \func identity-equivalence (A : \Set) : Equivalence A \cowith
+      | ~ a b => a = b
+      | ~-reflexive => idp
+      | ~-symmetric => inv
+      | ~-transitive => *>
+  }
+
+{- | Reduction in zero steps -}
+\func \infix 4 ~>_0 {A : ARS} : A -> A -> \Prop => \lam a b => a = b
+
+{- | Redunction in one step -}
+\func \infix 4 ~>_1 {A : ARS} : A -> A -> \Prop => A.~>
+
+{- | Composition of reduction relations -}
+\func compose {A : \Set} (~>1 : A -> A -> \Prop) (~>2 : A -> A -> \Prop) : A -> A -> \Prop =>
+  \lam a b => TruncP (\Sigma (c : A) (a `~>1 c) (c `~>2 b))
+
+{- | n-fold composition of relations -}
+\func ~>_=n {A : ARS} (n : Nat) : A -> A -> \Prop \elim n
+  | 0 => ~>_0
+  | suc n => compose (~>_=n n) (~>_1)
+
+{- | Composition of relations with bounded length -}
+\func \infix 4 ~>_<=n {A : ARS} (n : Nat) : A -> A -> \Prop => \lam a b => TruncP (\Sigma (m : Nat) (m Nat.<= n) (~>_=n m a b))
+
+{- | Reflexive closure of reduction relation -}
+\func \infix 4 ~>_= {A : ARS} : A -> A -> \Prop => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
+
+{- | Transitive closure of reduction relation -}
+\func \infix 4 ~>_+ {A : ARS} : A -> A -> \Prop => \lam a b => TruncP (\Sigma (n : Nat) (~>_=n (suc n) a b))
+
+{- | Reflexive transitive closure of reduction relations -}
+\func \infix 4 ~>_* {A : ARS} : A -> A -> \Prop => \lam a b => TruncP (\Sigma (n : Nat) (~>_=n n a b))
+
+{- | Inverse reduction relation -}
+\func \infix 4 <~ {A : ARS} : A -> A -> \Prop => \lam a b => b ~> a
+
+{- | Join for two elements -}
+\func join {A : ARS} (a b : A) : \Set => \Sigma (c : A) (a ~>_* c) (b ~>_* c)
+
+{- | Predicate for joinability for two elements -}
+\func joinable {A : ARS} (a b : A) : \Prop => TruncP (join a b)
+
+
+
+
