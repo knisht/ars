@@ -1,6 +1,9 @@
 \import ARS
+\import Data.List
 \import Data.Or
+\import Equiv
 \import Logic
+\import Set.Fin
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi (b : A) -> Not (a ~> b)
 
@@ -12,12 +15,34 @@
 \data Acc {A : ARS} (a : A)
   | acc (\Pi (a' : A) -> a ~> a' -> Acc a')
 
+{- | Definition of accessibility with the usage of transitive closure -}
+\data AccTrans {A : ARS} (a : A)
+  | acc-trans (\Pi (a' : A) -> a ~>_+ a' -> AccTrans a')
+
+\func Acc=>AccTrans {A : ARS} (a : A) (a-acc : Acc {A} a) : AccTrans {A} a
+  | a, acc move => acc-trans (\lam a' a~>+a' => \case \elim a~>+a' \with {
+    | inP (n, rel) => \case \elim rel \with {
+      | step a~>_1a' _ => Acc=>AccTrans a' (move a' a~>_1a')
+    }
+  })
+
 \func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc a
 
 \func well-founded-induction {A : ARS} (C : A -> \Type)
                              (induction : \Pi (a : A) (\Pi (b : A) (a ~> b) -> C b) -> C a)
                              (a : A) (a-is-accessible : Acc a) : C a \elim a-is-accessible
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
+
+\func well-founded-induction-transitive {A : ARS} (C : A -> \Type)
+                                        (induction : \Pi (a : A) (\Pi (b : A) (a ~>_+ b) -> C b) -> C a)
+                                        (a : A) (a-is-accessible : AccTrans a) : C a \elim  a-is-accessible
+  | acc-trans successors => induction a (\lam b a~>_+b => well-founded-induction-transitive C induction b (successors b a~>_+b))
+
+\func one-step-reduction {A : ARS} (a : A) : \Set => \Sigma (b : A) (a ~> b)
+
+\data ReductionTree {A : ARS} (a : A)
+  | branch (b : A) (ReductionTree b) (a ~> b)
+  | leaf (isNormalForm a)
 
 
 

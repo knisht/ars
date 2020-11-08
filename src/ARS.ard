@@ -21,7 +21,7 @@
   }
 
 {- | Reduction in zero steps -}
-\func \infix 4 ~>_0 {A : ARS} : A -> A -> \Prop => \lam a b => a = b
+\func \infix 4 ~>_0 {A : ARS} : A -> A -> \Prop => =
 
 {- | Redunction in one step -}
 \func \infix 4 ~>_1 {A : ARS} : A -> A -> \Prop => A.~>
@@ -31,9 +31,9 @@
   \lam a b => TruncP (\Sigma (c : A) (a `~>1 c) (c `~>2 b))
 
 {- | n-fold composition of relations -}
-\func ~>_=n {A : ARS} (n : Nat) : A -> A -> \Prop \elim n
-  | 0 => ~>_0
-  | suc n => compose (~>_=n n) (~>_1)
+\data ~>_=n {A : ARS} (n : Nat) (a b : A) \elim n
+  | 0 => direct (a ~>_0 b)
+  | suc n => step (a ~>_1 b) (~>_=n n a b)
 
 {- | Composition of relations with bounded length -}
 \func \infix 4 ~>_<=n {A : ARS} (n : Nat) : A -> A -> \Prop => \lam a b => TruncP (\Sigma (m : Nat) (m Nat.<= n) (~>_=n m a b))
