@@ -1,0 +1,23 @@
+\import ARS
+\import Data.Or
+\import Logic
+
+\func isNormalForm {A : ARS} (a : A) : \Prop => \Pi (b : A) -> Not (a ~> b)
+
+\func hasNormalForm {A : ARS} (a : A) : \Prop => TruncP (\Sigma (b : A) (isNormalForm b) (a ~>_* b))
+
+\func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> hasNormalForm a
+
+{- | Definition of accessibility (termination) for ARS -}
+\data Acc {A : ARS} (a : A)
+  | acc (\Pi (a' : A) -> a ~> a' -> Acc a')
+
+\func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc a
+
+\func well-founded-induction {A : ARS} (C : A -> \Type)
+                             (induction : \Pi (a : A) (\Pi (b : A) (a ~> b) -> C b) -> C a)
+                             (a : A) (a-is-accessible : Acc a) : C a \elim a-is-accessible
+  | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
+
+
+
