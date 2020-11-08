@@ -3,6 +3,8 @@
 \import Data.Or
 \import Equiv
 \import Logic
+\import Paths
+\import Paths.Meta
 \import Set.Fin
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi (b : A) -> Not (a ~> b)
@@ -19,12 +21,17 @@
 \data AccTrans {A : ARS} (a : A)
   | acc-trans (\Pi (a' : A) -> a ~>_+ a' -> AccTrans a')
 
-\func Acc=>AccTrans {A : ARS} (a : A) (a-acc : Acc {A} a) : AccTrans {A} a
-  | a, acc move => acc-trans (\lam a' a~>+a' => \case \elim a~>+a' \with {
-    | inP (n, rel) => \case \elim rel \with {
-      | step a~>_1a' _ => Acc=>AccTrans a' (move a' a~>_1a')
-    }
-  })
+\lemma Acc=>AccTrans {A : ARS} (a : A) (a-acc : Acc {A} a) : AccTrans {A} a =>
+  well-founded-induction (AccTrans) (\lam a f => acc-trans (\lam a' a~>+a' => \case a~>+a' \with {
+    | inP (n, prod) => transit-to-last f n prod
+  })) a a-acc
+  \where {
+    \lemma transit-to-last {A : ARS} {a b : A} (f : \Pi (c : A) -> a A.~> c -> AccTrans c) (n : Nat) (prod : n-product (~>) (suc n) a b) : AccTrans b \elim n, prod
+      | 0, step c a~>c (direct c=b) => f b (rewrite (inv c=b) a~>c)
+      | suc n, step c a~>c c~>nb => \case (f c a~>c) \with {
+        | acc-trans acc-step => transit-to-last (\lam c' c~>c' => acc-step c' (inP (0, step c' c~>c' (direct idp)))) n c~>nb
+      }
+  }
 
 \func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc a
 

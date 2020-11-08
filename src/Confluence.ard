@@ -1,0 +1,30 @@
+\import ARS
+\import Logic
+\import Termination
+
+\data StrongConfluence {A : ARS} (a b c : A) (p : a ~> b) (q : a ~> c)
+  | strong-join (d : A) (b ~>_= d) (c ~>_* d)
+
+\func isStronglyConfluent (A : ARS) : \Prop =>
+  \Pi (a b c : A) (p : a ~> b) (q : a ~> c) -> TruncP (StrongConfluence a b c p q)
+
+\func isChurchRosser (A : ARS) : \Prop =>
+  \Pi (a b : A) (a <~>* b) -> joinable a b
+
+\func isConfluent (A : ARS) : \Prop =>
+  \Pi (a b c : A) (a ~>_* b) (a ~>_* c) -> joinable b c
+
+\func isLocallyConfluent (A : ARS) : \Prop =>
+  \Pi (a b c : A) (a ~> b) (a ~> c) -> joinable b c
+
+\func hasUniqueNormalFormsWrtReduction (A : ARS) : \Prop =>
+  \Pi (a b c : A) (a ~>_* b) (a ~>_* c) (isNormalForm b) (isNormalForm c) -> b = c
+
+\func hasUniqueNormalForms (A : ARS) : \Prop =>
+  \Pi (a b : A) (a <~>* b) (isNormalForm a) (isNormalForm b) -> a = b
+
+\func hasNormalFormProperty (A : ARS) : \Prop =>
+  \Pi (a b : A) (a <~>* b) (isNormalForm b) -> a ~>_* b
+
+\lemma ChurchRosser=>Confluence {A : ARS} (cr : isChurchRosser A) : isConfluent A =>
+  \lam a b c a~>*b a~>*c => cr b c (<~>*-compose a (<~>*-reverse (~>*=><~>* a~>*b)) (~>*=><~>* a~>*c))
