@@ -2,9 +2,11 @@
 \import Data.List
 \import Data.Or
 \import Equiv
+\import Function.Meta
 \import Logic
 \import Paths
 \import Paths.Meta
+\import Relation
 \import Set.Fin
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi (b : A) -> Not (a ~> b)
@@ -14,36 +16,34 @@
 \func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> hasNormalForm a
 
 {- | Definition of accessibility (termination) for ARS -}
-\data Acc {A : ARS} (a : A)
-  | acc (\Pi (a' : A) -> a ~> a' -> Acc a')
-
-{- | Definition of accessibility with the usage of transitive closure -}
-\data AccTrans {A : ARS} (a : A)
-  | acc-trans (\Pi (a' : A) -> a ~>_+ a' -> AccTrans a')
-
-\lemma Acc=>AccTrans {A : ARS} (a : A) (a-acc : Acc {A} a) : AccTrans {A} a =>
-  well-founded-induction (AccTrans) (\lam a f => acc-trans (\lam a' a~>+a' => \case a~>+a' \with {
-    | inP (n, prod) => transit-to-last f n prod
-  })) a a-acc
+\data Acc {A : \Set} (R : Pred A) (a : A)
+  | acc (\Pi (a' : A) -> a `R` a' -> Acc R a')
   \where {
-    \lemma transit-to-last {A : ARS} {a b : A} (f : \Pi (c : A) -> a A.~> c -> AccTrans c) (n : Nat) (prod : n-product (~>) (suc n) a b) : AccTrans b \elim n, prod
-      | 0, step c a~>c (direct c=b) => f b (rewrite (inv c=b) a~>c)
-      | suc n, step c a~>c c~>nb => \case (f c a~>c) \with {
-        | acc-trans acc-step => transit-to-last (\lam c' c~>c' => acc-step c' (inP (0, step c' c~>c' (direct idp)))) n c~>nb
+    \func apply {A : \Set} {R : Pred A} {a : A} (acc : Acc R a) (b : A) (p : a `R` b) : Acc R b \elim acc
+      | acc f => f b p
+  }
+
+\func Acc-Trans {A : \Set} (R : Pred A) (a : A) : \Type => Acc (transitive-closure R) a
+
+\lemma Acc=>AccTrans {A : \Set} {R : Pred A} (a : A) (a-acc : Acc R a) : Acc-Trans R a =>
+  well-founded-induction (Acc-Trans R) (\lam a f => acc (\lam a' aR+a' => transit-to-last f aR+a')) a a-acc
+  \where {
+    \lemma transit-to-last {A : \Set} {R : Pred A} {a b : A}
+                           (f : \Pi (b : A) -> R a b -> Acc-Trans R b)
+                           (aR+b : transitive-closure R a b): Acc-Trans R b \elim aR+b
+      | tc-direct aRb => f b aRb
+      | tc-connect c aRc t => \case (f c aRc) \with {
+        | acc g => transit-to-last (\lam b cRb => g b (tc-direct cRb)) t
       }
   }
 
-\func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc a
+\func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc (~>) a
 
-\func well-founded-induction {A : ARS} (C : A -> \Type)
-                             (induction : \Pi (a : A) (\Pi (b : A) (a ~> b) -> C b) -> C a)
-                             (a : A) (a-is-accessible : Acc a) : C a \elim a-is-accessible
+\func well-founded-induction {A : \Set} {R : Pred A} (C : A -> \Type)
+                             (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
+                             (a : A) (a-is-accessible : Acc R a) : C a \elim a-is-accessible
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
-\func well-founded-induction-transitive {A : ARS} (C : A -> \Type)
-                                        (induction : \Pi (a : A) (\Pi (b : A) (a ~>_+ b) -> C b) -> C a)
-                                        (a : A) (a-is-accessible : AccTrans a) : C a \elim  a-is-accessible
-  | acc-trans successors => induction a (\lam b a~>_+b => well-founded-induction-transitive C induction b (successors b a~>_+b))
 
 \func one-step-reduction {A : ARS} (a : A) : \Set => \Sigma (b : A) (a ~> b)
 

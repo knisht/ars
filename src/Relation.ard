@@ -1,0 +1,17 @@
+{- | Predicate on some set A -}
+\func Pred (A : \Set) : \Set => A -> A -> \Prop
+
+{- | Transitive closure of abstract relation -}
+\truncated \data transitive-closure {A : \Set} (R : Pred A) (a b : A) : \Prop
+  | tc-direct (a `R` b)
+  | tc-connect (c : A) (a `R` c) (transitive-closure R c b)
+
+{- | Transitive and reflexive closure of abstract relation -}
+\truncated \data transitive-refl-closure {A : \Set} (R : Pred A) (a b : A) : \Prop
+  | trc-direct (a = b)
+  | trc-connect (c : A) (a `R` c) (transitive-refl-closure R c b)
+
+{- | Symmetric closure of abstract relation -}
+\truncated \data symmetric-closure {A : \Set} (R : Pred A) (a b : A) : \Prop
+  | sc-left (a `R` b)
+  | sc-right (b `R` a)

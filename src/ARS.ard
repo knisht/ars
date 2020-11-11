@@ -4,11 +4,12 @@
 \import Logic
 \import Paths
 \import Paths.Meta
+\import Relation
 \import Relation.Equivalence
 \import Set
 
 \class AbstractReductionSystem \alias ARS (A : \Set)
-  | \infix 4 ~> : A -> A -> \Prop -- | Reduction relation
+  | \infix 4 ~> : Pred A -- | Reduction relation
   | quotient : Equivalence A
 
 {- | An Abstract Reduction System with equivalence relation defaulted to identity one. -}
@@ -23,87 +24,47 @@
   }
 
 {- | Reduction in zero steps -}
-\func \infix 4 ~>_0 {A : ARS} : A -> A -> \Prop => =
+\func \infix 4 ~>_0 {A : ARS} : Pred A => =
 
 {- | Redunction in one step -}
-\func \infix 4 ~>_1 {A : ARS} : A -> A -> \Prop => A.~>
-
-{- | Composition of abstract relations -}
-\func compose {A : \Set} (~>1 : A -> A -> \Prop) (~>2 : A -> A -> \Prop) : A -> A -> \Prop =>
-  \lam a b => TruncP (\Sigma (c : A) (a `~>1 c) (c `~>2 b))
-
-{- | n-fold composition of abstract relations -}
-\data n-product {A : \Set} (~>1 : A -> A -> \Prop) (n : Nat) (a b : A) \elim n
-  | 0 => direct (a = b)
-  | suc n => step (c : A) (a `~>1` c) (n-product ~>1 n c b)
-
-{- | Transitive closure of abstract relation -}
-\func transitive-closure {A : \Set} (~>1 : A -> A -> \Prop) : A -> A -> \Prop =>
-  \lam a b => TruncP (\Sigma (n : Nat) (n-product ~>1 (suc n) a b))
-
-{- | Transitive and reflexive closure of abstract relation -}
-\func transitive-reflexive-closure {A : \Set} (~>1 : A -> A -> \Prop) : A -> A -> \Prop =>
-  \lam a b => TruncP (\Sigma (n : Nat) (n-product ~>1 n a b))
-
-{- | n-fold composition of relations in ARS -}
-\func ~>_=n {A : ARS} (n : Nat) : A -> A -> \Prop => \lam a b => TruncP (n-product (~>) n a b)
-
-{- | Composition of relations with bounded length -}
-\func \infix 4 ~>_<=n {A : ARS} (n : Nat) : A -> A -> \Prop =>
-  \lam a b => TruncP (\Sigma (m : Nat) (m Nat.<= n) (~>_=n m a b))
+\func \infix 4 ~>_1 {A : ARS} : Pred A => A.~>
 
 {- | Reflexive closure of reduction relation -}
-\func \infix 4 ~>_= {A : ARS} : A -> A -> \Prop => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
+\func \infix 4 ~>_= {A : ARS} : Pred A => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
 
 {- | Transitive closure of reduction relation in ARS -}
-\func \infix 4 ~>_+ {A : ARS} : A -> A -> \Prop => transitive-closure (~>)
+\func \infix 4 ~>_+ {A : ARS} : Pred A => transitive-closure (~>)
 
 {- | Reflexive transitive closure of reduction relations -}
-\func \infix 4 ~>_* {A : ARS} : A -> A -> \Prop => transitive-reflexive-closure (~>)
+\func \infix 4 ~>_* {A : ARS} : Pred A => transitive-refl-closure (~>)
 
 {- | Inverse reduction relation -}
-\func \infix 4 <~ {A : ARS} : A -> A -> \Prop => \lam a b => b ~> a
+\func \infix 4 <~ {A : ARS} : Pred A => \lam a b => b ~> a
 
 {- | Symmetric closure of inverse reduction relation -}
-\func \infix 4 <~> {A : ARS} : A -> A -> \Prop => \lam a b => TruncP (a ~> b `Or` a <~ b)
+\func \infix 4 <~> {A : ARS} : Pred A => symmetric-closure (~>)
 
-\func <~>-reverse {A : ARS} {a b : A} (a<~>b : a <~> b) : b <~> a => \case a<~>b \with {
-  | inP a1 => \case \elim a1 \with {
-    | inl a1 => inP (inr a1)
-    | inr b1 => inP (inl b1)
-  }
-}
+\func <~>-reverse {A : ARS} {a b : A} (a<~>b : a <~> b) : b <~> a \elim a<~>b
+  | sc-left a~>b => sc-right a~>b
+  | sc-right a<~b => sc-left a<~b
 
 {- | Symmetric reflexive transitive closure of inverse reduction relation -}
-\func \infix 4 <~>* {A : ARS} : A -> A -> \Prop => transitive-reflexive-closure (<~>)
+\func \infix 4 <~>* {A : ARS} : A -> A -> \Prop => transitive-refl-closure (<~>)
 
 \lemma <~>*-compose {A : ARS} {a c : A} (b : A) (a<~>*b : a <~>* b) (b<~>*c : b <~>* c) : a <~>* c \elim a<~>*b
-  | inP (n, a<~>nb) => <~>*-compose-helper b n a<~>nb b<~>*c \where {
-  \lemma <~>*-compose-helper {A : ARS} {a c : A} (b : A) (n : Nat) (a<~>nb : n-product (<~>) n a b) (b<~>*c : b <~>* c) : a <~>* c \elim n, a<~>nb, b<~>*c
-    | 0, direct a=b, inP (m, b<~>mc) => inP (m, rewrite a=b b<~>mc)
-    | suc n, step c' a<~>c' c'<~>nb, b<~>c => \let c'<~>*c : c' <~>* c => <~>*-compose-helper b n c'<~>nb b<~>c \in \scase \elim c'<~>*c \with {
-      | inP (k, prd) => inP (suc k, step c' a<~>c' prd)
-    }
-}
+  | trc-direct a=b => rewrite a=b b<~>*c
+  | trc-connect c1 a<~>c1 c1<~>*c => trc-connect c1 a<~>c1 (<~>*-compose b c1<~>*c b<~>*c)
 
-\lemma <~>*-reverse {A : ARS} {a b : A} (p : a <~>* b) : b <~>* a \elim p
-  | inP (n, a<~>nb) => <~>*-reverse-helper n a<~>nb \where {
-  \lemma <~>*-reverse-helper {A : ARS} {a b : A} (n : Nat) (a<~>nb : n-product (<~>) n a b) : b <~>* a \elim n, a<~>nb
-    | 0, direct p => inP (0, direct (inv p))
-    | suc n, step c a~>c c<~>nb => \let | b<~>c => <~>*-reverse-helper n c<~>nb
-                                        | c<~>a => <~>-reverse a~>c \in <~>*-compose c b<~>c (inP (1, step a c<~>a (direct idp)))
-}
+\lemma <~>*-reverse {A : ARS} {a b : A} (a<~>*b : a <~>* b) : b <~>* a \elim a<~>*b
+  | trc-direct p => trc-direct (inv p)
+  | trc-connect c a<~>c c<~>*b => <~>*-compose c (<~>*-reverse c<~>*b) (trc-connect a (<~>-reverse a<~>c) (trc-direct idp))
 
-\lemma ~>=><~>* {A : ARS} {a b : A} (red : a ~> b) : a <~>* b => inP (1, step b (inP (inl red)) (direct idp))
+\lemma ~>=><~>* {A : ARS} {a b : A} (red : a ~> b) : a <~>* b => trc-connect b (sc-left red) (trc-direct idp)
 
 {- | Transitive reflexive closure of reduction implies transitive reflexive symmetric closure -}
 \lemma ~>*=><~>* {A : ARS} {a b : A} (red : a ~>_* b) : a <~>* b \elim red
-  | inP (n, product) => ~>*=><~>*-helper n product
-  \where {
-    \lemma ~>*=><~>*-helper {A : ARS} {a b : A} (n : Nat) (prf : n-product (~>) n a b) : a <~>* b \elim n, prf
-      | 0, direct p => inP (0, direct p)
-      | suc n, step c a~>c c~>nb => <~>*-compose c (~>=><~>* a~>c) (~>*=><~>*-helper n c~>nb)
-  }
+  | trc-direct a=b => trc-direct a=b
+  | trc-connect c r t => trc-connect c (sc-left r) (~>*=><~>* t)
 
 {- | Join for two elements -}
 \func join {A : ARS} (a b : A) : \Set => \Sigma (c : A) (a ~>_* c) (b ~>_* c)
