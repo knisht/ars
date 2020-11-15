@@ -9,7 +9,7 @@
 \import Set
 
 \class AbstractReductionSystem \alias ARS (A : \Set)
-  | \infix 4 ~> : Pred A -- | Reduction relation
+  | \infix 4 ~> : Rel A -- | Reduction relation
   | quotient : Equivalence A
 
 {- | An Abstract Reduction System with equivalence relation defaulted to identity one. -}
@@ -24,25 +24,25 @@
   }
 
 {- | Reduction in zero steps -}
-\func \infix 4 ~>_0 {A : ARS} : Pred A => =
+\func \infix 4 ~>_0 {A : ARS} : Rel A => =
 
 {- | Redunction in one step -}
-\func \infix 4 ~>_1 {A : ARS} : Pred A => A.~>
+\func \infix 4 ~>_1 {A : ARS} : Rel A => A.~>
 
 {- | Reflexive closure of reduction relation -}
-\func \infix 4 ~>_= {A : ARS} : Pred A => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
+\func \infix 4 ~>_= {A : ARS} : Rel A => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
 
 {- | Transitive closure of reduction relation in ARS -}
-\func \infix 4 ~>_+ {A : ARS} : Pred A => transitive-closure (~>)
+\func \infix 4 ~>_+ {A : ARS} : Rel A => transitive-closure (~>)
 
 {- | Reflexive transitive closure of reduction relations -}
-\func \infix 4 ~>_* {A : ARS} : Pred A => transitive-refl-closure (~>)
+\func \infix 4 ~>_* {A : ARS} : Rel A => transitive-refl-closure (~>)
 
 {- | Inverse reduction relation -}
-\func \infix 4 <~ {A : ARS} : Pred A => \lam a b => b ~> a
+\func \infix 4 <~ {A : ARS} : Rel A => \lam a b => b ~> a
 
 {- | Symmetric closure of inverse reduction relation -}
-\func \infix 4 <~> {A : ARS} : Pred A => symmetric-closure (~>)
+\func \infix 4 <~> {A : ARS} : Rel A => symmetric-closure (~>)
 
 \func <~>-reverse {A : ARS} {a b : A} (a<~>b : a <~> b) : b <~> a \elim a<~>b
   | sc-left a~>b => sc-right a~>b
