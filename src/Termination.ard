@@ -9,7 +9,7 @@
 \import Relation
 \import Set.Fin
 
-\func isNormalForm {A : ARS} (a : A) : \Prop => \Pi (b : A) -> Not (a ~> b)
+\func isNormalForm {A : ARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
 
 \func hasNormalForm {A : ARS} (a : A) : \Prop => TruncP (\Sigma (b : A) (isNormalForm b) (a ~>_* b))
 
