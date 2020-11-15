@@ -11,9 +11,10 @@
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
 
-\func hasNormalForm {A : ARS} (a : A) : \Prop => TruncP (\Sigma (b : A) (isNormalForm b) (a ~>_* b))
+\truncated \data HasNormalForm {A : ARS} (a : A) : \Prop
+ | nf (b : A) (isNormalForm b) (a ~>_* b)
 
-\func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> hasNormalForm a
+\func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> HasNormalForm a
 
 {- | Definition of accessibility (termination) for ARS -}
 \data Acc {A : \Set} (R : Rel A) (a : A)
@@ -42,6 +43,11 @@
 \func well-founded-induction {A : \Set} {R : Rel A} (C : A -> \Type)
                              (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
                              (a : A) (a-is-accessible : Acc R a) : C a \elim a-is-accessible
+  | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
+
+\func well-founded-induction-transitive {A : \Set} {R : Rel A} (C : A -> \Type)
+                             (induction : \Pi (a : A) (\Pi (b : A) (transitive-closure R a b) -> C b) -> C a)
+                             (a : A) (a-is-accessible : Acc-Trans R a) : C a \elim a-is-accessible
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
 
