@@ -103,7 +103,7 @@
 
 \lemma Normalization+UniqueNormalForms=>Confluence {A : ARS} (norm : isNormalizing A) (unf : hasUniqueNormalForms A) : isConfluent A =>
   \lam {a} {b} {c} a~>*b a~>*c => \case (norm b), (norm c) \with {
-    | nf b' b'nf b~>*b', nf c' c'nf c~>*c' =>
+    | normal-form b' b'nf b~>*b', normal-form c' c'nf c~>*c' =>
       \let b'=c' => UniqueNormalForms=>UniqueNormalFormsWrtReduction unf (~>*-concat a~>*b b~>*b') (~>*-concat a~>*c c~>*c') b'nf c'nf
       \in join b' b~>*b' (rewrite b'=c' c~>*c')
   }

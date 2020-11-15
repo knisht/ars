@@ -4,15 +4,17 @@
 \import Equiv
 \import Function.Meta
 \import Logic
+\import Logic.Meta
 \import Paths
 \import Paths.Meta
 \import Relation
+\import Set
 \import Set.Fin
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
 
 \truncated \data HasNormalForm {A : ARS} (a : A) : \Prop
- | nf (b : A) (isNormalForm b) (a ~>_* b)
+  | normal-form (b : A) (isNormalForm b) (a ~>_* b)
 
 \func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> HasNormalForm a
 
@@ -39,6 +41,18 @@
   }
 
 \func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc (~>) a
+
+\lemma Termination=>Normalization {A : ARS} (dec : \Pi (a : A) -> Dec (∃ (a' : A) (a ~> a'))) (term : isTerminating A)  : isNormalizing A =>
+  \lam a => well-founded-induction-transitive
+      HasNormalForm
+      (\lam z step => \case dec z \with {
+        | yes (inP (x, z~>x)) => \case (step x (tc-direct z~>x)) \with {
+          | normal-form e nfe x~>*e => normal-form e nfe (~>*-concat (trc-unary z~>x) x~>*e)
+        }
+        | no n => normal-form z (\lam {b} z~>b => (n (inP (b, z~>b)))) trc-direct'
+      })
+      a
+      (Acc=>AccTrans a (term a))
 
 \func well-founded-induction {A : \Set} {R : Rel A} (C : A -> \Type)
                              (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
