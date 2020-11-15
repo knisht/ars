@@ -46,8 +46,8 @@
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
 \func well-founded-induction-transitive {A : \Set} {R : Rel A} (C : A -> \Type)
-                             (induction : \Pi (a : A) (\Pi (b : A) (transitive-closure R a b) -> C b) -> C a)
-                             (a : A) (a-is-accessible : Acc-Trans R a) : C a \elim a-is-accessible
+                                        (induction : \Pi (a : A) (\Pi (b : A) (transitive-closure R a b) -> C b) -> C a)
+                                        (a : A) (a-is-accessible : Acc-Trans R a) : C a \elim a-is-accessible
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
 

@@ -37,12 +37,11 @@
   \lam {a} {b} a<~>*b => conf=>rc-helper conf a b a<~>*b
   \where {
     \lemma conf=>rc-helper {A : ARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) : Join a b \elim a<~>*b
-      | trc-direct p => join a (trc-direct idp) (trc-direct (inv p))
+      | trc-direct p => join a trc-direct' (trc-direct (inv p))
       | trc-connect c a<~>c c<~>*b => \let join-c-b : Join c b => conf=>rc-helper conf c b c<~>*b \in \case join-c-b, a<~>c \with {
         | join c' c~>*c' b~>*c', sc-left a~>c => join c' (trc-connect c a~>c c~>*c') b~>*c'
-        | join c' c~>*c' b~>*c', sc-right c~>a => \let join-a-c' : Join a c' => conf {c} {a} {c'} (trc-unary c~>a) c~>*c' \in \case join-a-c' \with {
-          | join c'' a~>c'' c'~>c'' => join c'' a~>c'' (~>*-concat b~>*c' c'~>c'')
-        }
+        | join c' c~>*c' b~>*c', sc-right c~>a => \let join-a-c' : Join a c' => conf {c} {a} {c'} (trc-unary c~>a) c~>*c'
+                                                  \in Join.append-right b~>*c' join-a-c'
       }
   }
 
@@ -53,22 +52,24 @@
   strong-join=>Confluence sconf
   \where {
     \lemma SCR=>strong-join {A : ARS} (sconf : isStronglyConfluent A) {a b c : A} (a~>*b : a ~>_* b) (a~>c : a ~> c) : StrongJoin b c \elim a~>*b
-      | trc-direct p => strong-join c (rc-rel (rewriteI p a~>c)) (trc-direct idp)
+      | trc-direct p => strong-join c (rc-rel (rewriteI p a~>c)) trc-direct'
       | trc-connect c' a~>c' c'~>*b => \let strong-join-c-c' => sconf a~>c' a~>c \in \case strong-join-c-c' \with {
         | strong-join d c~>_=d c~>*d => \case \elim c~>_=d \with {
           | rc-id c'=d => strong-join b (rc-id idp) (~>*-concat c~>*d (transport (__ ~>_* b) c'=d c'~>*b))
-          | rc-rel c'~>d => \let rec => SCR=>strong-join sconf c'~>*b c'~>d \in \case rec \with {
-            | strong-join d' b~>_=d d~>*d' => strong-join d' b~>_=d (~>*-concat c~>*d d~>*d')
-          }
+          | rc-rel c'~>d => \let sjoin-b-d => SCR=>strong-join sconf c'~>*b c'~>d
+                            \in \case sjoin-b-d \with {
+              | strong-join d' b~>_=d d~>*d' => strong-join d' b~>_=d (~>*-concat c~>*d d~>*d')
+            }
         }
       }
 
     \lemma strong-join=>Confluence {A : ARS} (sconf : isStronglyConfluent A) {x y z : A} (x~>*y : x ~>_* y) (x~>*z : x ~>_* z) : Join y z \elim x~>*z
-      | trc-direct p => join y (trc-direct idp) (rewriteI p x~>*y)
+      | trc-direct p => join y trc-direct' (rewriteI p x~>*y)
       | trc-connect c x~>c c~>*z => \let partial => SCR=>strong-join sconf x~>*y x~>c \in \case partial \with {
-        | strong-join d y~>_=d c~>*d => \let inner-join => strong-join=>Confluence sconf c~>*d c~>*z \in \case inner-join \with {
-          | join c1 d~>c1 z~>c1 => join c1 (~>_=-append y~>_=d d~>c1) z~>c1
-        }
+        | strong-join d y~>_=d c~>*d => \let inner-join => strong-join=>Confluence sconf c~>*d c~>*z
+                                        \in \case inner-join \with {
+            | join c1 d~>c1 z~>c1 => join c1 (~>_=-append y~>_=d d~>c1) z~>c1
+          }
       }
   }
 
@@ -106,3 +107,27 @@
       \let b'=c' => UniqueNormalForms=>UniqueNormalFormsWrtReduction unf (~>*-concat a~>*b b~>*b') (~>*-concat a~>*c c~>*c') b'nf c'nf
       \in join b' b~>*b' (rewrite b'=c' c~>*c')
   }
+
+\lemma Termination+LocalConfluence=>Confluence {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A)
+  : isConfluent A => \lam {a} {b} {c} a~>*b a~>*c => helper term lconf a b c a~>*b a~>*c
+  \where {
+    \func helper {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A) (a : A)
+      : \Pi (b c : A) (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c =>
+      well-founded-induction-transitive
+          (\lam a => \Pi (b c : A) (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c) -- we want to prove confluence for each element
+          (\lam x step b' c' x~>*b' x~>*c' => \case x~>*b', x~>*c' \with {
+            | trc-direct x=b', _ => join c' (rewriteI x=b' x~>*c') trc-direct'
+            | _, trc-direct x=c' => join b' trc-direct' (rewriteI x=c' x~>*b')
+            | trc-connect e x~>e e~>*b', trc-connect d x~>d d~>*c' => \case (lconf x~>e x~>d) \with {
+              | join u e~>*u d~>*u => \let | join-b'-u => step e (tc-direct x~>e) b' u e~>*b' e~>*u
+                                      \in \case \elim join-b'-u \with {
+                  | join v b'~>*v u~>*v => \let join-v-c' => step d (tc-direct x~>d) v c' (~>*-concat d~>*u u~>*v) d~>*c'
+                                           \in Join.append-left b'~>*v join-v-c'
+                }
+            }
+          }) a (Acc=>AccTrans a (term a))
+  }
+
+\lemma Termination=>[LocalConfluence=Confluence] \alias Newman {A : ARS} (term : isTerminating A) :
+  isLocallyConfluent A = isConfluent A =>
+  propExt (Termination+LocalConfluence=>Confluence term __) Confluence=>LocalConfluence

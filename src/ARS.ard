@@ -78,6 +78,13 @@
 {- | Common reduct for two elements -}
 \truncated \data Join {A : ARS} (a b : A) : \Prop
   | join (c : A) (a ~>_* c) (b ~>_* c)
+  \where {
+    \lemma append-left {A : ARS} {a b c : A} (c~>*a : c ~>_* a) (j : Join a b) : Join c b \elim j
+      | join c' a~>*c' b~>*c' => join c' (~>*-concat c~>*a a~>*c') b~>*c'
+
+    \lemma append-right {A : ARS} {a b c : A} (c~>*b : c ~>_* b) (j : Join a b) : Join a c \elim j
+      | join c' a~>*c' b~>*c' => join c' a~>*c' (~>*-concat c~>*b b~>*c')
+  }
 
 
 
