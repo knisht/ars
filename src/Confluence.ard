@@ -108,25 +108,22 @@
       \in join b' b~>*b' (rewrite b'=c' c~>*c')
   }
 
-\lemma Termination+LocalConfluence=>Confluence {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A)
-  : isConfluent A => \lam {a} {b} {c} a~>*b a~>*c => helper term lconf a b c a~>*b a~>*c
-  \where {
-    \func helper {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A) (a : A)
-      : \Pi (b c : A) (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c =>
-      well-founded-induction-transitive
-          (\lam a => \Pi (b c : A) (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c) -- we want to prove confluence for each element
-          (\lam x step b' c' x~>*b' x~>*c' => \case x~>*b', x~>*c' \with {
-            | trc-direct x=b', _ => join c' (rewriteI x=b' x~>*c') trc-direct'
-            | _, trc-direct x=c' => join b' trc-direct' (rewriteI x=c' x~>*b')
-            | trc-connect e x~>e e~>*b', trc-connect d x~>d d~>*c' => \case (lconf x~>e x~>d) \with {
-              | join u e~>*u d~>*u => \let | join-b'-u => step e (tc-direct x~>e) b' u e~>*b' e~>*u
-                                      \in \case \elim join-b'-u \with {
-                  | join v b'~>*v u~>*v => \let join-v-c' => step d (tc-direct x~>d) v c' (~>*-concat d~>*u u~>*v) d~>*c'
-                                           \in Join.append-left b'~>*v join-v-c'
-                }
+\lemma Termination+LocalConfluence=>Confluence {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A): isConfluent A =>
+  \lam {a} => well-founded-induction-transitive
+      (\lam a => \Pi {b c : A} (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c) -- we want to prove confluence for each element
+      (\lam x step {b'} {c'} x~>*b' x~>*c' => \case x~>*b', x~>*c' \with {
+        | trc-direct x=b', _ => join c' (rewriteI x=b' x~>*c') trc-direct'
+        | _, trc-direct x=c' => join b' trc-direct' (rewriteI x=c' x~>*b')
+        | trc-connect e x~>e e~>*b', trc-connect d x~>d d~>*c' => \case (lconf x~>e x~>d) \with {
+          | join u e~>*u d~>*u => \let | join-b'-u => step e (tc-direct x~>e) {b'} {u} e~>*b' e~>*u
+                                  \in \case \elim join-b'-u \with {
+              | join v b'~>*v u~>*v => \let join-v-c' => step d (tc-direct x~>d) {v} {c'} (~>*-concat d~>*u u~>*v) d~>*c'
+                                       \in Join.append-left b'~>*v join-v-c'
             }
-          }) a (Acc=>AccTrans a (term a))
-  }
+        }
+      })
+      a
+      (Acc=>AccTrans a (term a))
 
 \lemma Termination=>[LocalConfluence=Confluence] \alias Newman {A : ARS} (term : isTerminating A) :
   isLocallyConfluent A = isConfluent A =>
