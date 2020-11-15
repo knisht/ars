@@ -66,11 +66,14 @@
   | trc-direct a=b => trc-direct a=b
   | trc-connect c r t => trc-connect c (sc-left r) (~>*=><~>* t)
 
-{- | Join for two elements -}
-\func join {A : ARS} (a b : A) : \Set => \Sigma (c : A) (a ~>_* c) (b ~>_* c)
+{- | Concatenation of transitive closures -}
+\lemma ~>*-concat {A : ARS} {a b c : A} (a~>*b : a ~>_* b) (b~>*c : b ~>_* c) : a ~>_* c \elim a~>*b
+  | trc-direct a=b => rewrite a=b b~>*c
+  | trc-connect c' a~>c' c'~>*b => trc-connect c' a~>c' (~>*-concat c'~>*b b~>*c)
 
-{- | Predicate for joinability for two elements -}
-\func joinable {A : ARS} (a b : A) : \Prop => TruncP (join a b)
+{- | Common reduct for two elements -}
+\truncated \data Join {A : ARS} (a b : A) : \Prop
+  | join (c : A) (a ~>_* c) (b ~>_* c)
 
 
 

@@ -11,6 +11,9 @@
   | trc-direct (a = b)
   | trc-connect (c : A) (a `R` c) (transitive-refl-closure R c b)
 
+{- | Constructs transitive and reflexive closure by single relation for a and b -}
+\cons trc-unary {A : \Set} {R : Rel A} {a b : A} (p : a `R` b) : transitive-refl-closure R a b => trc-connect b p (trc-direct idp)
+
 {- | Symmetric closure of abstract relation -}
 \truncated \data symmetric-closure {A : \Set} (R : Rel A) (a b : A) : \Prop
   | sc-left (a `R` b)
