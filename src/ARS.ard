@@ -30,7 +30,7 @@
 \func \infix 4 ~>_1 {A : ARS} : Rel A => A.~>
 
 {- | Reflexive closure of reduction relation -}
-\func \infix 4 ~>_= {A : ARS} : Rel A => \lam a b => TruncP (a ~>_0 b `Or` a ~>_1 b)
+\func \infix 4 ~>_= {A : ARS} : Rel A => reflexive-closure (~>)
 
 {- | Transitive closure of reduction relation in ARS -}
 \func \infix 4 ~>_+ {A : ARS} : Rel A => transitive-closure (~>)
@@ -70,6 +70,10 @@
 \lemma ~>*-concat {A : ARS} {a b c : A} (a~>*b : a ~>_* b) (b~>*c : b ~>_* c) : a ~>_* c \elim a~>*b
   | trc-direct a=b => rewrite a=b b~>*c
   | trc-connect c' a~>c' c'~>*b => trc-connect c' a~>c' (~>*-concat c'~>*b b~>*c)
+
+\lemma ~>_=-append {A : ARS} {a b c : A} (a~>_=b : a ~>_= b) (b~>*c : b ~>_* c) : a ~>_* c \elim a~>_=b
+  | rc-id p => rewrite p b~>*c
+  | rc-rel a~>b => trc-connect b a~>b b~>*c
 
 {- | Common reduct for two elements -}
 \truncated \data Join {A : ARS} (a b : A) : \Prop

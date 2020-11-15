@@ -2,20 +2,21 @@
 \import Function.Meta
 \import Logic
 \import Paths
+\import Paths.Meta
 \import Relation
 \import Termination
 
-\data StrongConfluence {A : ARS} (a b c : A) (p : a ~> b) (q : a ~> c)
+\truncated \data StrongJoin {A : ARS} (b c : A) : \Prop
   | strong-join (d : A) (b ~>_= d) (c ~>_* d)
 
 \func isStronglyConfluent (A : ARS) : \Prop =>
-  \Pi (a b c : A) (p : a ~> b) (q : a ~> c) -> TruncP (StrongConfluence a b c p q)
+  \Pi {a b c : A} (p : a ~> b) (q : a ~> c) -> StrongJoin b c
 
 \func isChurchRosser (A : ARS) : \Prop =>
   \Pi (a b : A) (a <~>* b) -> Join a b
 
 \func isConfluent (A : ARS) : \Prop =>
-  \Pi (a b c : A) (a ~>_* b) (a ~>_* c) -> Join b c
+  \Pi {a b c : A} (a ~>_* b) (a ~>_* c) -> Join b c
 
 \func isLocallyConfluent (A : ARS) : \Prop =>
   \Pi (a b c : A) (a ~> b) (a ~> c) -> Join b c
@@ -30,7 +31,7 @@
   \Pi (a b : A) (a <~>* b) (isNormalForm b) -> a ~>_* b
 
 \lemma ChurchRosser=>Confluence {A : ARS} (cr : isChurchRosser A) : isConfluent A =>
-  \lam a b c a~>*b a~>*c => cr b c (<~>*-compose a (<~>*-reverse (~>*=><~>* a~>*b)) (~>*=><~>* a~>*c))
+  \lam {a} {b} {c} a~>*b a~>*c => cr b c (<~>*-compose a (<~>*-reverse (~>*=><~>* a~>*b)) (~>*=><~>* a~>*c))
 
 \lemma Confluence=>ChurchRosser {A : ARS} (conf : isConfluent A) : isChurchRosser A =>
   \lam a b a<~>*b => conf=>rc-helper conf a b a<~>*b
@@ -39,7 +40,7 @@
       | trc-direct p => join a (trc-direct idp) (trc-direct (inv p))
       | trc-connect c a<~>c c<~>*b => \let join-c-b : Join c b => conf=>rc-helper conf c b c<~>*b \in \case join-c-b, a<~>c \with {
         | join c' c~>*c' b~>*c', sc-left a~>c => join c' (trc-connect c a~>c c~>*c') b~>*c'
-        | join c' c~>*c' b~>*c', sc-right c~>a => \let join-a-c' : Join a c' => conf c a c' (trc-unary c~>a) c~>*c' \in \case join-a-c' \with {
+        | join c' c~>*c' b~>*c', sc-right c~>a => \let join-a-c' : Join a c' => conf {c} {a} {c'} (trc-unary c~>a) c~>*c' \in \case join-a-c' \with {
           | join c'' a~>c'' c'~>c'' => join c'' a~>c'' (~>*-concat b~>*c' c'~>c'')
         }
       }
@@ -47,3 +48,26 @@
 
 \lemma ChurchRosser=Confluence {A : ARS} : isChurchRosser A = isConfluent A =>
   propExt ChurchRosser=>Confluence Confluence=>ChurchRosser
+
+\lemma StrongConfluence=>Confluence {A : ARS} (sconf : isStronglyConfluent A) : isConfluent A =>
+  strong-join=>Confluence sconf
+  \where {
+    \lemma SCR=>strong-join {A : ARS} (sconf : isStronglyConfluent A) {a b c : A} (a~>*b : a ~>_* b) (a~>c : a ~> c) : StrongJoin b c \elim a~>*b
+      | trc-direct p => strong-join c (rc-rel (rewriteI p a~>c)) (trc-direct idp)
+      | trc-connect c' a~>c' c'~>*b => \let strong-join-c-c' => sconf a~>c' a~>c \in \case strong-join-c-c' \with {
+        | strong-join d c~>_=d c~>*d => \case \elim c~>_=d \with {
+          | rc-id c'=d => strong-join b (rc-id idp) (~>*-concat c~>*d (transport (__ ~>_* b) c'=d c'~>*b))
+          | rc-rel c'~>d => \let rec => SCR=>strong-join sconf c'~>*b c'~>d \in \case rec \with {
+            | strong-join d' b~>_=d d~>*d' => strong-join d' b~>_=d (~>*-concat c~>*d d~>*d')
+          }
+        }
+      }
+
+    \lemma strong-join=>Confluence {A : ARS} (sconf : isStronglyConfluent A) {x y z : A} (x~>*y : x ~>_* y) (x~>*z : x ~>_* z) : Join y z \elim x~>*z
+      | trc-direct p => join y (trc-direct idp) (rewriteI p x~>*y)
+      | trc-connect c x~>c c~>*z => \let partial => SCR=>strong-join sconf x~>*y x~>c \in \case partial \with {
+        | strong-join d y~>_=d c~>*d => \let inner-join => strong-join=>Confluence sconf c~>*d c~>*z \in \case inner-join \with {
+          | join c1 d~>c1 z~>c1 => join c1 (~>_=-append y~>_=d d~>c1) z~>c1
+        }
+      }
+  }
