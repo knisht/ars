@@ -6,37 +6,37 @@
 \import Relation
 \import Termination
 
-\truncated \data StrongJoin {A : ARS} (b c : A) : \Prop
+\truncated \data StrongJoin {A : SimpleARS} (b c : A) : \Prop
   | strong-join (d : A) (b ~>_= d) (c ~>_* d)
 
-\func isStronglyConfluent (A : ARS) : \Prop =>
+\func isStronglyConfluent (A : SimpleARS) : \Prop =>
   \Pi {a b c : A} (p : a ~> b) (q : a ~> c) -> StrongJoin b c
 
-\func isChurchRosser (A : ARS) : \Prop =>
+\func isChurchRosser (A : SimpleARS) : \Prop =>
   \Pi {a b : A} (a <~>* b) -> Join a b
 
-\func isConfluent (A : ARS) : \Prop =>
+\func isConfluent (A : SimpleARS) : \Prop =>
   \Pi {a b c : A} (a ~>_* b) (a ~>_* c) -> Join b c
 
-\func isLocallyConfluent (A : ARS) : \Prop =>
+\func isLocallyConfluent (A : SimpleARS) : \Prop =>
   \Pi {a b c : A} (a ~> b) (a ~> c) -> Join b c
 
-\func hasUniqueNormalFormsWrtReduction (A : ARS) : \Prop =>
+\func hasUniqueNormalFormsWrtReduction (A : SimpleARS) : \Prop =>
   \Pi {a b c : A} (a ~>_* b) (a ~>_* c) (isNormalForm b) (isNormalForm c) -> b = c
 
-\func hasUniqueNormalForms (A : ARS) : \Prop =>
+\func hasUniqueNormalForms (A : SimpleARS) : \Prop =>
   \Pi {a b : A} (a <~>* b) (isNormalForm a) (isNormalForm b) -> a = b
 
-\func hasNormalFormProperty (A : ARS) : \Prop =>
+\func hasNormalFormProperty (A : SimpleARS) : \Prop =>
   \Pi {a b : A} (a <~>* b) (isNormalForm b) -> a ~>_* b
 
-\lemma ChurchRosser=>Confluence {A : ARS} (cr : isChurchRosser A) : isConfluent A =>
+\lemma ChurchRosser=>Confluence {A : SimpleARS} (cr : isChurchRosser A) : isConfluent A =>
   \lam {a} {b} {c} a~>*b a~>*c => cr {b} {c} (<~>*-compose a (<~>*-reverse (~>*=><~>* a~>*b)) (~>*=><~>* a~>*c))
 
-\lemma Confluence=>ChurchRosser {A : ARS} (conf : isConfluent A) : isChurchRosser A =>
+\lemma Confluence=>ChurchRosser {A : SimpleARS} (conf : isConfluent A) : isChurchRosser A =>
   \lam {a} {b} a<~>*b => conf=>rc-helper conf a b a<~>*b
   \where {
-    \lemma conf=>rc-helper {A : ARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) : Join a b \elim a<~>*b
+    \lemma conf=>rc-helper {A : SimpleARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) : Join a b \elim a<~>*b
       | trc-direct p => join a trc-direct' (trc-direct (inv p))
       | trc-connect c a<~>c c<~>*b => \let join-c-b : Join c b => conf=>rc-helper conf c b c<~>*b \in \case join-c-b, a<~>c \with {
         | join c' c~>*c' b~>*c', sc-left a~>c => join c' (trc-connect c a~>c c~>*c') b~>*c'
@@ -45,13 +45,13 @@
       }
   }
 
-\lemma ChurchRosser=Confluence {A : ARS} : isChurchRosser A = isConfluent A =>
+\lemma ChurchRosser=Confluence {A : SimpleARS} : isChurchRosser A = isConfluent A =>
   propExt ChurchRosser=>Confluence Confluence=>ChurchRosser
 
-\lemma StrongConfluence=>Confluence {A : ARS} (sconf : isStronglyConfluent A) : isConfluent A =>
+\lemma StrongConfluence=>Confluence {A : SimpleARS} (sconf : isStronglyConfluent A) : isConfluent A =>
   strong-join=>Confluence sconf
   \where {
-    \lemma SCR=>strong-join {A : ARS} (sconf : isStronglyConfluent A) {a b c : A} (a~>*b : a ~>_* b) (a~>c : a ~> c) : StrongJoin b c \elim a~>*b
+    \lemma SCR=>strong-join {A : SimpleARS} (sconf : isStronglyConfluent A) {a b c : A} (a~>*b : a ~>_* b) (a~>c : a ~> c) : StrongJoin b c \elim a~>*b
       | trc-direct p => strong-join c (rc-rel (rewriteI p a~>c)) trc-direct'
       | trc-connect c' a~>c' c'~>*b => \let strong-join-c-c' => sconf a~>c' a~>c \in \case strong-join-c-c' \with {
         | strong-join d c~>_=d c~>*d => \case \elim c~>_=d \with {
@@ -63,7 +63,7 @@
         }
       }
 
-    \lemma strong-join=>Confluence {A : ARS} (sconf : isStronglyConfluent A) {x y z : A} (x~>*y : x ~>_* y) (x~>*z : x ~>_* z) : Join y z \elim x~>*z
+    \lemma strong-join=>Confluence {A : SimpleARS} (sconf : isStronglyConfluent A) {x y z : A} (x~>*y : x ~>_* y) (x~>*z : x ~>_* z) : Join y z \elim x~>*z
       | trc-direct p => join y trc-direct' (rewriteI p x~>*y)
       | trc-connect c x~>c c~>*z => \let partial => SCR=>strong-join sconf x~>*y x~>c \in \case partial \with {
         | strong-join d y~>_=d c~>*d => \let inner-join => strong-join=>Confluence sconf c~>*d c~>*z
@@ -73,13 +73,13 @@
       }
   }
 
-\lemma Confluence=>LocalConfluence {A : ARS} (conf : isConfluent A) : isLocallyConfluent A =>
+\lemma Confluence=>LocalConfluence {A : SimpleARS} (conf : isConfluent A) : isLocallyConfluent A =>
   \lam {a} {b} {c} a~>b a~>c => conf (trc-unary a~>b) (trc-unary a~>c)
 
-\lemma Confluence=>NormalFormProperty {A : ARS} (conf : isConfluent A) : hasNormalFormProperty A =>
+\lemma Confluence=>NormalFormProperty {A : SimpleARS} (conf : isConfluent A) : hasNormalFormProperty A =>
   \lam {a} {b} a<~>*b bnf => conf=>nfp-helper conf a b a<~>*b bnf
   \where {
-    \lemma conf=>nfp-helper {A : ARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) (bnf : isNormalForm b) : a ~>_* b \elim a<~>*b
+    \lemma conf=>nfp-helper {A : SimpleARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) (bnf : isNormalForm b) : a ~>_* b \elim a<~>*b
       | trc-direct a=b => trc-direct a=b
       | trc-connect c a<~>c c<~>*b => \let c~>*b => (conf=>nfp-helper conf c b c<~>*b bnf) \in \case \elim a<~>c \with {
         | sc-left a~>c => trc-connect c a~>c c~>*b
@@ -92,23 +92,23 @@
       }
   }
 
-\lemma NormalFormProperty=>UniqueNormalForms {A : ARS} (nfp : hasNormalFormProperty A) : hasUniqueNormalForms A =>
+\lemma NormalFormProperty=>UniqueNormalForms {A : SimpleARS} (nfp : hasNormalFormProperty A) : hasUniqueNormalForms A =>
   \lam {a} {b} a<~>*b anf bnf => \case (nfp a<~>*b bnf) \with {
     | trc-direct a=b => a=b
     | trc-connect c r t => absurd (anf r)
   }
 
-\lemma UniqueNormalForms=>UniqueNormalFormsWrtReduction {A : ARS} (unf : hasUniqueNormalForms A) : hasUniqueNormalFormsWrtReduction A =>
+\lemma UniqueNormalForms=>UniqueNormalFormsWrtReduction {A : SimpleARS} (unf : hasUniqueNormalForms A) : hasUniqueNormalFormsWrtReduction A =>
   \lam {a} {b} {c} a~>*b a~>*c bnf cnf => unf (<~>*-compose a (<~>*-reverse (~>*=><~>* a~>*b)) (~>*=><~>* a~>*c)) bnf cnf
 
-\lemma Normalization+UniqueNormalForms=>Confluence {A : ARS} (norm : isNormalizing A) (unf : hasUniqueNormalForms A) : isConfluent A =>
+\lemma Normalization+UniqueNormalForms=>Confluence {A : SimpleARS} (norm : isNormalizing A) (unf : hasUniqueNormalForms A) : isConfluent A =>
   \lam {a} {b} {c} a~>*b a~>*c => \case (norm b), (norm c) \with {
     | normal-form b' b'nf b~>*b', normal-form c' c'nf c~>*c' =>
       \let b'=c' => UniqueNormalForms=>UniqueNormalFormsWrtReduction unf (~>*-concat a~>*b b~>*b') (~>*-concat a~>*c c~>*c') b'nf c'nf
       \in join b' b~>*b' (rewrite b'=c' c~>*c')
   }
 
-\lemma Termination+LocalConfluence=>Confluence {A : ARS} (term : isTerminating A) (lconf : isLocallyConfluent A): isConfluent A =>
+\lemma Termination+LocalConfluence=>Confluence {A : SimpleARS} (term : isTerminating A) (lconf : isLocallyConfluent A): isConfluent A =>
   \lam {a} => well-founded-induction-transitive
       (\lam a => \Pi {b c : A} (p1 : a ~>_* b) (p2 : a ~>_* c) -> Join b c) -- we want to prove confluence for each element
       (\lam x step {b'} {c'} x~>*b' x~>*c' => \case x~>*b', x~>*c' \with {
@@ -125,6 +125,6 @@
       a
       (Acc=>AccTrans a (term a))
 
-\lemma Termination=>[LocalConfluence=Confluence] \alias Newman {A : ARS} (term : isTerminating A) :
+\lemma Termination=>[LocalConfluence=Confluence] \alias Newman {A : SimpleARS} (term : isTerminating A) :
   isLocallyConfluent A = isConfluent A =>
   propExt (Termination+LocalConfluence=>Confluence term __) Confluence=>LocalConfluence

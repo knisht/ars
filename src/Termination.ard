@@ -10,14 +10,14 @@
 \import Set.Fin
 \import Set
 
-\func isNormalForm {A : ARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
+\func isNormalForm {A : SimpleARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
 
-\truncated \data HasNormalForm {A : ARS} (a : A) : \Prop
+\truncated \data HasNormalForm {A : SimpleARS} (a : A) : \Prop
   | normal-form (b : A) (isNormalForm b) (a ~>_* b)
 
-\func isNormalizing (A : ARS) : \Prop => \Pi (a : A) -> HasNormalForm a
+\func isNormalizing (A : SimpleARS) : \Prop => \Pi (a : A) -> HasNormalForm a
 
-{- | Definition of accessibility (termination) for ARS -}
+{- | Definition of accessibility (termination) for SimpleARS -}
 \data Acc {A : \Set} (R : Rel A) (a : A)
   | acc (\Pi (a' : A) -> a `R` a' -> Acc R a')
   \where {
@@ -39,9 +39,9 @@
       }
   }
 
-\func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc (~>) a
+\func isTerminating (A : SimpleARS) : \Prop => \Pi (a : A) -> Acc (~>) a
 
-\lemma Termination=>Normalization {A : ARS} (dec : \Pi (a : A) -> Dec (∃ (a' : A) (a ~> a')))
+\lemma Termination=>Normalization {A : SimpleARS} (dec : \Pi (a : A) -> Dec (∃ (a' : A) (a ~> a')))
                                   (a : A)
                                   (term : Acc (~>) a) : HasNormalForm a =>
   well-founded-induction-transitive
@@ -66,9 +66,9 @@
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
 
-\func one-step-reduction {A : ARS} (a : A) : \Set => \Sigma (b : A) (a ~> b)
+\func one-step-reduction {A : SimpleARS} (a : A) : \Set => \Sigma (b : A) (a ~> b)
 
-\data ReductionPath {A : ARS} (a : A)
+\data ReductionPath {A : SimpleARS} (a : A)
   | branch (b : A) (ReductionPath b) (a ~> b)
   | leaf (isNormalForm a)
 

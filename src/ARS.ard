@@ -10,13 +10,13 @@
 
 \class AbstractReductionSystem \alias ARS (A : \Set)
   | \infix 4 ~> : Rel A -- | Reduction relation
-  | \infix 5 |~| : Rel A
-  | |~|_symmetric (a b : A) (a~b : a |~| b) : (b |~| a)
+  | \infix 5 |--| : Rel A -- | Symmetric relation
+  | |--|_symmetric (a b : A) (a~b : a |--| b) : (b |--| a)
 
 {- | An Abstract Reduction System with equivalence relation defaulted to identity one. -}
 \class SimpleARS \extends AbstractReductionSystem
-  | |~| => \lam a b => a = b
-  | |~|_symmetric (a b : A) (p : a |~| b) => inv p
+  | |--| => \lam a b => a = b
+  | |--|_symmetric (a b : A) (p : a |--| b) => inv p
 
 {- | Reduction in zero steps -}
 \func \infix 4 ~>_0 {A : ARS} : Rel A => =
@@ -81,6 +81,18 @@
       | join c' a~>*c' b~>*c' => join c' a~>*c' (~>*-concat c~>*b b~>*c')
   }
 
+\func \infix 5 ~ {A : ARS} : Rel A => transitive-refl-closure (|--|)
 
+\truncated \data \infix 5 |==| {A : ARS} (a b : A) : \Prop
+  | red-to (a ~> b)
+  | red-from (a <~ b)
+  | eq (a ~ b)
 
+\func Conversion~ {A : ARS} : Rel A => transitive-refl-closure (|==|)
+
+\truncated \data Join~ {A : ARS} (a b : A) : \Prop
+  | join~ (c d : A) (a ~>_* c) (c ~ d) (b ~>_* d)
+
+\truncated \data \infix 4 ~>~ {A : ARS} (a b : A) : \Prop
+  | red~ (c d : A) (a ~ c) (c ~> d) (d ~ b)
 
