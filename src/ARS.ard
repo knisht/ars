@@ -10,18 +10,13 @@
 
 \class AbstractReductionSystem \alias ARS (A : \Set)
   | \infix 4 ~> : Rel A -- | Reduction relation
-  | quotient : Equivalence A
+  | \infix 5 |~| : Rel A
+  | |~|_symmetric (a b : A) (a~b : a |~| b) : (b |~| a)
 
 {- | An Abstract Reduction System with equivalence relation defaulted to identity one. -}
 \class SimpleARS \extends AbstractReductionSystem
-  | quotient => identity-equivalence A
-  \where {
-    \func identity-equivalence (A : \Set) : Equivalence A \cowith
-      | ~ a b => a = b
-      | ~-reflexive => idp
-      | ~-symmetric => inv
-      | ~-transitive => *>
-  }
+  | |~| => \lam a b => a = b
+  | |~|_symmetric (a b : A) (p : a |~| b) => inv p
 
 {- | Reduction in zero steps -}
 \func \infix 4 ~>_0 {A : ARS} : Rel A => =

@@ -2,14 +2,13 @@
 \import Data.List
 \import Data.Or
 \import Equiv
-\import Function.Meta
 \import Logic
 \import Logic.Meta
 \import Paths
 \import Paths.Meta
 \import Relation
-\import Set
 \import Set.Fin
+\import Set
 
 \func isNormalForm {A : ARS} (a : A) : \Prop => \Pi {b : A} -> Not (a ~> b)
 
@@ -42,8 +41,10 @@
 
 \func isTerminating (A : ARS) : \Prop => \Pi (a : A) -> Acc (~>) a
 
-\lemma Termination=>Normalization {A : ARS} (dec : \Pi (a : A) -> Dec (∃ (a' : A) (a ~> a'))) (term : isTerminating A)  : isNormalizing A =>
-  \lam a => well-founded-induction-transitive
+\lemma Termination=>Normalization {A : ARS} (dec : \Pi (a : A) -> Dec (∃ (a' : A) (a ~> a')))
+                                  (a : A)
+                                  (term : Acc (~>) a) : HasNormalForm a =>
+  well-founded-induction-transitive
       HasNormalForm
       (\lam z step => \case dec z \with {
         | yes (inP (x, z~>x)) => \case (step x (tc-direct z~>x)) \with {
@@ -52,7 +53,7 @@
         | no n => normal-form z (\lam {b} z~>b => (n (inP (b, z~>b)))) trc-direct'
       })
       a
-      (Acc=>AccTrans a (term a))
+      (Acc=>AccTrans a (term))
 
 \func well-founded-induction {A : \Set} {R : Rel A} (C : A -> \Type)
                              (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
@@ -67,8 +68,8 @@
 
 \func one-step-reduction {A : ARS} (a : A) : \Set => \Sigma (b : A) (a ~> b)
 
-\data ReductionTree {A : ARS} (a : A)
-  | branch (b : A) (ReductionTree b) (a ~> b)
+\data ReductionPath {A : ARS} (a : A)
+  | branch (b : A) (ReductionPath b) (a ~> b)
   | leaf (isNormalForm a)
 
 
