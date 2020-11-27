@@ -1,0 +1,122 @@
+\import ARS
+\import Equiv
+\import Logic
+\import Logic.Meta
+\import Meta
+\import Set
+\import Set.Fin
+
+\module UntypedTRS \where {
+  -- | Family of functional symbols of finite arity
+  \func Signature => \Pi (arity : Nat) -> \Set
+
+  \func Constant (S : Signature) : \Set => S 0
+
+  \data Term (Vars : \Set) (Symbol : Signature): \Set
+    | var Vars
+    | func (arity : Nat) (f : Symbol arity) (choosing : \Pi (Fin arity) -> Term Vars Symbol)
+    \where {
+      -- | Checks if term `t` contains variable `v`
+      \func \infix 4 in {V : \Set} {FS : Signature} (v : V) (t : Term V FS) : \Prop \elim t
+        | var v' => v' = v
+        | func arity (f : FS arity) choosing => ∃ (n : Fin arity) (v `in` (choosing n))
+    }
+
+  \func constant-term {V : \Set} {F : Signature} (c : Constant F) : Term V F => func _ c (\lam x => contradiction)
+
+  -- | todo : constructing rewrite rules by terms is a candidate for meta
+  \record RewriteRule {V : \Set} {S : Signature} (l r : Term V S) {
+    | l-is-not-var : Not (\Sigma (v : V) (var v = l))
+    | r-is-not-generating : \Pi (v : V) (v Term.in r) -> v Term.in l
+  }
+
+  \func Substitution (V : \Set) (S : Signature) : \Set => V -> Term V S
+
+  \func applySubstitution {V : \Set} {S : Signature} (t : Term V S) (subst : Substitution V S) : Term V S \elim t
+    | var v => subst v
+    | func arity f choosing => func arity f (\lam s => applySubstitution (choosing s) subst)
+
+  -- | Allows to insert a context (denoted as white square in papers) in terms.
+  \data SignatureWithWildcard (MainSignature : Signature) (n : Nat) : \Set
+    | main (MainSignature n)
+    | wildcard
+
+  \func replaceWildcards {V : \Set} {S : Signature} (C : Term V (SignatureWithWildcard S)) (t : Term V S) : Term V S \elim C
+    | var v => var v
+    | func arity f choosing => \case \elim f \with {
+      | main m => func arity m (\lam fin => replaceWildcards (choosing fin) t)
+      | wildcard => t
+    }
+
+  \truncated \data RewriteRelation {V : \Set} {S : Signature} (A B : Term V S) : \Prop
+    | term-rewriting (rule : RewriteRule {V} {S})
+                     (C : Term V (SignatureWithWildcard S))
+                     (subst : Substitution V S)
+                     (left-term : A = replaceWildcards C (applySubstitution rule.l subst))
+                     (right-term : B = replaceWildcards C (applySubstitution rule.r subst))
+
+  \class TermRewritingSystem (V : \Set) (S : Signature) \extends SimpleARS
+    | A => (Term V S)
+    | ~> => RewriteRelation {V} {S}
+
+
+
+
+
+
+  -- example of usage
+  \module Peano \where {
+    \data Variables | _x | _y | _z
+
+    \data Constants | zro
+
+    \data Unary | inc
+
+    \data Binary | plus
+
+    \func ArithSignature : Signature => \lam n => \case \elim n \with {
+      | 0 => Constants
+      | 1 => Unary
+      | 2 => Binary
+      | _ => Empty
+    }
+
+    \instance ArithmeticTRS : TermRewritingSystem => \new TermRewritingSystem Variables ArithSignature
+
+    \func _x+suc[_y] : Term Variables ArithSignature => func 2 plus (\lam x => \case \elim x \with {
+      | fzero => var _x
+      | fsuc _ => func 1 inc (\lam y => \case \elim y \with {
+        | fzero => var _y
+        | fsuc _ => contradiction
+      })
+    })
+
+    \func suc[_x+_y] : Term Variables ArithSignature => func 1 inc (\lam x => \case \elim x \with {
+      | fzero => func 2 plus (\lam x => \case \elim x \with {
+        | fzero => var _x
+        | fsuc _ => var _y
+      })
+      | fsuc _ => contradiction
+    })
+
+    \func _x+suc[_y]~>suc[_x+_y] : RewriteRule _x+suc[_y] suc[_x+_y] \cowith
+      | l-is-not-var => \lam k => \case \elim k \with {
+        | (a, b) => contradiction
+      }
+      | r-is-not-generating v v-in-right => {?}  -- too tedious to prove
+
+    \func _x+0 : Term Variables ArithSignature => func 2 plus (\lam x => \case \elim x \with {
+      | fzero => var _x
+      | fsuc x => constant-term zro
+    })
+
+    \func _x+0~>_x : RewriteRule _x+0 (var _x) \cowith
+      | l-is-not-var => \lam k => \case \elim k \with {
+        | (a, b) => contradiction
+      }
+      | r-is-not-generating v _x=v => inP (fzero, _x=v)
+  }
+}
+
+
+
