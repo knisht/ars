@@ -1,4 +1,5 @@
 \import ARS
+\import Data.Or
 \import Equiv
 \import Logic
 \import Logic.Meta
@@ -22,12 +23,14 @@
         | func arity (f : FS arity) choosing => ∃ (n : Fin arity) (v `in` (choosing n))
     }
 
+  \open Term
+
   \func constant-term {V : \Set} {F : Signature} (c : Constant F) : Term V F => func _ c (\lam x => contradiction)
 
   -- | todo : constructing rewrite rules by terms is a candidate for meta
   \record RewriteRule {V : \Set} {S : Signature} (l r : Term V S) {
     | l-is-not-var : Not (\Sigma (v : V) (var v = l))
-    | r-is-not-generating : \Pi (v : V) (v Term.in r) -> v Term.in l
+    | r-is-not-generating : \Pi (v : V) (v in r) -> v in l
   }
 
   \func Substitution (V : \Set) (S : Signature) : \Set => V -> Term V S
@@ -48,21 +51,17 @@
       | wildcard => t
     }
 
-  \truncated \data RewriteRelation {V : \Set} {S : Signature} (A B : Term V S) : \Prop
+  \truncated \data RewriteRelation {V : \Set} {S : Signature} (set-of-rules : RewriteRule {V} {S} -> \Prop) (A B : Term V S) : \Prop
     | term-rewriting (rule : RewriteRule {V} {S})
+                     (set-of-rules rule)
                      (C : Term V (SignatureWithWildcard S))
                      (subst : Substitution V S)
                      (left-term : A = replaceWildcards C (applySubstitution rule.l subst))
                      (right-term : B = replaceWildcards C (applySubstitution rule.r subst))
 
-  \class TermRewritingSystem (V : \Set) (S : Signature) \extends SimpleARS
-    | A => (Term V S)
-    | ~> => RewriteRelation {V} {S}
-
-
-
-
-
+  \class TermRewritingSystem (V : \Set) (S : Signature) (set-of-rules : RewriteRule {V} {S} -> \Prop) \extends SimpleARS
+    | A => Term V S
+    | ~> => RewriteRelation {V} {S} set-of-rules
 
   -- example of usage
   \module Peano \where {
@@ -80,8 +79,6 @@
       | 2 => Binary
       | _ => Empty
     }
-
-    \instance ArithmeticTRS : TermRewritingSystem => \new TermRewritingSystem Variables ArithSignature
 
     \func _x+suc[_y] : Term Variables ArithSignature => func 2 plus (\lam x => \case \elim x \with {
       | fzero => var _x
@@ -115,6 +112,11 @@
         | (a, b) => contradiction
       }
       | r-is-not-generating v _x=v => inP (fzero, _x=v)
+
+    \func ArithmeticRules : RewriteRule {Variables} {ArithSignature} -> \Prop =>
+      \lam rule => (rule = _x+suc[_y]~>suc[_x+_y]) || (rule = _x+0~>_x)
+
+    \instance ArithmeticTRS : TermRewritingSystem => \new TermRewritingSystem Variables ArithSignature ArithmeticRules
   }
 }
 
