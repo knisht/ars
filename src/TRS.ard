@@ -59,9 +59,11 @@
                      (left-term : A = replaceWildcards C (applySubstitution rule.l subst))
                      (right-term : B = replaceWildcards C (applySubstitution rule.r subst))
 
-  \class TermRewritingSystem (V : \Set) (S : Signature) (set-of-rules : RewriteRule {V} {S} -> \Prop) \extends SimpleARS
+  \class TermRewritingSystem (V : \Set) (S : Signature) (set-of-rules : RewriteRule {V} {S} -> \Prop) \extends AbstractReductionSystem
     | A => Term V S
     | ~> => RewriteRelation {V} {S} set-of-rules
+
+  \class SimpleTermRewritingSystem \extends TermRewritingSystem, SimpleARS
 
   -- example of usage
   \module Peano \where {
@@ -116,7 +118,10 @@
     \func ArithmeticRules : RewriteRule {Variables} {ArithSignature} -> \Prop =>
       \lam rule => (rule = _x+suc[_y]~>suc[_x+_y]) || (rule = _x+0~>_x)
 
-    \instance ArithmeticTRS : TermRewritingSystem => \new TermRewritingSystem Variables ArithSignature ArithmeticRules
+    \instance ArithmeticTRS : SimpleTermRewritingSystem
+      | V => Variables
+      | S => ArithSignature
+      | set-of-rules => ArithmeticRules
   }
 }
 
