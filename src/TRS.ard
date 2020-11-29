@@ -1,11 +1,11 @@
 \import ARS
 \import Data.Or
 \import Equiv
+\import Equiv.Univalence
 \import Logic
 \import Logic.Meta
 \import Meta
 \import Set
-\import Set.Fin
 
 \module UntypedTRS \where {
   -- | Family of functional symbols of finite arity
@@ -83,19 +83,17 @@
     }
 
     \func _x+suc[_y] : Term Variables ArithSignature => func 2 plus (\lam x => \case \elim x \with {
-      | fzero => var _x
-      | fsuc _ => func 1 inc (\lam y => \case \elim y \with {
-        | fzero => var _y
-        | fsuc _ => contradiction
+      | 0 => var _x
+      | 1 => func 1 inc (\lam y => \case \elim y \with {
+        | 0 => var _y
       })
     })
 
     \func suc[_x+_y] : Term Variables ArithSignature => func 1 inc (\lam x => \case \elim x \with {
-      | fzero => func 2 plus (\lam x => \case \elim x \with {
-        | fzero => var _x
-        | fsuc _ => var _y
+      | 0 => func 2 plus (\lam x => \case \elim x \with {
+        | 0 => var _x
+        | 1 => var _y
       })
-      | fsuc _ => contradiction
     })
 
     \func _x+suc[_y]~>suc[_x+_y] : RewriteRule _x+suc[_y] suc[_x+_y] \cowith
@@ -105,15 +103,15 @@
       | r-is-not-generating v v-in-right => {?}  -- too tedious to prove
 
     \func _x+0 : Term Variables ArithSignature => func 2 plus (\lam x => \case \elim x \with {
-      | fzero => var _x
-      | fsuc x => constant-term zro
+      | 0 => var _x
+      | 1 => constant-term zro
     })
 
     \func _x+0~>_x : RewriteRule _x+0 (var _x) \cowith
       | l-is-not-var => \lam k => \case \elim k \with {
         | (a, b) => contradiction
       }
-      | r-is-not-generating v _x=v => inP (fzero, _x=v)
+      | r-is-not-generating v _x=v => inP (0, _x=v)
 
     \func ArithmeticRules : RewriteRule {Variables} {ArithSignature} -> \Prop =>
       \lam rule => (rule = _x+suc[_y]~>suc[_x+_y]) || (rule = _x+0~>_x)
@@ -124,6 +122,3 @@
       | set-of-rules => ArithmeticRules
   }
 }
-
-
-
