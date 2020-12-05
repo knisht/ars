@@ -1,0 +1,122 @@
+\import Arith.Nat
+\import Data.List
+\import Logic
+\import Logic.Meta
+\import Paths
+\import Paths.Meta
+\import Set
+\import Set.Fin
+\open Nat
+
+\data Vector (A : \Set) (n : Nat) \elim n
+  | 0 => []
+  | suc n => \infixr 5 ::: A (Vector A n)
+
+\class SomeVector (A : \Set)
+  | size : Nat
+  | \classifying content : Vector A size
+
+\func Vector-from-list {A : \Set} (as : List A) : SomeVector A (length as) \elim as
+  | nil => \new SomeVector A 0 []
+  | :: a as => \let recursive : SomeVector A (length as) => Vector-from-list as \in \new SomeVector A (suc recursive.size) (a ::: recursive.content)
+  \where {
+    \func length {A : \Type} (list : List A) : Nat \elim list
+      | nil => 0
+      | :: a list => suc (length list)
+  }
+
+\func svnil {A : \Set} : SomeVector A \cowith
+  | size => 0
+  | content => []
+
+\func append {A : \Set} (a : A) (V : SomeVector A) : SomeVector A \cowith
+  | size => suc V.size
+  | content => a ::: V
+
+\func \infix 7 !! {A : \Set} {n : Nat} (v : Vector A n) (index : Fin n) : A \elim n, v, index
+  | suc n, ::: a v, fsuc index => v !! index
+  | suc n, ::: a v, fzero => a
+
+\func map {A B : \Set} {n : Nat} (f : A -> B) (v : Vector A n) : Vector B n \elim n, v
+  | 0, [] => []
+  | suc n, ::: a v => f a ::: map f v
+
+\lemma Vector-extensionality {A : \Set} {n : Nat} (V V' : Vector A n) (eq : \Pi (i : Fin n) -> V !! i = V' !! i) : V = V' \elim n, V, V', eq
+  | 0, [], [], eq => idp
+  | suc n, ::: a V, ::: a1 V', eq =>
+    \let | a=a1 => eq fzero
+         | V=V' => Vector-extensionality V V' (\lam i => eq (fsuc i)) \in transport2 (\lam x U => a ::: V = x ::: U) a=a1 V=V' idp
+
+\func swap {A : \Set} {n : Nat} (V : Vector A n) (a b : Fin n) : Vector A n => replace (replace V (V !! b) a) (V !! a) b
+  \where {
+    \lemma symmetric {A : \Set} {n : Nat} (V : Vector A n) (a b : Fin n) : (replace (replace V (V !! b) a) (V !! a) b) = (replace (replace V (V !! a) b) (V !! b) a) =>
+      \let | ins-v-a : (V !! b) = (replace V (V !! b) a) !! a => replace.insertProperty V (V !! b) a
+           | ins-rv-a : (V !! b) = (replace (replace V (V !! a) b) (V !! b) a) !! a => replace.insertProperty (replace V (V !! a) b) (V !! b) a
+           | ins-v-b : (V !! a) = (replace V (V !! a) b) !! b => replace.insertProperty V (V !! a) b
+           | ins-rv-b : (V !! a) = (replace (replace V (V !! b) a) (V !! a) b) !! b => replace.insertProperty (replace V (V !! b) a) (V !! a) b
+           | ins-l-a : \Pi (j : Fin n) -> Not (j = a) -> V !! j = replace V (V !! b) a !! j => replace.remainProperty V (V !! b) a
+           | ins-rl-a : \Pi (j : Fin n) -> Not (j = a) -> (replace V (V !! a) b) !! j = replace (replace V (V !! a) b) (V !! b) a !! j =>
+             replace.remainProperty (replace V (V !! a) b) (V !! b) a
+           | ins-l-b : \Pi (j : Fin n) -> Not (j = b) -> V !! j = replace {A} {n} V (V !! a) b !! j => replace.remainProperty V (V !! a) b
+           | ins-rl-b : \Pi (j : Fin n) -> Not (j = b) -> (replace V (V !! b) a) !! j = replace {A} {n} (replace V (V !! b) a) (V !! a) b !! j =>
+             replace.remainProperty (replace V (V !! b) a) (V !! a) b \in
+        \case Fin-is-decidable a b \with {
+          | yes e => rewrite e idp
+          | no a/=b =>
+            Vector-extensionality (replace (replace V (V !! b) a) (V !! a) b) (replace (replace V (V !! a) b) (V !! b) a) (\lam ind => \case Fin-is-decidable ind a \with {
+              | yes e => \let k => ins-rl-b a a/=b \in rewrite e (inv k *> inv ins-v-a *> ins-rv-a)
+              | no n1 => \case Fin-is-decidable ind b \with {
+                | yes e => \let k => ins-rl-a b (\lam e => a/=b (inv e)) \in rewrite e (inv ins-rv-b *> ins-v-b *> k)
+                | no n2 => \let | k1 => ins-rl-a ind n1
+                                | k2 => ins-rl-b ind n2
+                                | k3 => ins-l-a ind n1
+                                | k4 => ins-l-b ind n2
+                           \in inv k2 *> inv k3 *> k4 *> k1
+              }
+            })
+        }
+  }
+
+\func replace {A : \Set} {n : Nat} (V : Vector A n) (a : A) (index : Fin n) : Vector A n \elim n, V, index
+  | suc n, ::: a' V, fsuc index => a' ::: replace V a index
+  | suc n, ::: a' V, fzero => a ::: V
+  \where {
+    \lemma insertProperty {A : \Set} {n : Nat} (V : Vector A n) (a : A) (index : Fin n) : a = (replace V a index) !! index \elim n, V, index
+      | suc n, ::: a1 V, fsuc index => insertProperty V a index
+      | suc n, ::: a1 V, fzero => idp
+
+    \lemma remainProperty {A : \Set} {n : Nat} (V : Vector A n) (a : A) (i j : Fin n) (p : Not (j = i)) : V !! j = (replace V a i) !! j \elim n, V, i, j, p
+      | suc n, ::: a1 V, fsuc i, fsuc j, p => remainProperty V a i j (\lam eq => p (pmap fsuc eq))
+      | suc n, ::: a1 V, fzero, j, p => \case \elim j, \elim p \with {
+        | fzero, p => absurd (p idp)
+        | fsuc j, _ => idp
+      }
+      | suc n, ::: a1 V, fsuc i, fzero, p => idp
+  }
+
+\lemma Fin-is-decidable {n : Nat} (a b : Fin n) : Dec (a = b) \elim n, a, b
+  | suc n, fzero, fsuc b => no contradiction
+  | suc n, fsuc a, fzero => no contradiction
+  | suc n, fsuc a, fsuc b => \case Fin-is-decidable a b \with {
+    | yes e => yes (pmap fsuc e)
+    | no n1 => no (\lam e => n1 (fsuc-isInj a b e))
+  }
+  | suc n, fzero, fzero => yes idp
+
+\func swap-is-permutation {A : \Set} {n : Nat} (a : A)
+                          (V : Vector A n)
+                          (i j x : Fin n) (c : (a = V !! x)) : \Sigma (y : Fin n) (a = (swap V i j) !! y) =>
+  \case Fin-is-decidable x i \with {
+    | yes e => (j, rewriteI e (swap-lemma x j c))
+    | no n1 => \case Fin-is-decidable x j \with {
+      | yes e => (i, rewriteI e (rewrite (swap.symmetric V i x) (swap-lemma x i c)))
+      | no n2 => \let | res1 => replace.remainProperty (replace V (V !! j) i) (V !! i) j x n2
+                      | res2 => replace.remainProperty V (V !! j) i x n1 \in (x, c *> res2 *> res1)
+    }
+  } \where {
+  \lemma swap-lemma {A : \Set} {n : Nat} {a : A} {V : Vector A n} (i j : Fin n) (c : a = V !! i) : a = (swap V i j) !! j \elim n, V, i, j, c
+    | suc n, ::: a1 V, fsuc i, fsuc j, c => swap-lemma i j c
+    | suc n, ::: a1 V, fzero, j, c => \let x => replace.insertProperty (replace (a1 ::: V) ((a1 ::: V) !! j) fzero) a1 j \in rewrite c x
+    | suc n, ::: a1 V, fsuc i, fzero, c => c
+}
+
