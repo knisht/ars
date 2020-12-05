@@ -1,4 +1,5 @@
 \import Arith.Nat
+\import Data.List
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -9,11 +10,20 @@
 
 \data Vector (A : \Set) (n : Nat) \elim n
   | 0 => []
-  | suc n => \infix 5 ::: A (Vector A n)
+  | suc n => \infixr 5 ::: A (Vector A n)
 
 \class SomeVector (A : \Set)
   | size : Nat
   | \classifying content : Vector A size
+
+\func Vector-from-list {A : \Set} (as : List A) : SomeVector A (length as) \elim as
+  | nil => \new SomeVector A 0 []
+  | :: a as => \let recursive : SomeVector A (length as) => Vector-from-list as \in \new SomeVector A (suc recursive.size) (a ::: recursive.content)
+  \where {
+    \func length {A : \Type} (list : List A) : Nat \elim list
+      | nil => 0
+      | :: a list => suc (length list)
+  }
 
 \func svnil {A : \Set} : SomeVector A \cowith
   | size => 0

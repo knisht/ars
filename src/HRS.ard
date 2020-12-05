@@ -1,4 +1,6 @@
 \import ARS
+\import Algebra.Domain.Bezout
+\import Data.List (::, nil)
 \import Data.Or
 \import Equiv
 \import Equiv.Univalence
@@ -96,7 +98,7 @@
                   (t : Term env context s)
                   (subst : MetaSubstitution env) : Term env context s \elim t
         | var index p => var index p
-        | metavar parameters m choosing => Substitution.apply (subst m) choosing
+        | metavar parameters m choosing => Substitution.apply (subst m) (\lam i => apply (choosing i) subst)
         | func parameters f choosing => func parameters f (\lam i => apply (choosing i) subst)
         | abs s1 t => abs s1 (apply t subst)
     }
@@ -129,11 +131,129 @@
         | idp => idp
     }
 
-  \class HighOrderTermRewritingSystem (env : Environment) (set-of-rules : RewriteRule {env} -> \Prop) \extends AbstractReductionSystem
+  \class HighOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : RewriteRule {env} -> \Prop) \extends AbstractReductionSystem
     | A => \Sigma (context : SomeVector env.Sort) (sort : Sort) (Term env context sort)
     | ~> a b => \case \elim a, b \with {
       | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation set-of-rules A (transport2 (Term env) p q B))
     }
 
   \class SimpleHighOrderTermRewritingSystem \extends HighOrderTermRewritingSystem, SimpleARS
+}
+
+\module UntypedLambdaCalculus \where {
+  \open HighOrderTRS
+
+  \data SingularSort | lc-term
+
+  \data Symbols (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim parameters, s
+    | (2, ::: lc-term (::: lc-term [])), lc-term => application
+
+  \data MetaVars (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim s
+    | lc-term => MVAR Nat
+
+  \func LCEnv : Environment \cowith
+    | Sort => SingularSort
+    | Symbol => Symbols
+    | MetaVar => MetaVars
+
+  \func BetaRedex : Term LCEnv svnil lc-term =>
+    func
+        (\new SomeVector SingularSort 2 (lc-term ::: lc-term ::: []))
+        application
+        (\lam i => \case \elim i \with {
+          | fzero => MiddleRedex
+          | fsuc fzero => MRed2
+          | fsuc (fsuc x) => contradiction
+        })
+
+  \func MiddleRedex : Term LCEnv svnil lc-term =>
+    abs lc-term (metavar (\new SomeVector SingularSort 1 (lc-term ::: [])) (MVAR 1) (\lam j => \case \elim j \with {
+      | fzero => var fzero idp
+      | fsuc j => contradiction
+    }))
+
+  \func MRed2 : Term LCEnv svnil lc-term =>
+    metavar svnil (MVAR 2) contradiction
+
+  \func BetaResult : Term LCEnv svnil lc-term =>
+    metavar (\new SomeVector SingularSort 1 (lc-term ::: [])) (MVAR 1) (\lam i => \case \elim i \with {
+      | fzero => metavar svnil (MVAR 2) contradiction
+      | fsuc i => contradiction
+    })
+
+  \func beta-reduction : RewriteRule BetaRedex BetaResult \cowith
+    | r-is-not-generating => {?}
+
+  \instance UntypedLambdaCalculus : SimpleHighOrderTermRewritingSystem => \new SimpleHighOrderTermRewritingSystem {
+    | env => LCEnv
+    | set-of-rules => __ = beta-reduction
+  }
+
+  -- \x.\y.x
+
+  \func K : Term LCEnv svnil lc-term => abs lc-term (abs lc-term (var (fsuc fzero) idp))
+
+  -- \x.x
+
+  \func I : Term LCEnv svnil lc-term => abs lc-term (var fzero idp)
+
+  -- I I
+
+  \func I_I : Term LCEnv svnil lc-term =>
+    func (\new SomeVector SingularSort 2 (lc-term ::: lc-term ::: [])) application (\lam i => \case \elim i \with {
+      | fzero => I
+      | fsuc fzero => I
+      | fsuc (fsuc x) => contradiction
+    })
+
+  \func funExt {A : \Type} {B : A -> \Type} {f g : \Pi (x : A) -> B x} (h : \Pi (x : A) -> f x = g x) : f = g =>
+    ext (\lam a => h a)
+
+  \func suitable-substitution : MetaSubstitution LCEnv =>
+    \lam {sort} {params} mvar => \case \elim sort, \elim params, \elim mvar \with {
+      | lc-term, (1, ::: lc-term []), MVAR 1 => var fzero idp
+      | lc-term, (0, []), MVAR 2 => I
+      | lc-term, params, mvar => metavar svnil (MVAR 3) (contradiction)
+    }
+
+  \func rewrite-step : RewriteStep I_I I \cowith
+    | rule => beta-reduction
+    | substitution => suitable-substitution
+    | left-coherence => rewrite eq eq2
+    | right-coherence => idp
+    \where {
+      \func eq : (\lam (i : Fin 2) => MetaSubstitution.apply (\case \elim i \return Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i) \with {
+        | fzero => MiddleRedex
+        | fsuc fzero => MRed2
+        | fsuc (fsuc x) => contradiction
+      }) suitable-substitution) = (\lam (i : Fin 2) => \case \elim i \return Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i) \with {
+        | fzero => I
+        | fsuc fzero => I
+        | fsuc (fsuc x) => contradiction
+      }) =>
+        funExt {Fin 2} {\lam i => Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i)} (\lam i => \case \elim i \with {
+          | fzero => idp
+          | fsuc fzero => idp
+          | fsuc (fsuc i) => contradiction
+        })
+
+      \func eq2 : (func (\new SomeVector (Sort {LCEnv}) {
+        | size => 2
+        | content => lc-term ::: lc-term ::: []
+      }) application (\lam (i : Fin 2) => Substitution.apply (\case \elim i \with {
+        | fzero => I
+        | fsuc fzero => I
+        | fsuc (fsuc x) => \case x \with {
+        }
+      }) (\lam i => contradiction))) = I_I => pmap (func (\new SomeVector (Sort {LCEnv}) {
+        | size => 2
+        | content => lc-term ::: lc-term ::: []
+      }) application) ( funExt {Fin 2} {\lam i => Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i)} (\lam i => \case \elim i \with {
+        | fzero => idp
+        | fsuc fzero => idp
+        | fsuc (fsuc i) => contradiction
+      }))
+    }
+
+  \func I_I~>I : RewriteRelation (__ = beta-reduction) I_I I => rewrite-with-rule rewrite-step idp
 }
