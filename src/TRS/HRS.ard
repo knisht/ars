@@ -118,12 +118,19 @@
   rewrite-with-rule (step : RewriteStep A B) (set-of-rules step.rule)
 
   | func (parameters-A : SomeVector env.Sort) f-A choosing-A, func parameters-B f-B choosing-B =>
-  rewrite-with-parameter (p : parameters-A = parameters-B)
-                         (f-A = transport (env.Symbol __ s) (inv p) f-B)
-                         (differingIndex : Fin (parameters-A.size))
-                         (RewriteRelation set-of-rules (choosing-A differingIndex) (transport-chooser p differingIndex choosing-B))
-                         (\Pi (index : Fin (parameters-A.size)) (Not (index = differingIndex)) ->
-                             choosing-A index = transport-chooser p index choosing-B)
+  rewrite-with-parameter-f (p : parameters-A = parameters-B)
+                           (f-A = transport (env.Symbol __ s) (inv p) f-B)
+                           (differingIndex : Fin (parameters-A.size))
+                           (RewriteRelation set-of-rules (choosing-A differingIndex) (transport-chooser p differingIndex choosing-B))
+                           (\Pi (index : Fin (parameters-A.size)) (Not (index = differingIndex)) ->
+                               choosing-A index = transport-chooser p index choosing-B)
+  | metavar (parameters-A : SomeVector env.Sort) m-A choosing-A, metavar parameters-B m-B choosing-B =>
+  rewrite-with-parameter-m (p : parameters-A = parameters-B)
+                           (m-A = transport (env.MetaVar __ s) (inv p) m-B)
+                           (differingIndex : Fin (parameters-A.size))
+                           (RewriteRelation set-of-rules (choosing-A differingIndex) (transport-chooser p differingIndex choosing-B))
+                           (\Pi (index : Fin (parameters-A.size)) (Not (index = differingIndex)) ->
+                               choosing-A index = transport-chooser p index choosing-B)
 
   \where {
     \func transport-chooser {env : Environment} {V V' context : SomeVector env.Sort} (p : V = V') (index : Fin V.size) (chooser : \Pi (ind : Fin (V'.size)) -> Term env context (V' !! ind)): Term env context (V !! index) =>
