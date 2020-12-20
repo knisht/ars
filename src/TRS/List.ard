@@ -1,0 +1,20 @@
+\import Arith.Nat
+\import Data.List
+\import Logic
+\import Logic.Meta
+\import Paths
+\import Paths.Meta
+\import Set
+\import Set.Fin
+\open Nat
+\func length {A : \Type} (list : List A) : Nat \elim list
+  | nil => 0
+  | :: a list => suc (length list)
+
+\func map-fixes-length {A B : \Type} {L : List A} {f : A -> B} : length (map f L) = length L \elim L
+  | nil => idp
+  | :: a L => pmap suc map-fixes-length
+
+\func \infix 7 !! {A : \Set} (v : List A) (index : Fin (length v)) : A \elim v, index
+  | :: a v, fsuc index => v !! index
+  | :: a v, fzero => a

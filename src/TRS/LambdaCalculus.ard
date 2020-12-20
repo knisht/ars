@@ -1,91 +1,91 @@
-\import Data.List (::, nil)
-\import Logic.Meta
-\import Paths
-\import Paths.Meta
-\import Set.Fin
-\import TRS.HRS
-\import TRS.Vector
-
-\data SingularSort | lc-term
-
-\data Symbols (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim parameters, s
-  | (2, ::: lc-term (::: lc-term [])), lc-term => application
-
-\data MetaVars (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim s
-  | lc-term => MVAR Nat
-
-\instance LCEnv : Environment \cowith
-  | Sort => SingularSort
-  | FunctionalSymbol => Symbols
-  | MetaVariable => MetaVars
-
-\func BetaRedex : Term LCEnv svnil lc-term =>
-  func
-      (Vector-from-list (lc-term :: lc-term :: nil))
-      application
-      (\lam i => \case \elim i \with {
-        | fzero => MVarWithAbstraction
-        | fsuc fzero => MVar
-        | fsuc (fsuc x) => contradiction
-      })
-
-\func MVarWithAbstraction : Term LCEnv svnil lc-term =>
-  abs lc-term (metavar (Vector-from-list (lc-term :: nil)) (MVAR 1) (\lam j => \case \elim j \with {
-    | fzero => var fzero idp
-    | fsuc j => contradiction
-  }))
-
-\func MVar : Term LCEnv svnil lc-term =>
-  metavar svnil (MVAR 2) contradiction
-
-\func BetaResult : Term LCEnv svnil lc-term =>
-  metavar (Vector-from-list (lc-term :: nil)) (MVAR 1) (\lam i => \case \elim i \with {
-    | fzero => metavar svnil (MVAR 2) contradiction
-    | fsuc i => contradiction
-  })
-
-\func beta-reduction : RewriteRule BetaRedex BetaResult \cowith
-  | r-is-not-generating => {?}
-
-\instance UntypedLambdaCalculus : SimpleHigherOrderTermRewritingSystem => \new SimpleHigherOrderTermRewritingSystem {
-  | env => LCEnv
-  | set-of-rules => __ = beta-reduction
-}
-
--- \x.\y.x
-\func K : Term LCEnv svnil lc-term => abs lc-term (abs lc-term (var (fsuc fzero) idp))
-
--- \x.x
-\func I : Term LCEnv svnil lc-term => abs lc-term (var fzero idp)
-
--- (\x.x) (\x.x)
-\func I_I : Term LCEnv svnil lc-term =>
-  func (Vector-from-list (lc-term :: lc-term :: nil)) application (\lam i => \case \elim i \with {
-    | fzero => I
-    | fsuc fzero => I
-    | fsuc (fsuc x) => contradiction
-  })
-
-\func suitable-substitution : MetaSubstitution LCEnv =>
-  \lam {sort} {params} mvar => \case \elim sort, \elim params, \elim mvar \with {
-    | lc-term, (1, ::: lc-term []), MVAR 1 => var fzero idp
-    | lc-term, (0, []), MVAR 2 => I
-    | lc-term, params, mvar => metavar svnil (MVAR 3) (contradiction)
-  }
-
-\func rewrite-step : RewriteStep I_I I \cowith
-  | rule => beta-reduction
-  | substitution => suitable-substitution
-  | left-coherence => pmap (func (Vector-from-list (lc-term :: lc-term :: nil)) application)
-      (funExt {_} {\lam i => Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i)} (\lam i => \case \elim i \with {
-        | fzero => idp
-        | fsuc fzero => idp
-        | fsuc (fsuc i) => contradiction
-      }))
-  | right-coherence => idp
-  \where {
-    \func funExt {A : \Type} {B : A -> \Type} {f g : \Pi (x : A) -> B x} (h : \Pi (x : A) -> f x = g x) : f = g =>
-      ext (\lam a => h a)
-  }
-
-\func I_I~>I : RewriteRelation (__ = beta-reduction) I_I I => rewrite-with-rule rewrite-step idp
+--\import Data.List (::, nil)
+--\import Logic.Meta
+--\import Paths
+--\import Paths.Meta
+--\import Set.Fin
+--\import TRS.HRS
+--\import TRS.List
+--
+--\data SingularSort | lc-term
+--
+--\data Symbols (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim parameters, s
+--  | (2, ::: lc-term (::: lc-term [])), lc-term => application
+--
+--\data MetaVars (parameters : SomeVector SingularSort) (s : SingularSort) : \Set \elim s
+--  | lc-term => MVAR Nat
+--
+--\instance LCEnv : Environment \cowith
+--  | Sort => SingularSort
+--  | FunctionalSymbol => Symbols
+--  | MetaVariable => MetaVars
+--
+--\func BetaRedex : Term LCEnv svnil lc-term =>
+--  func
+--      (Vector-from-list (lc-term :: lc-term :: nil))
+--      application
+--      (\lam i => \case \elim i \with {
+--        | fzero => MVarWithAbstraction
+--        | fsuc fzero => MVar
+--        | fsuc (fsuc x) => contradiction
+--      })
+--
+--\func MVarWithAbstraction : Term LCEnv svnil lc-term =>
+--  abs lc-term (metavar (Vector-from-list (lc-term :: nil)) (MVAR 1) (\lam j => \case \elim j \with {
+--    | fzero => var fzero idp
+--    | fsuc j => contradiction
+--  }))
+--
+--\func MVar : Term LCEnv svnil lc-term =>
+--  metavar svnil (MVAR 2) contradiction
+--
+--\func BetaResult : Term LCEnv svnil lc-term =>
+--  metavar (Vector-from-list (lc-term :: nil)) (MVAR 1) (\lam i => \case \elim i \with {
+--    | fzero => metavar svnil (MVAR 2) contradiction
+--    | fsuc i => contradiction
+--  })
+--
+--\func beta-reduction : RewriteRule BetaRedex BetaResult \cowith
+--  | r-is-not-generating => {?}
+--
+--\instance UntypedLambdaCalculus : SimpleHigherOrderTermRewritingSystem => \new SimpleHigherOrderTermRewritingSystem {
+--  | env => LCEnv
+--  | set-of-rules => __ = beta-reduction
+--}
+--
+---- \x.\y.x
+--\func K : Term LCEnv svnil lc-term => abs lc-term (abs lc-term (var (fsuc fzero) idp))
+--
+---- \x.x
+--\func I : Term LCEnv svnil lc-term => abs lc-term (var fzero idp)
+--
+---- (\x.x) (\x.x)
+--\func I_I : Term LCEnv svnil lc-term =>
+--  func (Vector-from-list (lc-term :: lc-term :: nil)) application (\lam i => \case \elim i \with {
+--    | fzero => I
+--    | fsuc fzero => I
+--    | fsuc (fsuc x) => contradiction
+--  })
+--
+--\func suitable-substitution : MetaSubstitution LCEnv =>
+--  \lam {sort} {params} mvar => \case \elim sort, \elim params, \elim mvar \with {
+--    | lc-term, (1, ::: lc-term []), MVAR 1 => var fzero idp
+--    | lc-term, (0, []), MVAR 2 => I
+--    | lc-term, params, mvar => metavar svnil (MVAR 3) (contradiction)
+--  }
+--
+--\func rewrite-step : RewriteStep I_I I \cowith
+--  | rule => beta-reduction
+--  | substitution => suitable-substitution
+--  | left-coherence => pmap (func (Vector-from-list (lc-term :: lc-term :: nil)) application)
+--      (funExt {_} {\lam i => Term LCEnv svnil ((lc-term ::: lc-term ::: []) !! i)} (\lam i => \case \elim i \with {
+--        | fzero => idp
+--        | fsuc fzero => idp
+--        | fsuc (fsuc i) => contradiction
+--      }))
+--  | right-coherence => idp
+--  \where {
+--    \func funExt {A : \Type} {B : A -> \Type} {f g : \Pi (x : A) -> B x} (h : \Pi (x : A) -> f x = g x) : f = g =>
+--      ext (\lam a => h a)
+--  }
+--
+--\func I_I~>I : RewriteRelation (__ = beta-reduction) I_I I => rewrite-with-rule rewrite-step idp
