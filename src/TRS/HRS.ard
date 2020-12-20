@@ -1,6 +1,6 @@
 \import ARS
 \import Algebra.Domain.Bezout
-\import Data.List (::, List, nil)
+\import Data.List (++, ::, List, map, nil)
 \import Data.Or
 \import Equiv
 \import Equiv.Univalence
@@ -14,41 +14,56 @@
 \import TRS.Vector
 \import Set.Fin
 
--- | Family of term symbols (functional or metavariables)
-\func Signature (Sort : \Set) => \Pi (parameters : List Sort) (returnType : Sort) -> \Set
+-- | Family of functional term symbols
+\record FunctionalSignature (Sort : \Set)
+  | symbol : Sort -> \Set
+  | domain : \Pi {s : Sort} (symbol s) -> List (\Sigma (List Sort) Sort)
+  \where {
+    \func \infix 7 !!param {Sort : \Set} {Sig : FunctionalSignature Sort} {s : Sort} (m : Sig.symbol s) (index : Fin (length (Sig.domain m))) : List Sort =>
+      (Sig.domain m !! index).1
 
-\func Constant {Sort : \Set} (S : Signature Sort) (returnType : Sort): \Set => S nil returnType
+    \func \infix 7 !!sort {Sort : \Set} {Sig : FunctionalSignature Sort} {s : Sort} (m : Sig.symbol s) (index : Fin (length (Sig.domain m))) : Sort =>
+      (Sig.domain m !! index).2
+
+    \func sorts {Sort : \Set} {Sig : FunctionalSignature Sort} {s : Sort} (m : Sig.symbol s) : List Sort =>
+      map (\lam sigma => sigma.2) (Sig.domain m)
+
+    \func length-invariant {Sort : \Set} {Sig : FunctionalSignature Sort} {s : Sort} (m : Sig.symbol s) : length (sorts m) = length (Sig.domain m) =>
+      map-fixes-length
+  }
+
+\record MetaSignature (Sort : \Set)
+  | metasymbol : Sort -> \Set
+  | metadomain : \Pi {s : Sort} (metasymbol s) -> List Sort
+
+\open FunctionalSignature
 
 \class Environment
   | Sort : \Set
-  | Symbol : Signature Sort
-  | MetaVar : Signature Sort
+  | FunctionalSymbol : FunctionalSignature Sort
+  | MetaVariable : MetaSignature Sort
 
 -- | Term of High-order TRS
 \data Term (env : Environment)
            (context : List Sort)
            (termSort : Sort) : \Set
   | var (index : Fin (length context)) (termSort = context !! index) -- | Bound variable, appears after abstractions
-  | metavar (parameters : List Sort) -- | Metavariable
-            (m : MetaVar parameters termSort)
-            (choosing : \Pi (index : Fin (length parameters)) -> Term env context (parameters !! index))
-  | func (parameters : List Sort) -- | Functional symbol
-         (f : Symbol parameters termSort)
-         (choosing : \Pi (index : Fin (length parameters)) -> Term env context (parameters !! index))
-  | abs (s : Sort) (t : Term env (s :: context) termSort) -- | Abstraction
+  | metavar (m : MetaVariable.metasymbol termSort) -- | Metavariable
+            (choosing : \Pi (index : Fin (length (MetaVariable.metadomain m))) -> Term env context (MetaVariable.metadomain m !! index))
+  | func (f : FunctionalSymbol.symbol termSort) -- | Functional symbol
+         (choosing : \Pi (index : Fin (length (FunctionalSymbol.domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index))
   \where {
     -- | Checks if term `t` contains metavariable `v`
-    --    \func \infix 4 in {env : Environment} {s' s'' : Sort}
-    --                      {context metaparams : SomeVector Sort}
-    --                      (v : MetaVar metaparams s'')
-    --                      (t : Term env context s') : \Prop \elim t
-    --      | var index p => Empty
-    --      | metavar (parameters : SomeVector env.Sort) m choosing =>
-    --        (\Sigma (p : metaparams = parameters) (s=s' : s'' = s') (m = (transport2 MetaVar p s=s' v)))
-    --          ||
-    --        (\Sigma (n : Fin parameters.size) (v in choosing n))
-    --      | func (parameters : SomeVector env.Sort) f choosing => ∃ (n : Fin parameters.size) (v in choosing n)
-    --      | abs s t => v in t
+        \func \infix 4 in {env : Environment} {s' s'' : Sort}
+                          {context : List Sort}
+                          (v : env.MetaVariable.metasymbol s'')
+                          (t : Term env context s') : \Prop \elim t
+          | var index p => Empty
+          | metavar m choosing =>
+            (\Sigma (s=s' : s'' = s') (m = (transport metasymbol s=s' v)))
+              ||
+            (\Sigma (n : Fin (length (metadomain m))) (v in choosing n))
+          | func f choosing => ∃ (n : Fin (length (domain f))) (v in choosing n)
   }
 
 \open Term
@@ -63,24 +78,20 @@
                 (map : Substitution context {new-context})
       : Term env new-context s \elim t
       | var index p => transportInv (Term env new-context) p (map index)
-      | metavar parameters m choosing => metavar parameters m (\lam i => Substitution.apply (choosing i) map)
-      | func parameters f choosing => func parameters f (\lam i => Substitution.apply (choosing i) map)
-      | abs s1 t => abs s1 (Substitution.apply t (\lam i => \case \elim i \with {
-        | fzero => var fzero idp
-        | fsuc i => append-back (map i) s1
-      }))
+      | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
+      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (shift-indexing (f !!param i) map))
       \where {
-        \func append-back {env : Environment} {s : Sort} {context : List Sort} (t : Term env context s) (s' : Sort) : Term env (s' :: context) s \elim t
-          | var index p => var (fsuc index) p
-          | metavar parameters m choosing => metavar parameters m (\lam ind => append-back (choosing ind) s')
-          | func parameters f choosing => func parameters f (\lam ind => append-back (choosing ind) s')
-          | abs s1 t => abs s1 (local-swap (append-back t s') fzero (fsuc fzero))
-
-        \func local-swap {env : Environment} {s : Sort} {context : List Sort} (t : Term env context s) (i j : Fin (length context)): Term env (swap context i j) s \elim t
-          | var index p => \let (y, pos) => swap-is-permutation s context i j index p \in var y pos
-          | metavar parameters m choosing => metavar parameters m (\lam ind => local-swap (choosing ind) i j)
-          | func parameters f choosing => func parameters f (\lam ind => local-swap (choosing ind) i j)
-          | abs s1 t => abs s1 (local-swap t (fsuc i) (fsuc j))
+        \func shift-indexing {env : Environment} {old-context new-context : List Sort}
+                             (additional-context : List Sort)
+                             (m : \Pi (index : Fin (length old-context)) -> Term env new-context (old-context !! index))
+                             (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) \elim additional-context, index
+          | nil, index => m index
+          | :: a additional-context, fzero => var fzero idp
+          | :: a additional-context, fsuc index => \let inner-shifting => shift-indexing additional-context m index \in \case \elim inner-shifting \with {
+            | var index1 p => var (fsuc index1) p
+            | metavar m1 choosing => metavar m1 {?}
+            | func f choosing => {?}
+          }
       }
 
     \func adjustContext {env : Environment} {s : Sort} (t : Term env nil s) {new-context : List Sort} : Term env new-context s =>
@@ -88,20 +99,19 @@
   }
 
 \record RewriteRule {env : Environment} {s : Sort} (l r : Term env nil s) {
-  --  | r-is-not-generating : \Pi {s'' : Sort} {params : List Sort} (m : MetaVar params s'') (m in r) -> m in l
+    | r-is-not-generating : \Pi {s'' : Sort} (m : metasymbol s'') (m in r) -> m in l
 }
 
 -- | Substitution of metavariables
 \func MetaSubstitution (env : Environment) : \Set =>
-  \Pi {s : Sort} {params : List Sort} (MetaVar params s) -> Term env params s
+  \Pi {s : Sort} (m : MetaVariable.metasymbol s) -> Term env (MetaVariable.metadomain m) s
   \where {
     \func apply {env : Environment} {context : List Sort} {s : Sort}
                 (t : Term env context s)
                 (subst : MetaSubstitution env) : Term env context s \elim t
       | var index p => var index p
-      | metavar parameters m choosing => Substitution.apply (subst m) (\lam i => apply (choosing i) subst)
-      | func parameters f choosing => func parameters f (\lam i => apply (choosing i) subst)
-      | abs s1 t => abs s1 (apply t subst)
+      | metavar m choosing => Substitution.apply (subst m) (\lam i => apply (choosing i) subst)
+      | func f choosing => func f (\lam i => apply (choosing i) subst)
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} (L R : Term env context s)
@@ -110,35 +120,36 @@
   | left-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.l substitution) = L
   | right-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.r substitution) = R
 
+\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : RewriteRule {env} -> \Prop)
+                                  {n : Nat}
+                                  (contexts : Fin n -> List Sort)
+                                  (sorts : Fin n -> Sort)
+                                  (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Prop \elim n
+  | suc n => head-reduction (RewriteRelation {env} set-of-rules (A fzero) (B fzero)) (\Pi (i : Fin n) -> A (fsuc i) = B (fsuc i))
+  | suc n => tail-reduction (A fzero = B fzero) (ReductionAtIndex {env} set-of-rules (\lam i => contexts (fsuc i)) (\lam i => sorts (fsuc i)) (\lam i => A (fsuc i)) (\lam i => B (fsuc i)))
+
 \truncated \data RewriteRelation {env : Environment}
                                  (set-of-rules : RewriteRule {env} -> \Prop)
-                                 {s : Sort}
+                                 {s : env.Sort}
                                  {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
   | A, B =>
   rewrite-with-rule (step : RewriteStep {env} A B) (set-of-rules step.rule)
 
-  | func (parameters-A : List env.Sort) f-A choosing-A, func parameters-B f-B choosing-B =>
-  rewrite-with-parameter-f (p : parameters-A = parameters-B)
-                           (f-A = transport (env.Symbol __ s) (inv p) f-B)
-                           (differingIndex : Fin (length parameters-A))
-                           (RewriteRelation {env} set-of-rules (choosing-A differingIndex) (transport-chooser {env} p differingIndex choosing-B))
-                           (\Pi (index : Fin (length parameters-A)) (Not (index = differingIndex)) ->
-                               choosing-A index = transport-chooser {env} p index choosing-B)
-  | metavar (parameters-A : List env.Sort) m-A choosing-A, metavar parameters-B m-B choosing-B =>
-  rewrite-with-parameter-m (p : parameters-A = parameters-B)
-                           (m-A = transport (env.MetaVar __ s) (inv p) m-B)
-                           (differingIndex : Fin (length parameters-A))
-                           (RewriteRelation {env} set-of-rules (choosing-A differingIndex) (transport-chooser {env} p differingIndex choosing-B))
-                           (\Pi (index : Fin (length parameters-A)) (Not (index = differingIndex)) ->
-                               choosing-A index = transport-chooser {env} p index choosing-B)
+  | func f-A choosing-A, func f-B choosing-B =>
+  rewrite-with-parameter-f (p : f-A = f-B)
+                           (ReductionAtIndex {env} set-of-rules
+                               (f-A !!param __ ++ context)
+                               (f-A !!sort __)
+                               choosing-A
+                               (transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (f !!param index ++ context) (f !!sort index)) (inv p) choosing-B))
 
-  \where {
-    \func transport-chooser {env : Environment} {V V' context : List Sort} (p : V = V') (index : Fin (length V)) (chooser : \Pi (ind : Fin (length V')) -> Term env context (V' !! ind)): Term env context (V !! index) =>
-      (rewrite (transport-term p) (chooser (transport (\lam x => Fin (length x)) p index)))
-
-    \func transport-term {Sort : \Set} {V V' : List Sort} (p : V = V') {index : Fin (length V)} : V !! index = V' !! (transport (\lam x => Fin (length x)) p index) \elim p
-      | idp => idp
-  }
+  | metavar m-A choosing-A, metavar m-B choosing-B =>
+  rewrite-with-parameter-m (p : m-A = m-B)
+                           (ReductionAtIndex {env} set-of-rules
+                               (\lam _ => context)
+                               (metadomain m-A !! __)
+                               choosing-A
+                               (transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B))
 
 \class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : RewriteRule {env} -> \Prop) \extends AbstractReductionSystem
   | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort)

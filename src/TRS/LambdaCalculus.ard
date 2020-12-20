@@ -16,8 +16,8 @@
 
 \instance LCEnv : Environment \cowith
   | Sort => SingularSort
-  | Symbol => Symbols
-  | MetaVar => MetaVars
+  | FunctionalSymbol => Symbols
+  | MetaVariable => MetaVars
 
 \func BetaRedex : Term LCEnv svnil lc-term =>
   func

@@ -24,6 +24,9 @@
   | nil => 0
   | :: a list => suc (length list)
 
+\func map-fixes-length {A B : \Type} {L : List A} {f : A -> B} : length (map f L) = length L \elim L
+  | nil => idp
+  | :: a L => pmap suc map-fixes-length
 
 --\func svnil {A : \Set} : SomeVector A \cowith
 --  | size => 0
