@@ -41,16 +41,16 @@
 \data Term (env : Environment)
            (context : List Sort)
            (termSort : Sort) : \Set
-  | var (index : Fin (length context)) (termSort = context !! index) -- | Bound variable, appears after abstractions
+  | var (index : Fin (length context)) (termSort = context !! index) -- | Bound variable
   | metavar (m : MetaVariable.metasymbol termSort) -- | Metavariable
-            (choosing : \Pi (index : Fin (length (MetaVariable.metadomain m))) -> Term env context (MetaVariable.metadomain m !! index))
+            (choosing : \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index))
   | func (f : FunctionalSymbol.symbol termSort) -- | Functional symbol
-         (choosing : \Pi (index : Fin (length (FunctionalSymbol.domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index))
+         (choosing : \Pi (index : Fin (length (domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index))
   \where {
     -- | Checks if term `t` contains metavariable `v`
     \func \infix 4 in {env : Environment} {s' s'' : Sort}
                       {context : List Sort}
-                      (v : env.MetaVariable.metasymbol s'')
+                      (v : MetaVariable.metasymbol s'')
                       (t : Term env context s') : \Prop \elim t
       | var index p => Empty
       | metavar m choosing =>
@@ -71,28 +71,28 @@
                 {new-context : List Sort}
                 (map : Substitution context {new-context})
       : Term env new-context s \elim t
-      | var index p => transportInv (Term env new-context) p (map index)
+      | var index p => transport (Term env new-context) (inv p) (map index)
       | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
-      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (shift-indexing (f !!param i) map))
+      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (enlarge-substitution (f !!param i) map))
       \where {
-        \func shift-indexing {env : Environment} {old-context new-context : List Sort}
-                             (additional-context : List Sort)
-                             (subst : \Pi (index : Fin (length old-context)) -> Term env new-context (old-context !! index))
-                             (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) \elim additional-context, index
+        \func enlarge-substitution {env : Environment} {old-context new-context : List Sort}
+                                   (additional-context : List Sort)
+                                   (subst : Substitution old-context {new-context})
+                                   (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) \elim additional-context, index
           | nil, index => subst index
           | :: a additional-context, fzero => var fzero idp
-          | :: a additional-context, fsuc index => \let inner-shifting => shift-indexing additional-context subst index \in add-metaindex {_} {_} {nil} a inner-shifting
+          | :: a additional-context, fsuc index => \let inner-shifting => enlarge-substitution additional-context subst index \in (add-metaindex {_} {_} {nil} a inner-shifting)
 
         \func add-metaindex {env : Environment} {s' : Sort} {left-context right-context : List Sort} (a : Sort) (t : Term env (left-context ++ right-context) s') : Term env (left-context ++ a :: right-context) s' \elim t
           | var index p => \let (l, r) => address left-context right-context a s' index p \in var l r
           | metavar m choosing => metavar m (\lam i1 => add-metaindex a (choosing i1))
-          | func f choosing => func f (\lam i1 => rewriteI ++-assoc (add-metaindex a (rewrite ++-assoc (choosing i1))))
-        \where {
-          \func address {A : \Set} (a b : List A) (x y : A) (ind : Fin (length (a ++ b))) (p : y = (a ++ b) !! ind) : \Sigma (ind' : Fin (length (a ++ (x :: b)))) (y = (a ++ (x :: b)) !! ind') \elim a, ind, p
-            | nil, ind, idp => (fsuc ind, idp)
-            | :: a a1, fzero, idp => (fzero, idp)
-            | :: a a1, fsuc ind, idp => \let (find, fp) => address a1 b x y ind idp \in (fsuc find, fp)
-        }
+          | func f choosing => func f (\lam i1 => rewriteI ++-assoc (add-metaindex {_} {_} {f !!param i1 ++ left-context} a (rewrite ++-assoc (choosing i1))))
+          \where {
+            \func address {A : \Set} (a b : List A) (x y : A) (ind : Fin (length (a ++ b))) (p : y = (a ++ b) !! ind) : \Sigma (ind' : Fin (length (a ++ (x :: b)))) (y = (a ++ (x :: b)) !! ind') \elim a, ind, p
+              | nil, ind, idp => (fsuc ind, idp)
+              | :: a a1, fzero, idp => (fzero, idp)
+              | :: a a1, fsuc ind, idp => \let (find, fp) => address a1 b x y ind idp \in (fsuc find, fp)
+          }
       }
 
     \func adjustContext {env : Environment} {s : Sort} (t : Term env nil s) {new-context : List Sort} : Term env new-context s =>
@@ -121,7 +121,14 @@
   | left-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.l substitution) = L
   | right-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.r substitution) = R
 
-\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : RewriteRule {env} -> \Prop)
+\record IndexedSet (A : \Type)
+  | J : \Set
+  | get : J -> A
+  \where {
+    \func \infix 4 in {A : \Type} (a : A) (set : IndexedSet A) : \Type => \Sigma (point : set.J) (set.get point = a)
+  }
+
+\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : IndexedSet (RewriteRule {env}))
                                   {n : Nat}
                                   (contexts : Fin n -> List Sort)
                                   (sorts : Fin n -> Sort)
@@ -135,11 +142,11 @@
                                 (\lam i => B (fsuc i)))
 
 \truncated \data RewriteRelation {env : Environment}
-                                 (set-of-rules : RewriteRule {env} -> \Prop)
+                                 (set-of-rules : IndexedSet (RewriteRule {env}))
                                  {s : env.Sort}
                                  {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
   | A, B =>
-  rewrite-with-rule (step : RewriteStep {env} A B) (set-of-rules step.rule)
+  rewrite-with-rule (step : RewriteStep {env} A B) (step.rule IndexedSet.in set-of-rules)
 
   | func f-A choosing-A, func f-B choosing-B =>
   rewrite-with-parameter-f (p : f-A = f-B)
@@ -157,7 +164,7 @@
                                choosing-A
                                (transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B))
 
-\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : RewriteRule {env} -> \Prop) \extends AbstractReductionSystem
+\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule {env})) \extends AbstractReductionSystem
   | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort)
   | ~> a b => \case \elim a, b \with {
     | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation {env} set-of-rules A (transport2 (Term env) p q B))
