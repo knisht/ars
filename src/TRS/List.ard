@@ -18,3 +18,19 @@
 \func \infix 7 !! {A : \Set} (v : List A) (index : Fin (length v)) : A \elim v, index
   | :: a v, fsuc index => v !! index
   | :: a v, fzero => a
+
+-- | `l` is a sublist of `r`
+\data SubList {A : \Type} (l r : List A) \elim l, r
+  | nil, _ => sublist-trivial
+  | :: x xs, :: y ys => sublist-match (x = y) (SubList xs ys)
+  | l, :: y ys => sublist-skip (SubList l ys)
+  \where {
+    \func identity {A : \Type} (list : List A) : SubList list list \elim list
+      | nil => sublist-trivial
+      | :: a list => sublist-match idp (identity list)
+
+    \func extend-left {A : \Type} {l r : List A} (sublist : SubList l r) (add : List A) : SubList (add ++ l) (add ++ r) \elim add
+      | nil => sublist
+      | :: a add => sublist-match idp (extend-left sublist add)
+  }
+

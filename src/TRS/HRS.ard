@@ -63,13 +63,13 @@
 \open Term
 
 -- | Substitution of regular variables
-\func Substitution {env : Environment} (context : List Sort) {new-context : List Sort}: \Set =>
+\func Substitution {env : Environment} (context new-context : List Sort) : \Set =>
   \Pi (index : Fin (length context)) -> Term env new-context (context !! index)
   \where {
     \func apply {env : Environment} {s : Sort} {context : List Sort}
                 (t : Term env context s)
                 {new-context : List Sort}
-                (map : Substitution context {new-context})
+                (map : Substitution context new-context)
       : Term env new-context s \elim t
       | var index p => transport (Term env new-context) (inv p) (map index)
       | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
@@ -77,21 +77,26 @@
       \where {
         \func enlarge-substitution {env : Environment} {old-context new-context : List Sort}
                                    (additional-context : List Sort)
-                                   (subst : Substitution old-context {new-context})
+                                   (subst : Substitution old-context new-context)
                                    (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) \elim additional-context, index
           | nil, index => subst index
           | :: a additional-context, fzero => var fzero idp
-          | :: a additional-context, fsuc index => \let inner-shifting => enlarge-substitution additional-context subst index \in (add-metaindex {_} {_} {nil} a inner-shifting)
+          | :: a additional-context, fsuc index => \let inner-shifting => enlarge-substitution additional-context subst index
+                                                   \in weakening inner-shifting (sublist-skip (SubList.identity (additional-context ++ new-context)))
 
-        \func add-metaindex {env : Environment} {s' : Sort} {left-context right-context : List Sort} (a : Sort) (t : Term env (left-context ++ right-context) s') : Term env (left-context ++ a :: right-context) s' \elim t
-          | var index p => \let (l, r) => address left-context right-context a s' index p \in var l r
-          | metavar m choosing => metavar m (\lam i1 => add-metaindex a (choosing i1))
-          | func f choosing => func f (\lam i1 => rewriteI ++-assoc (add-metaindex {_} {_} {f !!param i1 ++ left-context} a (rewrite ++-assoc (choosing i1))))
+        \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort}
+                        (t : Term env narrow-context s')
+                        (sublist : SubList narrow-context wide-context)
+          : Term env wide-context s' \elim t
+          | var index p => \let (index', p') => recalculate-index narrow-context wide-context s' sublist index p \in var index' p'
+          | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
+          | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-left sublist (f !!param i1)))
           \where {
-            \func address {A : \Set} (a b : List A) (x y : A) (ind : Fin (length (a ++ b))) (p : y = (a ++ b) !! ind) : \Sigma (ind' : Fin (length (a ++ (x :: b)))) (y = (a ++ (x :: b)) !! ind') \elim a, ind, p
-              | nil, ind, idp => (fsuc ind, idp)
-              | :: a a1, fzero, idp => (fzero, idp)
-              | :: a a1, fsuc ind, idp => \let (find, fp) => address a1 b x y ind idp \in (fsuc find, fp)
+            \func recalculate-index {A : \Set} (a b : List A) (point : A) (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
+              | nil, r, sublist-trivial, (), p
+              | :: x xs, :: y ys, sublist-match p sublist, fzero, idp => (fzero, p)
+              | :: x xs, :: y ys, sublist-match p sublist, fsuc ind, idp => \let (ind', p') => recalculate-index xs ys point sublist ind idp \in (fsuc ind', p')
+              | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys point sublist ind idp \in (fsuc ind', p')
           }
       }
 
