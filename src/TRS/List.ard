@@ -43,14 +43,15 @@
       | :: x xs, :: y ys, fzero, sublist-match p sublist => fzero
       | :: x xs, :: y ys, fsuc index, sublist-match p sublist => fsuc (shift-index index sublist)
       | l, :: y ys, index, sublist-skip sublist => fsuc (shift-index index sublist)
-      | nil, :: y ys, index, list => contradiction
+      | nil, :: y ys, (), _
 
     \func shift-index-preserves-equality {A : \Type} {list list' : List A}
                                 (index : Fin (length list))
                                 (sublist : SubList list list') : (list !! index = list' !! (shift-index index sublist)) \elim list, list', index, sublist
       | :: x xs, :: y ys, fzero, sublist-match p sublist => p
       | :: x xs, :: y ys, fsuc index, sublist-match p sublist => shift-index-preserves-equality index sublist
-      | l, :: y ys, index, sublist-skip sublist => shift-index-preserves-equality index sublist
+      | :: a l, :: y ys, fzero, sublist-skip sublist => shift-index-preserves-equality fzero sublist
+      | :: x xs, :: y ys, fsuc index, sublist-skip sublist => shift-index-preserves-equality (fsuc index) sublist
       | nil, :: y ys, (), _
   }
 
