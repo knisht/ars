@@ -11,6 +11,7 @@
 \import Paths
 \import Paths.Meta
 \import Set
+\import TRS.HRS
 \import TRS.List
 \import Set.Fin
 
@@ -109,22 +110,41 @@
 }
 
 -- | Substitution of metavariables
-\func MetaSubstitution (env : Environment) : \Set =>
-  \Pi {s : Sort} (m : MetaVariable.metasymbol s) -> Term env (MetaVariable.metadomain m) s
+\func MetaSubstitution (env : Environment) (new-context : List Sort): \Set =>
+  \Pi {sort : Sort} (mvar : MetaVariable.metasymbol sort) -> Term env ((MetaVariable.metadomain mvar) ++ new-context) sort
   \where {
-    \func apply {env : Environment} {context : List Sort} {s : Sort}
+    \func apply {env : Environment} {context new-context : List Sort} {s : Sort}
                 (t : Term env context s)
-                (subst : MetaSubstitution env) : Term env context s \elim t
-      | var index p => var index p
-      | metavar m choosing => Substitution.apply (subst m) (\lam i => apply (choosing i) subst)
-      | func f choosing => func f (\lam i => apply (choosing i) subst)
+                (sublist : SubList context new-context)
+                (subst : MetaSubstitution env new-context) : Term env new-context s \elim t
+      | var index p => var (SubList.shift-index index sublist) (p *> SubList.shift-index-preserves-equality index sublist)
+
+      | metavar m choosing => \let | new-term : Term env (metadomain m ++ new-context) s => subst m
+                                   | basic-term-chooser (i : Fin (length (MetaVariable.metadomain m))) : Term env new-context (metadomain m !! i) => apply (choosing i) sublist subst
+                              \in Substitution.apply new-term (extend-chooser basic-term-chooser)
+
+      | func f choosing => func f (\lam i =>
+          \let | middle-sublist : SubList (f !!param i ++ context) (f !!param i ++ new-context) => (SubList.extend-left sublist (f !!param i))
+               | extended-substitution : MetaSubstitution env (f !!param i ++ new-context) =>
+                 \lam m => Substitution.apply.weakening (subst m) (SubList.extend-middle (metadomain m) new-context (f !!param i))
+          \in apply (choosing i) middle-sublist extended-substitution)
+
+      \where {
+        \func extend-chooser {env : Environment} {left-context right-context : List Sort}
+                             (chooser : \Pi (i : Fin (length left-context)) -> Term env right-context (left-context !! i))
+                             (j : Fin (length (left-context ++ right-context)))
+          : Term env right-context ((left-context ++ right-context) !! j) \elim left-context, j
+          | nil, j => var j idp
+          | :: a narrow-context, fzero => chooser fzero
+          | :: a narrow-context, fsuc j => extend-chooser (\lam i => chooser (fsuc i)) j
+      }
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} (L R : Term env context s)
   | rule : RewriteRule {env} {s}
-  | substitution : MetaSubstitution env
-  | left-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.l substitution) = L
-  | right-coherence : Substitution.adjustContext (MetaSubstitution.apply rule.r substitution) = R
+  | substitution : MetaSubstitution env context
+  | left-coherence : MetaSubstitution.apply rule.l sublist-trivial substitution = L
+  | right-coherence : MetaSubstitution.apply rule.r sublist-trivial substitution = R
 
 \record IndexedSet (A : \Type)
   | J : \Set

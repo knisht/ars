@@ -6,6 +6,7 @@
 \import Paths.Meta
 \import Set
 \import Set.Fin
+
 \open Nat
 \func length {A : \Type} (list : List A) : Nat \elim list
   | nil => 0
@@ -15,7 +16,7 @@
   | nil => idp
   | :: a L => pmap suc map-fixes-length
 
-\func \infix 7 !! {A : \Set} (v : List A) (index : Fin (length v)) : A \elim v, index
+\func \infix 7 !! {A : \Type} (v : List A) (index : Fin (length v)) : A \elim v, index
   | :: a v, fsuc index => v !! index
   | :: a v, fzero => a
 
@@ -32,5 +33,24 @@
     \func extend-left {A : \Type} {l r : List A} (sublist : SubList l r) (add : List A) : SubList (add ++ l) (add ++ r) \elim add
       | nil => sublist
       | :: a add => sublist-match idp (extend-left sublist add)
+
+    \func extend-middle {A : \Type} (l r add : List A) : SubList (l ++ r) (l ++ add ++ r) \elim l, add
+      | nil, nil => identity r
+      | nil, :: a add => sublist-skip (extend-middle nil r add)
+      | :: a l, add => sublist-match idp (extend-middle l r add)
+
+    \func shift-index {A : \Type} {list list' : List A} (index : Fin (length list)) (sublist : SubList list list') : Fin (length list') \elim list, list', index, sublist
+      | :: x xs, :: y ys, fzero, sublist-match p sublist => fzero
+      | :: x xs, :: y ys, fsuc index, sublist-match p sublist => fsuc (shift-index index sublist)
+      | l, :: y ys, index, sublist-skip sublist => fsuc (shift-index index sublist)
+      | nil, :: y ys, index, list => contradiction
+
+    \func shift-index-preserves-equality {A : \Type} {list list' : List A}
+                                (index : Fin (length list))
+                                (sublist : SubList list list') : (list !! index = list' !! (shift-index index sublist)) \elim list, list', index, sublist
+      | :: x xs, :: y ys, fzero, sublist-match p sublist => p
+      | :: x xs, :: y ys, fsuc index, sublist-match p sublist => shift-index-preserves-equality index sublist
+      | l, :: y ys, index, sublist-skip sublist => shift-index-preserves-equality index sublist
+      | nil, :: y ys, (), _
   }
 
