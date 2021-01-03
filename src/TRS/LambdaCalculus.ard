@@ -56,10 +56,10 @@
   })
 
 \func beta-reduction : RewriteRule \cowith
-  | r-is-not-generating => {?}
   | s => lc-term
   | l => BetaRedex
   | r => BetaResult
+  | r-is-not-generating => {?}
 
 \func LC-rules : IndexedSet (RewriteRule {LC-Env}) \cowith
   | J => \Sigma
@@ -95,7 +95,7 @@
     | fsuc (fsuc x) => contradiction
   })
 
-\func suitable-substitution : MetaSubstitution LC-Env =>
+\func suitable-substitution : MetaSubstitution LC-Env nil =>
   \lam {sort} mvar => \case \elim sort, \elim mvar \with {
     | lc-term, metavar-a => var fzero idp
     | lc-term, metavar-b => I
