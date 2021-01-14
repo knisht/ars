@@ -55,13 +55,13 @@
     | fsuc i => contradiction
   })
 
-\func beta-reduction : RewriteRule \cowith
+\func beta-reduction : RewriteRule LC-Env \cowith
   | s => lc-term
   | l => BetaRedex
   | r => BetaResult
   | r-is-not-generating => {?}
 
-\func LC-rules : IndexedSet (RewriteRule {LC-Env}) \cowith
+\func LC-rules : IndexedSet (RewriteRule LC-Env) \cowith
   | J => \Sigma
   | get index => \case \elim index \with {
     | () => beta-reduction

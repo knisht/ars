@@ -1,0 +1,124 @@
+\import Confluence
+\import Data.List (List, nil)
+\import Data.Or
+\import Logic
+\import TRS.HRS
+
+\func JointFunctionalSignature (Sort : \Set) (A B : FunctionalSignature Sort) : FunctionalSignature Sort \cowith
+  | symbol s => A.symbol s `Or` B.symbol s
+  | domain symb => \case \elim symb \with {
+    | inl a => A.domain a
+    | inr b => B.domain b
+  }
+
+\func JointMetaSignature (Sort : \Set) (A B : MetaSignature Sort) : MetaSignature Sort \cowith
+  | metasymbol s => A.metasymbol s `Or` B.metasymbol s
+  | metadomain metavar => \case \elim metavar \with {
+    | inl a => A.metadomain a
+    | inr b => B.metadomain b
+  }
+
+\func JointEnvironment {Sort : \Set} (A : Environment Sort) (B : Environment Sort) : Environment Sort \cowith
+  | FunctionalSymbol => JointFunctionalSignature Sort A.FunctionalSymbol B.FunctionalSymbol
+  | MetaVariable => JointMetaSignature Sort A.MetaVariable B.MetaVariable
+
+\func JointIndexedSet {A : \Type} (L R : IndexedSet A) : IndexedSet A \cowith
+  | J => L.J `Or` R.J
+  | get x => \case \elim x \with {
+    | inl a => L.get a
+    | inr b => R.get b
+  }
+
+\module Injections \where {
+  \func inject-term-left {Sort : \Set}
+                         (envL : Environment Sort)
+                         (envR : Environment Sort)
+                         {s : Sort}
+                         {c : List Sort}
+                         (term : Term envL c s) : Term (JointEnvironment envL envR) c s \elim term
+    | var index p => var index p
+    | metavar m choosing => metavar (inl m) (\lam i => inject-term-left envL envR (choosing i))
+    | func f choosing => func (inl f) (\lam i => inject-term-left envL envR (choosing i))
+
+  \func inject-term-right {Sort : \Set}
+                          (envL : Environment Sort)
+                          (envR : Environment Sort)
+                          {s : Sort}
+                          {c : List Sort}
+                          (term : Term envR c s) : Term (JointEnvironment envL envR) c s \elim term
+    | var index p => var index p
+    | metavar m choosing => metavar (inr m) (\lam i => inject-term-right envL envR (choosing i))
+    | func f choosing => func (inr f) (\lam i => inject-term-right envL envR (choosing i))
+
+  \func inject-rewrite-rule-left {Sort : \Set}
+                                 (envL : Environment { | Sort => Sort })
+                                 (envR : Environment { | Sort => Sort })
+                                 (rule : RewriteRule envL)
+    : RewriteRule (JointEnvironment envL envR) \cowith
+    | s => rule.s
+    | l => inject-term-left envL envR rule.l
+    | r => inject-term-left envL envR rule.r
+    | r-is-not-generating m m-in-r => \case \elim m, \elim m-in-r \with {
+      | inl m', m-in-r => \let | q => uninject-in envL envR rule.r m' m-in-r
+                               | q' => rule.r-is-not-generating m' q \in {?}
+      | inr b, m-in-r => {?}
+    }
+    \where {
+      \func uninject-in {Sort : \Set}
+                        (envL : Environment Sort)
+                        (envR : Environment Sort)
+                        {s s'' : Sort}
+                        (term : Term envL nil s)
+                        (m' : envL.MetaVariable.metasymbol s'')
+                        (rel : (inl m') Term.in {JointEnvironment envL envR} (inject-term-left envL envR term))
+        : m' Term.in term \elim term, rel
+        | metavar m choosing, byLeft a => {?}
+        | metavar m choosing, byRight b => {?}
+        | func f choosing, inP a => {?}
+
+      \func inject-in {Sort : \Set}
+                      (envL : Environment Sort)
+                      (envR : Environment Sort)
+                      {s s'' : Sort}
+                      (term : Term envL nil s)
+                      (m' : envL.MetaVariable.metasymbol s'')
+                      (rel : m' Term.in term)
+        : (inl m') Term.in {JointEnvironment envL envR} (inject-term-left envL envR term) \elim term, rel
+        | metavar m choosing, byLeft (q, p) => byLeft (q, {?})
+        | metavar m choosing, byRight (n, prf) => byRight (n, inject-in envL envR (choosing n) m' prf)
+        | func f choosing, inP a => {?}
+    }
+
+  \func inject-rewrite-rule-right {Sort : \Set}
+                                  (envL : Environment Sort)
+                                  (envR : Environment Sort)
+                                  (rule : RewriteRule envR)
+    : RewriteRule (JointEnvironment envL envR) \cowith
+    | s => rule.s
+    | l => inject-term-right envL envR rule.l
+    | r => inject-term-right envL envR rule.r
+    | r-is-not-generating => {?}
+}
+
+\instance JointHRS {Sort : \Set} {envL envR : Environment Sort}
+                   (L : SimpleHigherOrderTermRewritingSystem envL)
+                   (R : SimpleHigherOrderTermRewritingSystem envR)
+: SimpleHigherOrderTermRewritingSystem (JointEnvironment L.env R.env)
+  | set-of-rules =>
+    \let
+      | injected-left-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => \new IndexedSet {
+        | J => L.set-of-rules.J
+        | get j => Injections.inject-rewrite-rule-left L.env R.env (L.set-of-rules.get j)
+      }
+      | injected-right-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => \new IndexedSet {
+        | J => R.set-of-rules.J
+        | get j => Injections.inject-rewrite-rule-right L.env R.env (R.set-of-rules.get j)
+      }
+    \in JointIndexedSet injected-left-set injected-right-set
+
+\lemma Union-Preserves-Confluence {Sort : \Set} {envL envR : Environment Sort}
+                                  (L : SimpleHigherOrderTermRewritingSystem envL)
+                                  (R : SimpleHigherOrderTermRewritingSystem envR)
+                                  (L-confluence : isConfluent L)
+                                  (R-confluence : isConfluent R)
+  : isConfluent (JointHRS {_} {envL} {envR} L R) => {?}

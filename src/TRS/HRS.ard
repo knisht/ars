@@ -1,5 +1,4 @@
 \import ARS
-\import Algebra.Domain.Bezout
 \import Data.List (++, ++-assoc, ::, List, map, nil)
 \import Data.Or
 \import Equiv
@@ -105,8 +104,8 @@
       apply t (\lam i => contradiction)
   }
 
-\record RewriteRule {env : Environment} {s : Sort} (l r : Term env nil s) {
-  | r-is-not-generating : \Pi {s'' : Sort} (m : metasymbol s'') (m in r) -> m in l
+\record RewriteRule (env : Environment) {s : env.Sort} (l r : Term env nil s) {
+  | r-is-not-generating : \Pi {s'' : env.Sort} (m : metasymbol s'') (m in {env} r) -> m in {env} l
 }
 
 -- | Substitution of metavariables
@@ -141,7 +140,7 @@
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} (L R : Term env context s)
-  | rule : RewriteRule {env} {s}
+  | rule : RewriteRule env {s}
   | substitution : MetaSubstitution env context
   | left-coherence : MetaSubstitution.apply rule.l sublist-trivial substitution = L
   | right-coherence : MetaSubstitution.apply rule.r sublist-trivial substitution = R
@@ -153,7 +152,7 @@
     \func \infix 4 in {A : \Type} (a : A) (set : IndexedSet A) : \Type => \Sigma (point : set.J) (set.get point = a)
   }
 
-\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : IndexedSet (RewriteRule {env}))
+\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : IndexedSet (RewriteRule env))
                                   {n : Nat}
                                   (contexts : Fin n -> List Sort)
                                   (sorts : Fin n -> Sort)
@@ -167,7 +166,7 @@
                                 (\lam i => B (fsuc i)))
 
 \truncated \data RewriteRelation {env : Environment}
-                                 (set-of-rules : IndexedSet (RewriteRule {env}))
+                                 (set-of-rules : IndexedSet (RewriteRule env))
                                  {s : env.Sort}
                                  {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
   | A, B =>
@@ -189,7 +188,7 @@
                                choosing-A
                                (transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B))
 
-\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule {env})) \extends AbstractReductionSystem
+\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule env)) \extends AbstractReductionSystem
   | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort)
   | ~> a b => \case \elim a, b \with {
     | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation {env} set-of-rules A (transport2 (Term env) p q B))
