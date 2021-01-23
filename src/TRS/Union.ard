@@ -31,18 +31,15 @@
 
 \module Injections \where {
   \func inject-term-left {Sort : \Set}
-                         (envL : Environment Sort)
-                         (envR : Environment Sort)
-                         {s : Sort}
-                         {c : List Sort}
+                         (envL envR : Environment Sort)
+                         {s : Sort} {c : List Sort}
                          (term : Term envL c s) : Term (JointEnvironment envL envR) c s \elim term
     | var index p => var index p
     | metavar m choosing => metavar (inl m) (\lam i => inject-term-left envL envR (choosing i))
     | func f choosing => func (inl f) (\lam i => inject-term-left envL envR (choosing i))
 
   \func inject-term-right {Sort : \Set}
-                          (envL : Environment Sort)
-                          (envR : Environment Sort)
+                          (envL envR : Environment Sort)
                           {s : Sort}
                           {c : List Sort}
                           (term : Term envR c s) : Term (JointEnvironment envL envR) c s \elim term
@@ -51,8 +48,7 @@
     | func f choosing => func (inr f) (\lam i => inject-term-right envL envR (choosing i))
 
   \func inject-rewrite-rule-left {Sort : \Set}
-                                 (envL : Environment { | Sort => Sort })
-                                 (envR : Environment { | Sort => Sort })
+                                 (envL envR : Environment Sort)
                                  (rule : RewriteRule envL)
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
@@ -65,8 +61,7 @@
     }
     \where {
       \func uninject-in {Sort : \Set}
-                        (envL : Environment Sort)
-                        (envR : Environment Sort)
+                        (envL envR : Environment Sort)
                         {s s'' : Sort}
                         (term : Term envL nil s)
                         (m' : envL.MetaVariable.metasymbol s'')
@@ -77,8 +72,7 @@
         | func f choosing, inP a => {?}
 
       \func inject-in {Sort : \Set}
-                      (envL : Environment Sort)
-                      (envR : Environment Sort)
+                      (envL envR : Environment Sort)
                       {s s'' : Sort}
                       (term : Term envL nil s)
                       (m' : envL.MetaVariable.metasymbol s'')
@@ -90,8 +84,7 @@
     }
 
   \func inject-rewrite-rule-right {Sort : \Set}
-                                  (envL : Environment Sort)
-                                  (envR : Environment Sort)
+                                  (envL envR : Environment Sort)
                                   (rule : RewriteRule envR)
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
