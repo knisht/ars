@@ -13,6 +13,7 @@
 \import TRS.HRS
 \import TRS.List
 \import Set.Fin
+\import TRS.Utils
 
 -- | Family of functional term symbols
 \record FunctionalSignature (Sort : \Set)
@@ -165,6 +166,16 @@
                                 (\lam i => A (fsuc i))
                                 (\lam i => B (fsuc i)))
 
+\func transport-chooser-f {env : Environment} {s : Sort} {context : List Sort} {f-A f-B : FunctionalSymbol.symbol s} (p : f-A = f-B)
+                          (choosing-B : \Pi (index : F-param-index f-B) -> Term env ((f-B !!param index) ++ context) (f-B !!sort index))
+  :  \Pi (index : Fin (length (domain f-A))) -> Term env ((f-A !!param index) ++ context) (f-A !!sort index) =>
+  transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (f !!param index ++ context) (f !!sort index)) (inv p) choosing-B
+
+\func transport-chooser-m {env : Environment} {s : Sort} {context : List Sort} {m-A m-B : MetaVariable.metasymbol s} (p : m-A = m-B)
+                          (choosing-B : \Pi (index : M-param-index m-B) -> Term env context (metadomain m-B !! index))
+  : \Pi (index : Fin (length (metadomain m-A))) -> Term env context (metadomain m-A !! index) =>
+  transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B
+
 \truncated \data RewriteRelation {env : Environment}
                                  (set-of-rules : IndexedSet (RewriteRule env))
                                  {s : env.Sort}
@@ -178,7 +189,7 @@
                                (f-A !!param __ ++ context)
                                (f-A !!sort __)
                                choosing-A
-                               (transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (f !!param index ++ context) (f !!sort index)) (inv p) choosing-B))
+                               (transport-chooser-f {env} p choosing-B))
 
   | metavar m-A choosing-A, metavar m-B choosing-B =>
   rewrite-with-parameter-m (p : m-A = m-B)
@@ -186,7 +197,7 @@
                                (\lam _ => context)
                                (metadomain m-A !! __)
                                choosing-A
-                               (transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B))
+                               (transport-chooser-m {env} p choosing-B))
 
 \class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule env)) \extends AbstractReductionSystem
   | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort)

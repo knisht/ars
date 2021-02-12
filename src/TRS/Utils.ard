@@ -1,0 +1,9 @@
+\import TRS.HRS
+\import TRS.List
+\import Set.Fin
+
+\func F-param-index {Sort : \Set} {fs : FunctionalSignature Sort} {s : Sort} (f : fs.symbol s) : \Set =>
+  Fin (length (fs.domain f))
+
+\func M-param-index {Sort : \Set} {ms : MetaSignature Sort} {s : Sort} (m : ms.metasymbol s) : \Set =>
+  Fin (length (ms.metadomain m))
