@@ -191,9 +191,9 @@
               (choosing-A i)
               ((transport-chooser-m {env {tc}} (pmap blue p) choosing-B) i))
 
-  \data SingularTransition:Red->Blue {tc : TheoremContext}
-                                     {s : Sort} {context : List Sort}
-                                     (A B : Term env context s) : \Set
+  \truncated \data SingularTransition:Red->Blue {tc : TheoremContext}
+                                                {s : Sort} {context : List Sort}
+                                                (A B : Term env context s) : \Set
     | start-blue-reduction (hasBlueRoot A) (ColoredParallelReduction A B)
     | continue-red-spread (hasRedRoot A) (SpreadTransition A B)
 
@@ -207,7 +207,7 @@
                                        {n : Nat}
                                        (contexts : Fin n -> List Sort)
                                        (sorts : Fin n -> Sort)
-                                       (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Prop \elim n
+                                       (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Set \elim n
     | suc n => head-reduction-red (RedRewriteRelation {tc} (A fzero) (B fzero)) (\Pi (i : Fin n) -> A (fsuc i) = B (fsuc i))
     | suc n => tail-reduction-red (A fzero = B fzero)
                                   (RedReductionAtIndex {tc}
@@ -216,7 +216,7 @@
                                       (\lam i => A (fsuc i))
                                       (\lam i => B (fsuc i)))
 
-  \truncated \data RedRewriteRelation {tc : TheoremContext} {s : Sort} {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
+  \truncated \data RedRewriteRelation {tc : TheoremContext} {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
     | A, B => rewrite-with-rule-red (hasRedRoot {tc} A)
                                     (step : RewriteStep {env {tc}} A B)
                                     (step.rule IndexedSet.in (Injections.promote-indexed-set-left {Sort} {envL} {envR} L.set-of-rules))
@@ -268,4 +268,58 @@
                                       (metadomain m-A !! __)
                                       choosing-A
                                       (transport-chooser-m {env {tc}} (pmap blue p) choosing-B))
+
+  \data StraightJoin {A : \Set} (~> : A -> A -> \Set) (b c : A)
+    | straight-join (d : A) (b `~> d) (c `~>` d)
+    \where {
+      \func common-reduct {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : A \elim join
+        | straight-join d _ _ => d
+
+      \func reduction-from-left {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : b `~>` (common-reduct join) \elim join
+        | straight-join _ reduction _ => reduction
+
+      \func reduction-from-right {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : c `~>` (common-reduct join) \elim join
+        | straight-join _ _ reduction => reduction
+    }
+
+  \func parallel-reduction-confluence {tc : TheoremContext} {s : Sort} {context : List Sort}
+                                      (a b c : Term env context s)
+                                      (a~>b : ColoredParallelReduction a b)
+                                      (a~>c : ColoredParallelReduction a c)
+    : StraightJoin ColoredParallelReduction b c
+  \elim a, b, c, a~>b, a~>c
+    | a, b, c, leave-untouched eq, a~>c => straight-join c (transport (ColoredParallelReduction __ c) eq a~>c) (leave-untouched idp)
+    | a, b, c, a~>b, leave-untouched eq => straight-join b (leave-untouched idp) (transport (ColoredParallelReduction __ b) eq a~>b)
+    | a, b, c, reduce-in-place-red h t, reduce-in-place-red h1 t1 => {?}
+    | a, b, c, reduce-in-place-red h t, reduce-in-place-blue h1 t1 => (root-has-unique-color {tc} a h h1)
+    | a, b, c, reduce-in-place-red h t, spread-reduction s1 => {?}
+    | a, b, c, reduce-in-place-blue h t, reduce-in-place-red h1 t1 => (root-has-unique-color {tc} a h1 h)
+    | a, b, c, reduce-in-place-blue h t, reduce-in-place-blue h1 t1 => {?}
+    | a, b, c, reduce-in-place-blue h t, spread-reduction s1 => {?}
+    | a, b, c, spread-reduction s1, reduce-in-place-red h t => {?}
+    | a, b, c, spread-reduction s1, reduce-in-place-blue h t => {?}
+    | a, b, c, spread-reduction a~>b, spread-reduction a~>c => process-spread-reduction a b c a~>b a~>c
+
+  \func process-spread-reduction {tc : TheoremContext} {s : Sort} {context : List Sort}
+                                 (a b c : Term env context s)
+                                 (a~>b : SpreadTransition a b) (a~>c : SpreadTransition a c)
+    : StraightJoin ColoredParallelReduction b c \elim a, b, c, a~>b, a~>c
+    | func (red f-A) choosing-A,
+    func (red f-B) choosing-B,
+    func (red f-C) choosing-C,
+    distributed-reduction-red-f-f f-A=f-B pass-a-b,
+    distributed-reduction-red-f-f f-A=f-C pass-a-c =>
+      \let | joins (i : F-param-index f-A) : (StraightJoin (ColoredParallelReduction {tc}) (transport-chooser-f {env} (pmap red f-A=f-B) choosing-B i) (transport-chooser-f {env} (pmap red f-A=f-C) choosing-C i)) => \case (pass-a-b i), (pass-a-c i) \with {
+        | start-blue-reduction h a_i~>b_i, start-blue-reduction h1 a_i~>c_i => parallel-reduction-confluence (choosing-A i) (transport-chooser-f {env} (pmap red f-A=f-B) choosing-B i) (transport-chooser-f {env} (pmap red f-A=f-C) choosing-C i) a_i~>b_i a_i~>c_i
+        | start-blue-reduction h c, continue-red-spread h1 s1 => root-has-unique-color (choosing-A i) h1 h
+        | continue-red-spread h s1, start-blue-reduction h1 c => root-has-unique-color (choosing-A i) h h1
+        | continue-red-spread h s1, continue-red-spread h1 s2 => process-spread-reduction {tc} (choosing-A i) (transport-chooser-f {env} (pmap red f-A=f-B) choosing-B i) (transport-chooser-f {env} (pmap red f-A=f-C) choosing-C i) s1 s2
+      }
+           | common-term : Term env context s => func (red f-A) (\lam i => StraightJoin.common-reduct (joins i)) \in straight-join common-term (spread-reduction (distributed-reduction-red-f-f (inv f-A=f-B) (\lam i => {?}))) {?}
+
+    | func (blue f-A) choosing-A, func (blue f-B) choosing-B, func (blue f-C) choosing-C, distributed-reduction-blue-f-f _ _, distributed-reduction-blue-f-f _ _ => {?}
+    | metavar (red f-A) choosing-A, metavar (red f-B) choosing-B, metavar (red f-C) choosing-C, distributed-reduction-red-m-m _ _, distributed-reduction-red-m-m p _ => {?}
+    | metavar (blue b) choosing, metavar (blue f-B) choosing-B, metavar (blue f-C) choosing-C, distributed-reduction-blue-m-m _ _, distributed-reduction-blue-m-m p _ => {?}
 }
+
+
