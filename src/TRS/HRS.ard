@@ -27,37 +27,37 @@
       (Sig.domain m !! index).2
   }
 
-\record MetaSignature (Sort : \Set)
-  | metasymbol : Sort -> \Set
-  | metadomain : \Pi {s : Sort} (metasymbol s) -> List Sort
-
 \open FunctionalSignature
 
 \class Environment
   | Sort : \Set
   | FunctionalSymbol : FunctionalSignature Sort
-  | MetaVariable : MetaSignature Sort
+
+\record MetaVariable {Sort : \Set}
+  | sort : Sort
+  | name : Nat
+  | m-domain : List Sort
 
 -- | Term of High-order TRS
 \data Term (env : Environment)
            (context : List Sort)
            (termSort : Sort) : \Set
   | var (index : Fin (length context)) (termSort = context !! index) -- | Bound variable
-  | metavar (m : MetaVariable.metasymbol termSort) -- | Metavariable
-            (choosing : \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index))
+  | metavar (m : MetaVariable {env.Sort} termSort) -- | Metavariable
+            (choosing : \Pi (index : Fin (length m.m-domain)) -> Term env context (m.m-domain !! index))
   | func (f : FunctionalSymbol.symbol termSort) -- | Functional symbol
          (choosing : \Pi (index : Fin (length (domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index))
   \where {
     -- | Checks if term `t` contains metavariable `v`
-    \func \infix 4 in {env : Environment} {s' s'' : Sort}
+    \func \infix 4 in {env : Environment} {s' : Sort}
                       {context : List Sort}
-                      (v : MetaVariable.metasymbol s'')
+                      (v : MetaVariable)
                       (t : Term env context s') : \Prop \elim t
       | var index p => Empty
-      | metavar m choosing =>
-        (\Sigma (s=s' : s'' = s') (m = (transport metasymbol s=s' v)))
+      | metavar (m : MetaVariable s') choosing =>
+        (m = v)
           ||
-        (\Sigma (n : Fin (length (metadomain m))) (v in choosing n))
+        (\Sigma (n : Fin (length (m.m-domain))) (v in choosing n))
       | func f choosing => ∃ (n : Fin (length (domain f))) (v in choosing n)
   }
 
@@ -106,12 +106,12 @@
   }
 
 \record RewriteRule (env : Environment) {s : env.Sort} (l r : Term env nil s) {
-  | r-is-not-generating : \Pi {s'' : env.Sort} (m : metasymbol s'') (m in {env} r) -> m in {env} l
+  | r-is-not-generating : \Pi {s'' : env.Sort} (m : MetaVariable s'') (m in {env} r) -> m in {env} l
 }
 
 -- | Substitution of metavariables
 \func MetaSubstitution (env : Environment) (new-context : List Sort): \Set =>
-  \Pi {sort : Sort} (mvar : MetaVariable.metasymbol sort) -> Term env ((MetaVariable.metadomain mvar) ++ new-context) sort
+  \Pi (mvar : MetaVariable {env.Sort}) -> Term env ((mvar.m-domain) ++ new-context) mvar.sort
   \where {
     \func apply {env : Environment} {context new-context : List Sort} {s : Sort}
                 (t : Term env context s)
@@ -119,14 +119,15 @@
                 (subst : MetaSubstitution env new-context) : Term env new-context s \elim t
       | var index p => var (SubList.shift-index index sublist) (p *> SubList.shift-index-preserves-equality index sublist)
 
-      | metavar m choosing => \let | new-term : Term env (metadomain m ++ new-context) s => subst m
-                                   | basic-term-chooser (i : Fin (length (MetaVariable.metadomain m))) : Term env new-context (metadomain m !! i) => apply (choosing i) sublist subst
-                              \in Substitution.apply new-term (extend-chooser basic-term-chooser)
+      | metavar (m : MetaVariable) choosing =>
+        \let | new-term : Term env (m.m-domain ++ new-context) s => subst m
+             | basic-term-chooser (i : Fin (length m.m-domain)) : Term env new-context (m.m-domain !! i) => apply (choosing i) sublist subst
+        \in Substitution.apply new-term (extend-chooser basic-term-chooser)
 
       | func f choosing => func f (\lam i =>
           \let | middle-sublist : SubList (f !!param i ++ context) (f !!param i ++ new-context) => (SubList.extend-left sublist (f !!param i))
                | extended-substitution : MetaSubstitution env (f !!param i ++ new-context) =>
-                 \lam m => Substitution.apply.weakening (subst m) (SubList.extend-middle (metadomain m) new-context (f !!param i))
+                 \lam (m : MetaVariable) => Substitution.apply.weakening (subst m) (SubList.extend-middle (m.m-domain) new-context (f !!param i))
           \in apply (choosing i) middle-sublist extended-substitution)
 
       \where {
@@ -171,10 +172,10 @@
   :  \Pi (index : Fin (length (domain f-A))) -> Term env ((f-A !!param index) ++ context) (f-A !!sort index) =>
   transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (f !!param index ++ context) (f !!sort index)) (inv p) choosing-B
 
-\func transport-chooser-m {env : Environment} {s : Sort} {context : List Sort} {m-A m-B : MetaVariable.metasymbol s} (p : m-A = m-B)
-                          (choosing-B : \Pi (index : M-param-index m-B) -> Term env context (metadomain m-B !! index))
-  : \Pi (index : Fin (length (metadomain m-A))) -> Term env context (metadomain m-A !! index) =>
-  transport (\lam m => \Pi (index : Fin (length (metadomain m))) -> Term env context (metadomain m !! index)) (inv p) choosing-B
+\func transport-chooser-m {env : Environment} {s : Sort} {context : List Sort} {m-A m-B : MetaVariable {Sort} s} (p : m-A = m-B)
+                          (choosing-B : \Pi (index : Fin (length m-B.m-domain)) -> Term env context (m-B.m-domain !! index))
+  : \Pi (index : Fin (length m-A.m-domain)) -> Term env context (m-A.m-domain !! index) =>
+  transport (\lam (m : MetaVariable s) => \Pi (index : Fin (length m.m-domain)) -> Term env context (m.m-domain !! index)) (inv p) choosing-B
 
 \truncated \data RewriteRelation {env : Environment}
                                  (set-of-rules : IndexedSet (RewriteRule env))
@@ -191,11 +192,11 @@
                                choosing-A
                                (transport-chooser-f {env} p choosing-B))
 
-  | metavar m-A choosing-A, metavar m-B choosing-B =>
+  | metavar (m-A : MetaVariable s) choosing-A, metavar (m-B : MetaVariable s) choosing-B =>
   rewrite-with-parameter-m (p : m-A = m-B)
                            (ReductionAtIndex {env} set-of-rules
                                (\lam _ => context)
-                               (metadomain m-A !! __)
+                               (m-A.m-domain !! __)
                                choosing-A
                                (transport-chooser-m {env} p choosing-B))
 
