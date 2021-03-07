@@ -1,9 +1,10 @@
+\import Paths
 \import TRS.HRS
 \import TRS.List
-\import Set.Fin
 
 \func F-param-index {Sort : \Set} {fs : FunctionalSignature Sort} {s : Sort} (f : fs.symbol s) : \Set =>
   Fin (length (fs.domain f))
 
-\func M-param-index {Sort : \Set} {ms : MetaSignature Sort} {s : Sort} (m : ms.metasymbol s) : \Set =>
-  Fin (length (ms.metadomain m))
+\func promote-fin {x : Nat} {y : Fin x} (z : Fin y) : Fin x \elim x, y, z
+  | suc x, suc y, 0 => 0
+  | suc x, suc y, suc z => suc (promote-fin {x} {y} z)

@@ -5,8 +5,7 @@
 \import Paths
 \import Paths.Meta
 \import Set
-\import Set.Fin
-
+\import TRS.Utils
 \open Nat
 \func length {A : \Type} (list : List A) : Nat \elim list
   | nil => 0
@@ -17,8 +16,8 @@
   | :: a L => pmap suc map-fixes-length
 
 \func \infix 7 !! {A : \Type} (v : List A) (index : Fin (length v)) : A \elim v, index
-  | :: a v, fsuc index => v !! index
-  | :: a v, fzero => a
+  | :: a v, suc index => v !! index
+  | :: a v, zero => a
 
 -- | `l` is a sublist of `r`
 \data SubList {A : \Type} (l r : List A) \elim l, r
@@ -40,18 +39,26 @@
       | :: a l, add => sublist-match idp (extend-middle l r add)
 
     \func shift-index {A : \Type} {list list' : List A} (index : Fin (length list)) (sublist : SubList list list') : Fin (length list') \elim list, list', index, sublist
-      | :: x xs, :: y ys, fzero, sublist-match p sublist => fzero
-      | :: x xs, :: y ys, fsuc index, sublist-match p sublist => fsuc (shift-index index sublist)
-      | l, :: y ys, index, sublist-skip sublist => fsuc (shift-index index sublist)
+      | :: x xs, :: y ys, zero, sublist-match p sublist => zero
+      | :: x xs, :: y ys, suc index, sublist-match p sublist => suc (shift-index index sublist)
+      | l, :: y ys, index, sublist-skip sublist => suc (shift-index index sublist)
       | nil, :: y ys, (), _
 
     \func shift-index-preserves-equality {A : \Type} {list list' : List A}
                                 (index : Fin (length list))
                                 (sublist : SubList list list') : (list !! index = list' !! (shift-index index sublist)) \elim list, list', index, sublist
-      | :: x xs, :: y ys, fzero, sublist-match p sublist => p
-      | :: x xs, :: y ys, fsuc index, sublist-match p sublist => shift-index-preserves-equality index sublist
-      | :: a l, :: y ys, fzero, sublist-skip sublist => shift-index-preserves-equality fzero sublist
-      | :: x xs, :: y ys, fsuc index, sublist-skip sublist => shift-index-preserves-equality (fsuc index) sublist
+      | :: x xs, :: y ys, zero, sublist-match p sublist => p
+      | :: x xs, :: y ys, suc index, sublist-match p sublist => shift-index-preserves-equality index sublist
+      | :: a l, :: y ys, zero, sublist-skip sublist => shift-index-preserves-equality zero sublist
+      | :: x xs, :: y ys, suc index, sublist-skip sublist => shift-index-preserves-equality (suc index) sublist
       | nil, :: y ys, (), _
   }
+
+\data DescendingVector (n limit : Nat) \elim n
+  | 0 => dv-nil
+  | suc n => dv-cons (x : Fin limit) (DescendingVector n x)
+
+\func \infix 4 dv!! {n limit : Nat} (vec : DescendingVector n limit) (index : Fin n) : Fin limit \elim n, vec, index
+  | suc n, dv-cons x dvec, zero => x
+  | suc n, dv-cons x dvec, suc index => promote-fin (dvec dv!! index)
 

@@ -12,7 +12,6 @@
 \import Set
 \import TRS.HRS
 \import TRS.List
-\import Set.Fin
 \import TRS.Utils
 
 -- | Family of functional term symbols
@@ -61,6 +60,22 @@
       | func f choosing => ∃ (n : Fin (length (domain f))) (v in choosing n)
   }
 
+\data PatternTerm (env : Environment)
+                  (context : List Sort)
+                  (termSort : Sort) : \Set
+  | pattern-var (index : Fin (length context)) (termSort = context !! index)
+  | pattern-metavar (m : MetaVariable {env.Sort} termSort)
+                    (arguments : DescendingVector (length m.m-domain) (length context))
+                    (arguments-coherence : \Pi (index : Fin (length m.m-domain)) -> m.m-domain !! index = context !! (arguments dv!! index))
+  | pattern-func (f : FunctionalSymbol.symbol termSort)
+                 (choosing : \Pi (index : Fin (length (domain f))) -> PatternTerm env ((f !!param index) ++ context) (f !!sort index))
+  \where {
+    \func convertToTerm {env : Environment} {context : List Sort} {s : Sort} (pattern : PatternTerm env context s) : Term env context s \elim pattern
+      | pattern-var index p => var index p
+      | pattern-metavar m arguments arguments-coherence => metavar m (\lam index => var (arguments dv!! index) (arguments-coherence index))
+      | pattern-func f choosing => func f (\lam index => convertToTerm (choosing index))
+  }
+
 \open Term
 
 -- | Substitution of regular variables
@@ -81,8 +96,8 @@
                                    (subst : Substitution old-context new-context)
                                    (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) \elim additional-context, index
           | nil, index => subst index
-          | :: a additional-context, fzero => var fzero idp
-          | :: a additional-context, fsuc index => \let inner-shifting => enlarge-substitution additional-context subst index
+          | :: a additional-context, zero => var zero idp
+          | :: a additional-context, suc index => \let inner-shifting => enlarge-substitution additional-context subst index
                                                    \in weakening inner-shifting (sublist-skip (SubList.identity (additional-context ++ new-context)))
 
         \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort}
@@ -95,9 +110,9 @@
           \where {
             \func recalculate-index {A : \Set} (a b : List A) (point : A) (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
               | nil, r, sublist-trivial, (), p
-              | :: x xs, :: y ys, sublist-match p sublist, fzero, idp => (fzero, p)
-              | :: x xs, :: y ys, sublist-match p sublist, fsuc ind, idp => \let (ind', p') => recalculate-index xs ys point sublist ind idp \in (fsuc ind', p')
-              | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys point sublist ind idp \in (fsuc ind', p')
+              | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
+              | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index xs ys point sublist ind idp \in (suc ind', p')
+              | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys point sublist ind idp \in (suc ind', p')
           }
       }
 
@@ -105,8 +120,8 @@
       apply t (\lam i => contradiction)
   }
 
-\record RewriteRule (env : Environment) {s : env.Sort} (l r : Term env nil s) {
-  | r-is-not-generating : \Pi {s'' : env.Sort} (m : MetaVariable s'') (m in {env} r) -> m in {env} l
+\record RewriteRule (env : Environment) {s : env.Sort} (l : PatternTerm env nil s) (r : Term env nil s) {
+  | r-is-not-generating : \Pi {s'' : env.Sort} (m : MetaVariable s'') (m in {env} r) -> m in {env} (PatternTerm.convertToTerm l)
 }
 
 -- | Substitution of metavariables
@@ -136,15 +151,15 @@
                              (j : Fin (length (left-context ++ right-context)))
           : Term env right-context ((left-context ++ right-context) !! j) \elim left-context, j
           | nil, j => var j idp
-          | :: a narrow-context, fzero => chooser fzero
-          | :: a narrow-context, fsuc j => extend-chooser (\lam i => chooser (fsuc i)) j
+          | :: a narrow-context, zero => chooser zero
+          | :: a narrow-context, suc j => extend-chooser (\lam i => chooser (suc i)) j
       }
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} (L R : Term env context s)
   | rule : RewriteRule env {s}
   | substitution : MetaSubstitution env context
-  | left-coherence : MetaSubstitution.apply rule.l sublist-trivial substitution = L
+  | left-coherence : MetaSubstitution.apply (PatternTerm.convertToTerm rule.l) sublist-trivial substitution = L
   | right-coherence : MetaSubstitution.apply rule.r sublist-trivial substitution = R
 
 \record IndexedSet (A : \Type)
@@ -159,13 +174,13 @@
                                   (contexts : Fin n -> List Sort)
                                   (sorts : Fin n -> Sort)
                                   (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Prop \elim n
-  | suc n => head-reduction (RewriteRelation {env} set-of-rules (A fzero) (B fzero)) (\Pi (i : Fin n) -> A (fsuc i) = B (fsuc i))
-  | suc n => tail-reduction (A fzero = B fzero)
+  | suc n => head-reduction (RewriteRelation {env} set-of-rules (A zero) (B zero)) (\Pi (i : Fin n) -> A (suc i) = B (suc i))
+  | suc n => tail-reduction (A zero = B zero)
                             (ReductionAtIndex {env} set-of-rules
-                                (\lam i => contexts (fsuc i))
-                                (\lam i => sorts (fsuc i))
-                                (\lam i => A (fsuc i))
-                                (\lam i => B (fsuc i)))
+                                (\lam i => contexts (suc i))
+                                (\lam i => sorts (suc i))
+                                (\lam i => A (suc i))
+                                (\lam i => B (suc i)))
 
 \func transport-chooser-f {env : Environment} {s : Sort} {context : List Sort} {f-A f-B : FunctionalSymbol.symbol s} (p : f-A = f-B)
                           (choosing-B : \Pi (index : F-param-index f-B) -> Term env ((f-B !!param index) ++ context) (f-B !!sort index))
