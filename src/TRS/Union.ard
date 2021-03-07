@@ -1,4 +1,5 @@
 \import Confluence
+\import Data.Bool
 \import Data.List (++, List, nil)
 \import Data.Or
 \import Logic
@@ -17,16 +18,8 @@
     | inr b => B.domain b
   }
 
-\func JointMetaSignature (Sort : \Set) (A B : MetaSignature Sort) : MetaSignature Sort \cowith
-  | metasymbol s => A.metasymbol s `Or` B.metasymbol s
-  | metadomain metavar => \case \elim metavar \with {
-    | inl a => A.metadomain a
-    | inr b => B.metadomain b
-  }
-
 \func JointEnvironment {Sort : \Set} (A : Environment Sort) (B : Environment Sort) : Environment Sort \cowith
   | FunctionalSymbol => JointFunctionalSignature Sort A.FunctionalSymbol B.FunctionalSymbol
-  | MetaVariable => JointMetaSignature Sort A.MetaVariable B.MetaVariable
 
 \func JointIndexedSet {A : \Type} (L R : IndexedSet A) : IndexedSet A \cowith
   | J => L.J `Or` R.J
@@ -41,8 +34,17 @@
                          {s : Sort} {c : List Sort}
                          (term : Term envL c s) : Term (JointEnvironment envL envR) c s \elim term
     | var index p => var index p
-    | metavar m choosing => metavar (inl m) (\lam i => inject-term-left envL envR (choosing i))
+    | metavar m choosing => metavar m (\lam i => inject-term-left envL envR (choosing i))
     | func f choosing => func (inl f) (\lam i => inject-term-left envL envR (choosing i))
+
+  \func inject-pattern-term-left {Sort : \Set}
+                                 (envL envR : Environment Sort)
+                                 {s : Sort}
+                                 {c : List Sort}
+                                 (term : PatternTerm envL c s) : PatternTerm (JointEnvironment envL envR) c s \elim term
+    | pattern-var index p => pattern-var index p
+    | pattern-metavar m arguments coherence => pattern-metavar m arguments coherence
+    | pattern-func f choosing => pattern-func (inl f) (\lam i => inject-pattern-term-left envL envR (choosing i))
 
   \func inject-term-right {Sort : \Set}
                           (envL envR : Environment Sort)
@@ -50,53 +52,35 @@
                           {c : List Sort}
                           (term : Term envR c s) : Term (JointEnvironment envL envR) c s \elim term
     | var index p => var index p
-    | metavar m choosing => metavar (inr m) (\lam i => inject-term-right envL envR (choosing i))
+    | metavar m choosing => metavar m (\lam i => inject-term-right envL envR (choosing i))
     | func f choosing => func (inr f) (\lam i => inject-term-right envL envR (choosing i))
+
+  \func inject-pattern-term-right {Sort : \Set}
+                                  (envL envR : Environment Sort)
+                                  {s : Sort}
+                                  {c : List Sort}
+                                  (term : PatternTerm envR c s) : PatternTerm (JointEnvironment envL envR) c s \elim term
+    | pattern-var index p => pattern-var index p
+    | pattern-metavar m arguments coherence => pattern-metavar m arguments coherence
+    | pattern-func f choosing => pattern-func (inr f) (\lam i => inject-pattern-term-right envL envR (choosing i))
 
   \func promote-rewrite-rule-left {Sort : \Set}
                                   (envL envR : Environment Sort)
                                   (rule : RewriteRule envL)
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
-    | l => inject-term-left envL envR rule.l
+    | l => inject-pattern-term-left envL envR rule.l
     | r => inject-term-left envL envR rule.r
-    | r-is-not-generating m m-in-r => \case \elim m, \elim m-in-r \with {
-      | inl m', m-in-r => \let | q => uninject-in envL envR rule.r m' m-in-r
-                               | q' => rule.r-is-not-generating m' q \in {?}
-      | inr b, m-in-r => {?}
-    }
-    \where {
-      \func uninject-in {Sort : \Set}
-                        (envL envR : Environment Sort)
-                        {s s'' : Sort}
-                        (term : Term envL nil s)
-                        (m' : envL.MetaVariable.metasymbol s'')
-                        (rel : (inl m') Term.in {JointEnvironment envL envR} (inject-term-left envL envR term))
-        : m' Term.in term \elim term, rel
-        | metavar m choosing, byLeft a => {?}
-        | metavar m choosing, byRight b => {?}
-        | func f choosing, inP a => {?}
-
-      \func inject-in {Sort : \Set}
-                      (envL envR : Environment Sort)
-                      {s s'' : Sort}
-                      (term : Term envL nil s)
-                      (m' : envL.MetaVariable.metasymbol s'')
-                      (rel : m' Term.in term)
-        : (inl m') Term.in {JointEnvironment envL envR} (inject-term-left envL envR term) \elim term, rel
-        | metavar m choosing, byLeft (q, p) => byLeft (q, {?})
-        | metavar m choosing, byRight (n, prf) => byRight (n, inject-in envL envR (choosing n) m' prf)
-        | func f choosing, inP a => {?}
-    }
+    | r-is-not-generating m m-in-r => {?} -- technical
 
   \func promote-rewrite-rule-right {Sort : \Set}
                                    (envL envR : Environment Sort)
                                    (rule : RewriteRule envR)
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
-    | l => inject-term-right envL envR rule.l
+    | l => inject-pattern-term-right envL envR rule.l
     | r => inject-term-right envL envR rule.r
-    | r-is-not-generating => {?}
+    | r-is-not-generating => {?} -- technical
 
   \func promote-indexed-set-left {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (RewriteRule envL)) : IndexedSet (RewriteRule (JointEnvironment envL envR)) \cowith
     | J => rules.J
@@ -138,279 +122,53 @@
     | L : SimpleHigherOrderTermRewritingSystem envL
     | R : SimpleHigherOrderTermRewritingSystem envR
   } \where {
-    \func env {tc : TheoremContext} : Environment => JointEnvironment envL envR
+    \func colored-env {_ : TheoremContext} (color : Color) : Environment Sort \elim color
+      | red => envL
+      | blue => envR
+
+    \func colored-set-of-rules {_ : TheoremContext} (color : Color) : IndexedSet (RewriteRule (colored-env color)) \elim color
+      | red => L.set-of-rules
+      | blue => R.set-of-rules
+
+    \func monochrome-reduction {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (A B : Term (colored-env color) context s): \Prop
+    \elim color
+      | red => RewriteRelation {envL} L.set-of-rules A B
+      | blue => RewriteRelation {envR} R.set-of-rules A B
+
+    \func inject-monochrome-term {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (t : Term (colored-env color) context s) : Term env context s \elim color
+      | red => Injections.inject-term-left envL envR t
+      | blue => Injections.inject-term-right envL envR t
+
+    \data HasColoredRoot {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (term : Term env context s) \elim color, term
+      | red, func (inl _) _ => red-func-root
+      | blue, func (inr _) _ => blue-func-root
+      | _, metavar _ _ => uncolored-metavar-root
+      | _, var _ _ => uncolored-var-root
+
+    \func env {_ : TheoremContext} : Environment => JointEnvironment envL envR
+  }
+
+  \data Color | red | blue \where {
+    \func flip (c : Color) : Color \elim c
+      | red => blue
+      | blue => red
   }
 
   \open TheoremContext
 
-  \cons red {A B : \Type} (a : A) : A `Or` B => inl a
-
-  \cons blue {A B : \Type} (b : B) : A `Or` B => inr b
-
-  \data hasRedRoot {tc : TheoremContext}
-                   {s : Sort} {context : List Sort} (t : Term env context s) \elim t
-    | func (red _) _ => red-func
-    | metavar (red _) _ => red-mvar
-
-  \data hasBlueRoot {tc : TheoremContext}
-                    {s : Sort} {context : List Sort} (t : Term env context s) \elim t
-    | func (blue _) _ => blue-func
-    | metavar (blue _) _ => blue-mvar
-
-  \func root-has-unique-color {tc : TheoremContext} {context : List Sort} {s : Sort} (t : Term env context s) (rr : hasRedRoot t) (br : hasBlueRoot t) {A : \Type} : A \elim t, rr, br
-    | func (red _) _, red-func, ()
-    | metavar (red _) _, red-mvar, ()
-
-  \data RedOnlyParallelReduction {tc : TheoremContext}
-                                 {s : Sort} {context : List Sort} (A B : Term env context s) : \Set
-    | in-place-red (hasRedRoot A) (RedRewriteRelation A B) -- todo: transitive closure
-    | spread-red-reduction (SpreadingRedOnlyParallelReduction A B)
-
-  \data SpreadingRedOnlyParallelReduction {tc : TheoremContext}
-                                          {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
-    | func (red f-A) choosing-A, func (red f-B) choosing-B => distributed-reduction-red-f
-      (p : f-A = f-B)
-      (\Pi (i : F-param-index f-A) ->
-          SpreadingRedOnlyParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-f {env {tc}} (pmap red p) choosing-B) i))
-    | metavar (red m-A) choosing-A, metavar (red m-B) choosing-B => distributed-reduction-red-m
-      (p : m-A = m-B)
-      (\Pi (i : M-param-index m-A) ->
-          SpreadingRedOnlyParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-m {env {tc}} (pmap red p) choosing-B) i))
-    | func (blue f-A) choosing-A, func (blue f-B) choosing-B => skip-blue-term-f (f-A = f-B) (BlueSkippingParallelReduction {tc} (func (blue f-A) choosing-A) (func (blue f-B) choosing-B))
-    | metavar (blue m-A) choosing-A, metavar (blue m-B) choosing-B => skip-blue-term-m (m-A = m-B) (BlueSkippingParallelReduction {tc} (metavar (blue m-A) choosing-A) (metavar (blue m-B) choosing-B))
-
-  \data BlueSkippingParallelReduction {tc : TheoremContext}
-                                      {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
-    | func (blue f-A) choosing-A, func (blue f-B) choosing-B => skip-blue-function
-      (p : f-A = f-B)
-      (\Pi (i : F-param-index f-A) ->
-          BlueSkippingParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-f {env {tc}} (pmap blue p) choosing-B) i))
-    | metavar (blue m-A) choosing-A, metavar (blue m-B) choosing-B => skip-blue-metavar
-      (p : m-A = m-B)
-      (\Pi (i : M-param-index m-A) ->
-          BlueSkippingParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-m {env {tc}} (pmap blue p) choosing-B) i))
-    | func (red f-A) choosing-A, B => start-red-reduction-f (RedOnlyParallelReduction {tc} (func (red f-A) choosing-A) B)
-    | metavar (red m-A) choosing-A, B => start-red-reduction-m (RedOnlyParallelReduction {tc} (metavar (red m-A) choosing-A) B)
-
-  \data BlueOnlyParallelReduction {tc : TheoremContext}
-                                  {s : Sort} {context : List Sort} (A B : Term env context s) : \Set
-    | in-place-blue (hasBlueRoot A) (BlueRewriteRelation A B) -- todo: transitive closure
-    | spread-blue-reduction (SpreadingBlueOnlyParallelReduction A B)
-
-  \data SpreadingBlueOnlyParallelReduction {tc : TheoremContext}
-                                           {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
-    | func (blue f-A) choosing-A, func (blue f-B) choosing-B => distributed-reduction-blue-f
-      (p : f-A = f-B)
-      (\Pi (i : F-param-index f-A) ->
-          SpreadingBlueOnlyParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-f {env {tc}} (pmap blue p) choosing-B) i))
-    | metavar (blue m-A) choosing-A, metavar (blue m-B) choosing-B => distributed-reduction-blue-m
-      (p : m-A = m-B)
-      (\Pi (i : M-param-index m-A) ->
-          SpreadingBlueOnlyParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-m {env {tc}} (pmap blue p) choosing-B) i))
-    | A, B => skip-red-term (hasRedRoot {tc} A) (RedSkippingParallelReduction {tc} A B)
-
-  \data RedSkippingParallelReduction {tc : TheoremContext}
-                                     {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
-    | func (red f-A) choosing-A, func (red f-B) choosing-B => skip-red-function
-      (p : f-A = f-B)
-      (\Pi (i : F-param-index f-A) ->
-          RedSkippingParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-f {env {tc}} (pmap red p) choosing-B) i))
-    | metavar (red m-A) choosing-A, metavar (red m-B) choosing-B => skip-red-metavar
-      (p : m-A = m-B)
-      (\Pi (i : M-param-index m-A) ->
-          RedSkippingParallelReduction {tc}
-              (choosing-A i)
-              ((transport-chooser-m {env {tc}} (pmap red p) choosing-B) i))
-    | A, B => start-blue-reduction (hasBlueRoot {tc} A) (BlueOnlyParallelReduction {tc} A B)
-
-  \data ColoredParallelReduction {tc : TheoremContext}
-                                 {s : Sort} {context : List Sort} (A B : Term env context s) : \Set
-    | leave-untouched (A = B)
-    | reduce-only-red-terms (RedOnlyParallelReduction A B)
-    | reduce-only-blue-terms (BlueOnlyParallelReduction A B)
-
-  \truncated \data RedReductionAtIndex {tc : TheoremContext}
-                                       {n : Nat}
-                                       (contexts : Fin n -> List Sort)
-                                       (sorts : Fin n -> Sort)
-                                       (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Set \elim n
-    | suc n => head-reduction-red (RedRewriteRelation {tc} (A fzero) (B fzero)) (\Pi (i : Fin n) -> A (fsuc i) = B (fsuc i))
-    | suc n => tail-reduction-red (A fzero = B fzero)
-                                  (RedReductionAtIndex {tc}
-                                      (\lam i => contexts (fsuc i))
-                                      (\lam i => sorts (fsuc i))
-                                      (\lam i => A (fsuc i))
-                                      (\lam i => B (fsuc i)))
-
-  \truncated \data RedRewriteRelation {tc : TheoremContext} {s : Sort} {context : List Sort} (A B : Term env context s) : \Set \elim A, B
-    | A, B => rewrite-with-rule-red (hasRedRoot {tc} A)
-                                    (step : RewriteStep {env {tc}} A B)
-                                    (step.rule IndexedSet.in (Injections.promote-indexed-set-left {Sort} {envL} {envR} L.set-of-rules))
-    | func (red f-A) choosing-A, func (red f-B) choosing-B =>
-    rewrite-with-parameter-f-red (p : f-A = f-B)
-                                 (RedReductionAtIndex {tc}
-                                     (f-A FunctionalSignature.!!param __ ++ context)
-                                     (f-A FunctionalSignature.!!sort __)
-                                     choosing-A
-                                     (transport-chooser-f {env {tc}} (pmap red p) choosing-B))
-
-    | metavar (red m-A) choosing-A, metavar (red m-B) choosing-B =>
-    rewrite-with-parameter-m-red (p : m-A = m-B)
-                                 (RedReductionAtIndex {tc}
-                                     (\lam _ => context)
-                                     (metadomain m-A !! __)
-                                     choosing-A
-                                     (transport-chooser-m {env {tc}} (pmap red p) choosing-B))
-
-  \truncated \data BlueReductionAtIndex {tc : TheoremContext}
-                                        {n : Nat}
-                                        (contexts : Fin n -> List Sort)
-                                        (sorts : Fin n -> Sort)
-                                        (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Prop \elim n
-    | suc n => head-reduction-blue (BlueRewriteRelation {tc} (A fzero) (B fzero)) (\Pi (i : Fin n) -> A (fsuc i) = B (fsuc i))
-    | suc n => tail-reduction-blue (A fzero = B fzero)
-                                   (BlueReductionAtIndex {tc}
-                                       (\lam i => contexts (fsuc i))
-                                       (\lam i => sorts (fsuc i))
-                                       (\lam i => A (fsuc i))
-                                       (\lam i => B (fsuc i)))
-
-  \truncated \data BlueRewriteRelation {tc : TheoremContext} {s : Sort} {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
-    | A, B => rewrite-with-rule-blue (hasBlueRoot {tc} A)
-                                     (step : RewriteStep {env {tc}} A B)
-                                     (step.rule IndexedSet.in (Injections.promote-indexed-set-right {Sort} {envL} {envR} R.set-of-rules))
-    | func (blue f-A) choosing-A, func (blue f-B) choosing-B =>
-    rewrite-with-parameter-f-blue (p : f-A = f-B)
-                                  (BlueReductionAtIndex {tc}
-                                      (f-A FunctionalSignature.!!param __ ++ context)
-                                      (f-A FunctionalSignature.!!sort __)
-                                      choosing-A
-                                      (transport-chooser-f {env {tc}} (pmap blue p) choosing-B))
-
-    | metavar (blue m-A) choosing-A, metavar (blue m-B) choosing-B =>
-    rewrite-with-parameter-m-blue (p : m-A = m-B)
-                                  (BlueReductionAtIndex {tc}
-                                      (\lam _ => context)
-                                      (metadomain m-A !! __)
-                                      choosing-A
-                                      (transport-chooser-m {env {tc}} (pmap blue p) choosing-B))
-
-  \data StraightJoin {A : \Set} (~> : A -> A -> \Set) (b c : A)
-    | straight-join (d : A) (b `~> d) (c `~>` d)
-    \where {
-      \func common-reduct {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : A \elim join
-        | straight-join d _ _ => d
-
-      \func reduction-from-left {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : b `~>` (common-reduct join) \elim join
-        | straight-join _ reduction _ => reduction
-
-      \func reduction-from-right {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : c `~>` (common-reduct join) \elim join
-        | straight-join _ _ reduction => reduction
-
-      \func destruct-join {A : \Set} {~> : A -> A -> \Set} {b c : A} (join : StraightJoin ~> b c) : \Sigma (d : A) (b `~>` d) (c `~>` d) =>
-        (common-reduct join, reduction-from-left join, reduction-from-right join)
-    }
-
-  \func parallel-reduction-confluence {tc : TheoremContext} {s : Sort} {context : List Sort}
-                                      (a b c : Term env context s)
-                                      (a~>b : ColoredParallelReduction a b)
-                                      (a~>c : ColoredParallelReduction a c)
-    : StraightJoin ColoredParallelReduction b c
-  \elim a~>b, a~>c
-    | leave-untouched eq, a~>c => straight-join c (transport (ColoredParallelReduction __ c) eq a~>c) (leave-untouched idp)
-    | a~>b, leave-untouched eq => straight-join b (leave-untouched idp) (transport (ColoredParallelReduction __ b) eq a~>b)
-    | reduce-only-red-terms t, reduce-only-red-terms t1 =>
-      \let double-red-reduction => reduce-double-red {tc} a b c t t1
-      \in straight-join
-          (StraightJoin.common-reduct double-red-reduction)
-          (reduce-only-red-terms (StraightJoin.reduction-from-left double-red-reduction))
-          (reduce-only-red-terms (StraightJoin.reduction-from-right double-red-reduction))
-    | reduce-only-red-terms t, reduce-only-blue-terms t1 => {?}
-    | reduce-only-blue-terms t, reduce-only-red-terms t1 => {?}
-    | reduce-only-blue-terms t, reduce-only-blue-terms t1 => {?}
-
-  \func reduce-double-red {tc : TheoremContext} {s : Sort} {context : List Sort}
-                          (a b c : Term env context s)
-                          (a~>b : RedOnlyParallelReduction {tc} a b) (a~>c : RedOnlyParallelReduction {tc} a c)
-    : StraightJoin RedOnlyParallelReduction b c \elim a~>b, a~>c
-    | in-place-red h r, in-place-red h1 r1 => {?}
-    | in-place-red h r, spread-red-reduction s1 => {?}
-    | spread-red-reduction s1, in-place-red h r => {?}
-    | spread-red-reduction s1, spread-red-reduction s2 => \case (distribute-join-red-red a b c s1 s2) \with {
-      | straight-join d _x _x1 => straight-join d (spread-red-reduction _x) (spread-red-reduction _x1)
-    }
-
-  \func distribute-join-red-red {tc : TheoremContext} {s : Sort} {context : List Sort}
-                                (a b c : Term env context s)
-                                (a~>b : SpreadingRedOnlyParallelReduction {tc} a b) (a~>c : SpreadingRedOnlyParallelReduction {tc} a c)
-    : StraightJoin SpreadingRedOnlyParallelReduction b c \elim a, b, c, a~>b, a~>c
-    | func (red f-A) choosing-A, func (red f-B) choosing-B, func (red f-C) choosing-C, distributed-reduction-red-f f-A=f-B pass-a-b, distributed-reduction-red-f f-A=f-C pass-a-c =>
-      \let joins (i : F-param-index f-A) => distribute-join-red-red (choosing-A i) (transport-chooser-f {env} (pmap red f-A=f-B) choosing-B i) (transport-chooser-f {env} (pmap red f-A=f-C) choosing-C i) (pass-a-b i) (pass-a-c i)
-      \in straight-join
-          (func (red f-A) (\lam i => StraightJoin.common-reduct (joins i)))
-          (distributed-reduction-red-f (inv f-A=f-B) (\lam j => \case \elim f-A, \elim f-B, \elim f-C, \elim f-A=f-B, \elim f-A=f-C, \elim choosing-B, \elim choosing-C, \elim joins, \elim j \with {
-            | f-A, f-B, f-C, idp, idp, choosing-B, choosing-C, joins, j => StraightJoin.reduction-from-left (joins j)
-          }))
-          (distributed-reduction-red-f (inv f-A=f-C) (\lam j => \case \elim f-A, \elim f-B, \elim f-C, \elim f-A=f-B, \elim f-A=f-C, \elim choosing-B, \elim choosing-C, \elim joins, \elim j \with {
-            | f-A, f-B, f-C, idp, idp, choosing-B, choosing-C, joins, j => StraightJoin.reduction-from-right (joins j)
-          }))
-    | metavar (red f-A) choosing-A, metavar (red f-B) choosing-B, metavar (red f-C) choosing-C, distributed-reduction-red-m f-A=f-B pass-a-b, distributed-reduction-red-m f-A=f-C pass-a-c => {?} -- same as above
-    | func (blue f-A) choosing-A, func (blue f-B) choosing-B, func (blue f-C) choosing-C, skip-blue-term-f p b, skip-blue-term-f p1 b1 => \case (distribute-blue-skipping (func (blue f-A) choosing-A) (func (blue f-B) choosing-B) (func (blue f-C) choosing-C) b b1) \with {
-      | straight-join d _x _x1 => straight-join d (\case \elim d, \elim _x \with {
-        | func (inr f-B1) choosing-B1, skip-blue-function p2 _x => skip-blue-term-f p2 (skip-blue-function p2 _x)
-      }) {?}
-    }
-    | metavar (blue m-A) choosing, metavar (blue m-B) choosing-B, metavar (blue m-C) choosing1, skip-blue-term-m p b, skip-blue-term-m p1 b1 => {?}
-    \where {
-      \func distribute-blue-skipping {tc : TheoremContext} {s : Sort} {context : List Sort}
-                                     (a b c : Term env context s)
-                                     (a~>b : BlueSkippingParallelReduction a b)
-                                     (a~>c : BlueSkippingParallelReduction a c)
-        : StraightJoin BlueSkippingParallelReduction b c \elim a, b, c, a~>b, a~>c
-        | func (blue f-A) choosing-A, func (blue f-B) choosing-B, func (blue f-C) choosing-C, skip-blue-function f-A=f-B pass-a-b, skip-blue-function f-A=f-C pass-a-c => {?}
-        | metavar (blue m-A) choosing-A, metavar (blue m-B) choosing-B, metavar (blue m-C) choosing-C, skip-blue-metavar f-A=f-B pass-a-b, skip-blue-metavar f-A=f-C pass-a-c => {?}
-        | func (red f-A) choosing-A, B, C, start-red-reduction-f a~>b, start-red-reduction-f a~>c => \case (reduce-double-red (func (red f-A) choosing-A) B C a~>b a~>c) \with {
-          | straight-join d b~>d c~>d => straight-join d (\case \elim b~>d \with {
-            | in-place-red h r => \case \elim B, \elim h, \elim r \with {
-              | func (red s1) choosing, red-func, r => start-red-reduction-f (in-place-red red-func r)
-              | metavar (red m) choosing, red-mvar, r => start-red-reduction-m (in-place-red red-mvar r)
-            }
-            | spread-red-reduction s1 =>
-              \case \elim B, \elim d, \elim s1 \with {
-                | func (inl f-A1) choosing-A1, func (red f) choosing, rp => start-red-reduction-f (spread-red-reduction rp)
-                | metavar (inl m-A) choosing-A1, metavar (red m) choosing, rp => start-red-reduction-m (spread-red-reduction rp)
-                | func (inr f-A1) choosing-A1, func (blue f) choosing, skip-blue-term-f p b => b
-                | metavar (inr b) choosing, metavar (blue m) choosing1, skip-blue-term-m p b1 => b1
-              }
-          }) (\case \elim c~>d \with {
-            | in-place-red h r => \case \elim C, \elim h, \elim r \with {
-              | func (inl f-A1) choosing-A1, red-func, r => start-red-reduction-f (in-place-red red-func r)
-              | metavar (inl m-A) choosing-A1, red-mvar, r => start-red-reduction-m (in-place-red red-mvar r)
-            }
-            | spread-red-reduction s1 => \case \elim C, \elim d, \elim s1 \with {
-              | func (inl f-A1) choosing-A1, func (red f) choosing, rp => start-red-reduction-f (spread-red-reduction rp)
-              | metavar (inl m-A) choosing-A1, metavar (red m) choosing, rp => start-red-reduction-m (spread-red-reduction rp)
-              | func (inr f-A1) choosing-A1, func (blue f) choosing, skip-blue-term-f p b => b
-              | metavar (inr b) choosing, metavar (blue m) choosing1, skip-blue-term-m p b1 => b1
-            }
-          })
-        }
-        | metavar (red f-A) choosing-A, B, C, start-red-reduction-m r, start-red-reduction-m r1 => {?}
-    }
+  \data ColoredParallelReduction {tc : TheoremContext} (color : Color) (context : List Sort) (s : Sort) (A B : Term env context s)
+    | rewrite-top-level (U V : Term (colored-env color) context s)
+                        (monochrome-reduction color U V)
+                        (subst : MetaSubstitution env context)
+                        (\Pi (m : MetaVariable {Sort}) -> HasColoredRoot (Color.flip color) (subst m))
+                        (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) subst = A)
+                        (MetaSubstitution.apply {env} (inject-monochrome-term color V) (SubList.identity context) subst = B)
+    | rewrite-subterms (U : Term (colored-env color) context s)
+                       (substLeft substRight : MetaSubstitution env context)
+                       (\Pi (m : MetaVariable {Sort}) ->
+                           (ColoredParallelReduction (Color.flip color) (m.m-domain ++ context) m.sort (substLeft m) (substRight m)))
+                       (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) substLeft = A)
+                       (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) substRight = B)
 }
 
 
