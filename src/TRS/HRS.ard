@@ -1,5 +1,5 @@
 \import ARS
-\import Data.List (++, ++-assoc, ::, List, map, nil)
+\import Data.List (++, ++-assoc, ++_nil, ::, List, map, nil)
 \import Data.Or
 \import Equiv
 \import Equiv.Univalence
@@ -60,6 +60,9 @@
       | func f choosing => ∃ (n : Fin (length (domain f))) (v in choosing n)
   }
 
+\record SomeTerm {env : Environment} (context : List Sort) (termSort : Sort)
+  | term : Term env context termSort
+
 \data PatternTerm (env : Environment)
                   (context : List Sort)
                   (termSort : Sort) : \Set
@@ -98,7 +101,7 @@
           | nil, index => subst index
           | :: a additional-context, zero => var zero idp
           | :: a additional-context, suc index => \let inner-shifting => enlarge-substitution additional-context subst index
-                                                   \in weakening inner-shifting (sublist-skip (SubList.identity (additional-context ++ new-context)))
+                                                  \in weakening inner-shifting (sublist-skip SubList.identity)
 
         \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort}
                         (t : Term env narrow-context s')
@@ -154,6 +157,11 @@
           | :: a narrow-context, zero => chooser zero
           | :: a narrow-context, suc j => extend-chooser (\lam i => chooser (suc i)) j
       }
+
+    \func identity {env : Environment} (any-context : List Sort) : MetaSubstitution env any-context =>
+      \lam (m : MetaVariable {env.Sort}) => metavar m (\lam i => \let | sublist => (SubList.extend-right-single SubList.identity any-context)
+                                                                      | index : Fin (length (m.m-domain ++ any-context)) => SubList.shift-index {_} {m.m-domain} {m.m-domain ++ any-context} i sublist
+                                                                 \in var index (SubList.shift-index-preserves-equality i sublist))
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} (L R : Term env context s)
@@ -169,18 +177,25 @@
     \func \infix 4 in {A : \Type} (a : A) (set : IndexedSet A) : \Type => \Sigma (point : set.J) (set.get point = a)
   }
 
-\truncated \data ReductionAtIndex {env : Environment} (set-of-rules : IndexedSet (RewriteRule env))
-                                  {n : Nat}
-                                  (contexts : Fin n -> List Sort)
-                                  (sorts : Fin n -> Sort)
-                                  (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) : \Prop \elim n
-  | suc n => head-reduction (RewriteRelation {env} set-of-rules (A zero) (B zero)) (\Pi (i : Fin n) -> A (suc i) = B (suc i))
+\data ReductionAtIndex {env : Environment} (Rel : \Pi {context : List Sort} {s : Sort} -> Term env context s -> Term env context s -> \Type)
+                       {n : Nat}
+                       (contexts : Fin n -> List Sort)
+                       (sorts : Fin n -> Sort)
+                       (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index)) \elim n
+  | suc n => head-reduction (Rel (A zero) (B zero)) (\Pi (i : Fin n) -> A (suc i) = B (suc i))
   | suc n => tail-reduction (A zero = B zero)
-                            (ReductionAtIndex {env} set-of-rules
+                            (ReductionAtIndex {env} Rel
                                 (\lam i => contexts (suc i))
                                 (\lam i => sorts (suc i))
                                 (\lam i => A (suc i))
                                 (\lam i => B (suc i)))
+
+\data ReductionAtIndexPi {env : Environment} (Rel : \Pi {context : List Sort} {s : Sort} -> Term env context s -> Term env context s -> \Type)
+                         {n : Nat}
+                         (contexts : Fin n -> List Sort)
+                         (sorts : Fin n -> Sort)
+                         (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index))
+  | reduce-at-some-index (i : Fin n) (Rel (A i) (B i)) (\Pi (j : Fin n) (j!=i : Fin-neq i j) -> (A j) = (B j))
 
 \func transport-chooser-f {env : Environment} {s : Sort} {context : List Sort} {f-A f-B : FunctionalSymbol.symbol s} (p : f-A = f-B)
                           (choosing-B : \Pi (index : F-param-index f-B) -> Term env ((f-B !!param index) ++ context) (f-B !!sort index))
@@ -194,14 +209,14 @@
 
 \truncated \data RewriteRelation {env : Environment}
                                  (set-of-rules : IndexedSet (RewriteRule env))
-                                 {s : env.Sort}
-                                 {context : List Sort} (A B : Term env context s) : \Prop \elim A, B
+                                 {context : List Sort} {s : env.Sort}
+                                 (A B : Term env context s) : \Prop \elim A, B
   | A, B =>
   rewrite-with-rule (step : RewriteStep {env} A B) (step.rule IndexedSet.in set-of-rules)
 
   | func f-A choosing-A, func f-B choosing-B =>
   rewrite-with-parameter-f (p : f-A = f-B)
-                           (ReductionAtIndex {env} set-of-rules
+                           (ReductionAtIndexPi {env} (RewriteRelation {env} set-of-rules)
                                (f-A !!param __ ++ context)
                                (f-A !!sort __)
                                choosing-A
@@ -209,7 +224,7 @@
 
   | metavar (m-A : MetaVariable s) choosing-A, metavar (m-B : MetaVariable s) choosing-B =>
   rewrite-with-parameter-m (p : m-A = m-B)
-                           (ReductionAtIndex {env} set-of-rules
+                           (ReductionAtIndexPi {env} (RewriteRelation {env} set-of-rules)
                                (\lam _ => context)
                                (m-A.m-domain !! __)
                                choosing-A

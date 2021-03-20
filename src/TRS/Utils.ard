@@ -1,4 +1,7 @@
+\import Logic
+\import Logic.Meta
 \import Paths
+\import Set
 \import TRS.HRS
 \import TRS.List
 
@@ -8,3 +11,15 @@
 \func promote-fin {x : Nat} {y : Fin x} (z : Fin y) : Fin x \elim x, y, z
   | suc x, suc y, 0 => 0
   | suc x, suc y, suc z => suc (promote-fin {x} {y} z)
+
+\func Fin-neq {x : Nat} (y z : Fin x) : \Prop \elim x, y, z
+  | suc n, zero, zero => \Sigma
+  | suc n, zero, suc z => Empty
+  | suc n, suc y, zero => Empty
+  | suc n, suc y, suc z => Fin-neq y z
+
+\func minusOne {n : Nat} (a : Fin n) : Fin n \elim n, a
+  | suc n, zero => zero
+  | suc n, suc a => a
+
+\func FinDec {n : Nat} (x y : Fin n) : Dec (x = y) => {?}

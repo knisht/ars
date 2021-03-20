@@ -1,0 +1,3 @@
+\data Maybe (A : \Type)
+  | nothing
+  | just (a : A)

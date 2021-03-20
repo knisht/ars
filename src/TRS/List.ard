@@ -25,16 +25,21 @@
   | :: x xs, :: y ys => sublist-match (x = y) (SubList xs ys)
   | l, :: y ys => sublist-skip (SubList l ys)
   \where {
-    \func identity {A : \Type} (list : List A) : SubList list list \elim list
+    \func identity {A : \Type} {list : List A} : SubList list list \elim list
       | nil => sublist-trivial
-      | :: a list => sublist-match idp (identity list)
+      | :: a list => sublist-match idp identity
 
     \func extend-left {A : \Type} {l r : List A} (sublist : SubList l r) (add : List A) : SubList (add ++ l) (add ++ r) \elim add
       | nil => sublist
       | :: a add => sublist-match idp (extend-left sublist add)
 
+    \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) (add : List A) : SubList l (r ++ add) \elim l, r, sublist
+      | nil, r, sublist-trivial => sublist-trivial
+      | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist add)
+      | l, :: y ys, sublist-skip sublist => sublist-skip (extend-right-single sublist add)
+
     \func extend-middle {A : \Type} (l r add : List A) : SubList (l ++ r) (l ++ add ++ r) \elim l, add
-      | nil, nil => identity r
+      | nil, nil => identity
       | nil, :: a add => sublist-skip (extend-middle nil r add)
       | :: a l, add => sublist-match idp (extend-middle l r add)
 

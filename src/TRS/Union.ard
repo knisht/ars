@@ -6,9 +6,10 @@
 \import Paths
 \import Paths.Meta
 \import Relation
+\import Set
 \import TRS.HRS
-\import Set.Fin
 \import TRS.List
+\import TRS.Maybe
 \import TRS.Utils
 
 \func JointFunctionalSignature (Sort : \Set) (A B : FunctionalSignature Sort) : FunctionalSignature Sort \cowith
@@ -112,17 +113,23 @@
                                          (set-of-rules : IndexedSet (RewriteRule env))
                                          {s : env.Sort}
                                          {context : List Sort} (A B : Term env context s) : \Prop =>
-  transitive-closure (RewriteRelation {env} set-of-rules {s} {context}) A B
+  transitive-closure (RewriteRelation {env} set-of-rules {context} {s}) A B
 
 \module Confluence \where {
+  \data Color | red | blue \where {
+    \func flip (c : Color) : Color \elim c
+      | red => blue
+      | blue => red
+  }
+
   \class TheoremContext {
-    | Sort : \Set
-    | envL : Environment Sort
-    | envR : Environment Sort
+    | Sort' : \Set
+    | envL : Environment Sort'
+    | envR : Environment Sort'
     | L : SimpleHigherOrderTermRewritingSystem envL
     | R : SimpleHigherOrderTermRewritingSystem envR
   } \where {
-    \func colored-env {_ : TheoremContext} (color : Color) : Environment Sort \elim color
+    \func colored-env {_ : TheoremContext} (color : Color) : Environment Sort' \elim color
       | red => envL
       | blue => envR
 
@@ -130,45 +137,135 @@
       | red => L.set-of-rules
       | blue => R.set-of-rules
 
-    \func monochrome-reduction {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (A B : Term (colored-env color) context s): \Prop
+    \func monochrome-reduction {_ : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (A B : Term (colored-env color) context s): \Prop
     \elim color
       | red => RewriteRelation {envL} L.set-of-rules A B
       | blue => RewriteRelation {envR} R.set-of-rules A B
 
-    \func inject-monochrome-term {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (t : Term (colored-env color) context s) : Term env context s \elim color
+    \func inject-monochrome-term {_ : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (t : Term (colored-env color) context s) : Term env context s \elim color
       | red => Injections.inject-term-left envL envR t
       | blue => Injections.inject-term-right envL envR t
 
-    \data HasColoredRoot {_ : TheoremContext} (color : Color) {context : List Sort} {s : Sort} (term : Term env context s) \elim color, term
+    \data HasColoredRoot {_ : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (term : Term env context s) \elim color, term
       | red, func (inl _) _ => red-func-root
       | blue, func (inr _) _ => blue-func-root
       | _, metavar _ _ => uncolored-metavar-root
       | _, var _ _ => uncolored-var-root
 
-    \func env {_ : TheoremContext} : Environment => JointEnvironment envL envR
-  }
+    \func color-of-root {_ : TheoremContext} {s : Sort'} (f : env.FunctionalSymbol.symbol s) : Color \elim f
+      | inl _ => red
+      | inr _ => blue
 
-  \data Color | red | blue \where {
-    \func flip (c : Color) : Color \elim c
-      | red => blue
-      | blue => red
+    \func env {_ : TheoremContext} : Environment => JointEnvironment envL envR
+
+    \func colored-rules {tc : TheoremContext} (color : Color) : IndexedSet (RewriteRule (env {tc})) \elim color
+      | red => Injections.promote-indexed-set-left {tc.Sort'} {tc.envL} {tc.envR} (L.set-of-rules)
+      | blue => Injections.promote-indexed-set-right {tc.Sort'} {tc.envL} {tc.envR} (R.set-of-rules)
   }
 
   \open TheoremContext
 
-  \data ColoredParallelReduction {tc : TheoremContext} (color : Color) (context : List Sort) (s : Sort) (A B : Term env context s)
-    | rewrite-top-level (U V : Term (colored-env color) context s)
-                        (monochrome-reduction color U V)
-                        (subst : MetaSubstitution env context)
-                        (\Pi (m : MetaVariable {Sort}) -> HasColoredRoot (Color.flip color) (subst m))
-                        (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) subst = A)
-                        (MetaSubstitution.apply {env} (inject-monochrome-term color V) (SubList.identity context) subst = B)
-    | rewrite-subterms (U : Term (colored-env color) context s)
-                       (substLeft substRight : MetaSubstitution env context)
-                       (\Pi (m : MetaVariable {Sort}) ->
-                           (ColoredParallelReduction (Color.flip color) (m.m-domain ++ context) m.sort (substLeft m) (substRight m)))
-                       (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) substLeft = A)
-                       (MetaSubstitution.apply {env} (inject-monochrome-term color U) (SubList.identity context) substRight = B)
+  \record StraightJoin {A : \Type} (a b : A) (rel : A -> A -> \Type)
+    | common-reduct : A
+    | a~>cr : rel a common-reduct
+    | b~>cr : rel b common-reduct
+
+  \data TopLevelColoredReduction {tc : TheoremContext} (color : Color) {context : List env.Sort} {s : env.Sort} (A B : Term env context s) \elim A, B
+    | A, B =>
+    rewrite-with-rule-colored (HasColoredRoot {tc} color A) (step : RewriteStep {env {tc}} A B) (step.rule IndexedSet.in (colored-rules color))
+    | func (f-A : symbol {FunctionalSymbol {env {tc}}} s) choosing-A, func (f-B : symbol {FunctionalSymbol {env {tc}}} s) choosing-B =>
+    rewrite-with-parameter-f-colored (p : f-A = f-B)
+                                     (color-of-root {tc} f-A = color)
+                                     (ReductionAtIndexPi {env {tc}}
+                                         (TopLevelColoredReduction {tc} color)
+                                         (\lam i => (f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i ++ {Sort {env {tc}}} context))
+                                         (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} __)
+                                         choosing-A
+                                         (transport-chooser-f {env {tc}} p choosing-B))
+
+  \data BorderedParallelReduction {tc : TheoremContext} (color : Maybe Color) {context : List tc.Sort'} {s : tc.Sort'} (A B : Term (env {tc}) context s) \elim color, A, B
+    | _, A, B => equal-trees (A = B)
+    | just color, A, B => reduction-top-level (HasColoredRoot {tc} color A) (HasColoredRoot {tc} color B) (TopLevelColoredReduction {tc} color A B)
+    | nothing, func f-A choosing-A, func f-B choosing-B =>
+    reduction-subterms (f-A=f-B : f-A = f-B)
+                       (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
+                         (someColor : Maybe Color)
+                         ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
+                         (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-B choosing-B i)))
+
+  \func TrichromaticParallelReduction {tc : TheoremContext} {context : List tc.Sort'} {s : Sort'} (A B : Term env context s) : \Type =>
+    \Sigma (color : Maybe Color) (BorderedParallelReduction color A B)
+
+  \func bpr-confluence {tc : TheoremContext} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} (A B C : Term env context s)
+                       (A~>B : BorderedParallelReduction color1 A B)
+                       (A~>C : BorderedParallelReduction color2 A C)
+    : StraightJoin B C (TrichromaticParallelReduction) \elim color1, color2, A, B, C, A~>B, A~>C
+    | _, _, A, B, C, equal-trees p, equal-trees p1 => {?} -- easy
+    | color, just color1, A, B, B1, equal-trees p, reduction-top-level h h1 A~>B1 => {?} -- easy
+    | color, nothing, func f-A choosing-A, B, func f-B choosing-B, equal-trees p, reduction-subterms f-A=f-B _x => {?} -- easy
+    | just color, color1, A, B, B1, reduction-top-level h h1 A~>B, equal-trees p => {?} -- easy
+    | just color, just color1, A, B, B1, reduction-top-level h h1 A~>B, reduction-top-level h2 h3 A~>B1 => {?} -- ?
+    | just color, nothing, func f-A choosing-A, B, func f-C choosing-C, reduction-top-level A-colored B-colored A~>B, reduction-subterms f-A=f-C inner-reduction => {?}
+    | nothing, color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B red-subterms, equal-trees p => {?} -- easy
+    | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level h h1 A~>B' => {?} -- symmetric to 3
+    | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-B1 choosing-B1, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-B1 _x1 => {?} -- inductive step, relatively easy
+
+  \func apply-inner-reduction-to {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f-A : env.FunctionalSymbol.symbol s)
+                                 (B : Term env context s)
+                                 (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                                 (A~>B : TopLevelColoredReduction color (func f-A choosing-A) B)
+                                 (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) -> \Sigma (someColor : Maybe Color)
+                                                                                                                      ((someColor = nothing) `Or` (someColor = just (Color.flip color)))
+                                                                                                                      (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
+    : Term env context s \elim B, A~>B
+    | B, rewrite-with-rule-colored _ step i => {?}
+    | func f-B choosing-B, rewrite-with-parameter-f-colored f-A=f-B _ (reduce-at-some-index red-ind rel rest) => func f-A (\lam ind => \case (FinDec red-ind ind) \with {
+      | yes e => intermediate-reduction color f-A f-B f-A=f-B choosing-A choosing-C choosing-B ind red-ind (inv e) inner-reductions rel
+      | no n => {?}
+    })
+    \where {
+      \func intermediate-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
+                                   (f-A f-B : env.FunctionalSymbol.symbol s) (p : f-A = f-B)
+                                   (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                                   (choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-B))) -> Term env ((f-B FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-B FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                                   (ind red-ind : F-param-index {_} {env.FunctionalSymbol} f-A)
+                                   (e : ind = red-ind)
+                                   (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) -> \Sigma (someColor : Maybe Color)
+                                                                                                                        ((someColor = nothing) `Or` (someColor = just (Color.flip color)))
+                                                                                                                        (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
+                                   (tlrc : TopLevelColoredReduction color (choosing-A red-ind) (transport-chooser-f {env} p choosing-B red-ind))
+        : Term env (f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} ind ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} ind)
+      \elim p, e
+        | idp, idp => \let (new-color, neq, border) => inner-reductions ind \in convert-reduction-at-index-to-chooser color f-A ind new-color (choosing-A ind) (choosing-B ind) (choosing-C ind) tlrc neq border
+
+      \func convert-reduction-at-index-to-chooser {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f-A : env.FunctionalSymbol.symbol s)
+                                                  (i : F-param-index {_} {env.FunctionalSymbol} f-A)
+                                                  (someColor : Maybe Color)
+                                                  (A' B' C' : Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} i))
+                                                  (A'~>B' : TopLevelColoredReduction color A' B')
+                                                  (other : Or (someColor = nothing) (someColor = just (Color.flip color)))
+                                                  (border : BorderedParallelReduction someColor A' C')
+        : Term env (f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} i) \elim someColor, A', C', border
+        | _, A, C, equal-trees eq => B'
+        | just a, Ain, Cin, reduction-top-level a-colored c-colored tlcr => \let e => (extract-root-coloring color (Ain) B' A'~>B') \in {?} -- just show that color of root is unique, technical
+        | nothing, func f-A' ch-A', func f-C' ch-C', reduction-subterms f-A'=f-C' inner-bpr =>
+          \case \elim f-A', \elim color, \elim ch-A', \elim ch-C', \elim f-A'=f-C', \elim A'~>B', \elim inner-bpr \with {
+            | inl f-A', red, ch-A', ch-C', f-A'=f-C', rr, inner-bpr => apply-inner-reduction-to red (inl f-A') B' ch-A' (transport-chooser-f {env} f-A'=f-C' ch-C') rr inner-bpr
+            | inl f-A', blue, ch-A', ch-C', f-A'=f-C', rr, inner-bpr => \case (extract-root-coloring blue (func (inl f-A') ch-A') B' rr) \with {
+            }
+            | inr f-A', red, ch-A', ch-C', f-A'=f-C', rr, inner-bpr => \case (extract-root-coloring red (func (inr f-A') ch-A') B' rr) \with {
+            }
+            | inr f-A', blue, ch-A', ch-C', f-A'=f-C', rr, inner-bpr => apply-inner-reduction-to blue (inr f-A') B' ch-A' (transport-chooser-f {env} f-A'=f-C' ch-C') rr inner-bpr
+          }
+
+      \func extract-root-coloring {tc : TheoremContext} (color : Color) {context : List env.Sort} {s : env.Sort} (A B : Term env context s) (A~>B : TopLevelColoredReduction color A B) : HasColoredRoot {tc} color A \elim A, B, A~>B
+        | A, B, rewrite-with-rule-colored h step i => h
+        | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => \case \elim f-A, \elim choosing-A, \elim color, \elim p1 \with {
+          | inl a, choosing-A, red, p1 => red-func-root
+          | inr b, choosing-A, blue, p1 => blue-func-root
+        }
+    }
 }
+
 
 
