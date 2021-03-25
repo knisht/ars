@@ -177,13 +177,6 @@
                                 (\lam i => A (suc i))
                                 (\lam i => B (suc i)))
 
---\data ReductionAtIndexPi {env : Environment} (Rel : \Pi {context : List Sort} {s : Sort} {} -> Term env context s -> Term env context s -> \Type)
---                         {n : Nat}
---                         (contexts : Fin n -> List Sort)
---                         (sorts : Fin n -> Sort)
---                         (A B : \Pi (index : Fin n) -> Term env (contexts index) (sorts index))
---  | reduce-at-some-index (i : Fin n) (Rel (A i) (B i)) (\Pi (j : Fin n) (j!=i : Not (i = j)) -> (A j) = (B j))
-
 \func transport-chooser-f {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort} {f-A f-B : FunctionalSymbol.symbol s} (p : f-A = f-B)
                           (choosing-B : \Pi (index : F-param-index f-B) -> Term env ((f-B !!param index) ++ context) (f-B !!sort index) meta-signature)
   :  \Pi (index : Fin (length (domain f-A))) -> Term env ((f-A !!param index) ++ context) (f-A !!sort index) meta-signature =>
@@ -217,11 +210,3 @@
                                ((meta-signature.m-domain m-A) !! __)
                                choosing-A
                                (transport-chooser-m {env} p choosing-B))
-
---\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule env)) \extends AbstractReductionSystem
---  | A => \Sigma (context : List env.Sort) (sort : env.Sort) (meta-signature : MetaSignature env.Sort) (Term env context sort meta-signature)
---  | ~> a b => \case \elim a, b \with {
---    | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation {env} set-of-rules A (transport2 (Term env) p q B))
---  }
---
---\class SimpleHigherOrderTermRewritingSystem \extends HigherOrderTermRewritingSystem, SimpleARS

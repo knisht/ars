@@ -227,39 +227,40 @@
     | _, var index p => {?}
     | _, metavar m choosing => {?}
     | red, func (inl f) choosing => \let | inner-results (i : F-param-index {_} {env.FunctionalSymbol} (inl f)) => extract-top-level global-context red (SubList.extend-right-single-left sublist) (choosing i)
-                                         | unified-metasignature => \new MetaSignature Sort' { | metaname s => \Sigma (i : F-param-index {_} {env.FunctionalSymbol} (inl f)) (metaname {(inner-results i).1} s)
-                                                                                               | m-domain m => m-domain {(inner-results (m.1)).1} m.2
-                                         }
+                                         | signature-producer i => (inner-results i).1
+                                         | unified-metasignature => ModularMetaSignature {env} {(length (env.FunctionalSymbol.domain (inl f)))} signature-producer
                                          | unified-substitution : MetaSubstitution env global-context unified-metasignature meta-signature => \lam m => ((inner-results (m.1)).3 m.2)
-                                         | k (ind : F-param-index {_} {env.FunctionalSymbol} (inl f)) => \let | q => (inner-results ind).2
-                                                                                                         \in {?}
                                     \in (unified-metasignature,
-                                         func (inl f) (\lam index => upgrade-metavariables {env {tc}} ((inner-results index).2) (\lam {s1} m => ((index, m), idp))),
+                                         func (inl f) (\lam index => upgrade-metavariables {env {tc}} signature-producer (inner-results index).2),
                                          unified-substitution,
-                                         pmap (func {env {tc}} (inl f)) (\let | lf => choosing
-                                                                              | rf => (\lam i => MetaSubstitution.apply {env}
-                                                                                  (upgrade-metavariables {env} {_} {_} {_} {unified-metasignature} (inner-results i).2 (\lam {s1} m => ((i, m), idp))) (SubList.extend-right-single-left sublist)
-                                                                                  unified-substitution)
-                                                                         \in funExt {_} {\lam (index : Fin (length (domain {env.FunctionalSymbol} (inl f)))) =>
-                                                                                             Term env (inl f FunctionalSignature.!!param {_} {env.FunctionalSymbol} index ++ context) (inl f FunctionalSignature.!!sort {_} {env.FunctionalSymbol} index) meta-signature} lf rf (\lam i =>
-                                               \let | lfi => lf i
-                                                    | rfi => rf i
-                                                    | tfi => (inner-results i).4 @ right
-                                                    | eq2 => (inner-results i).4
---                                                    | eqq : unified-substitution = (inner-results i).3 => idp
-                                                    | q : rf i = tfi => unfold (rf, tfi) {?}
-                                               \in {?})))
+                                         pmap (func {env {tc}} (inl f)) (ext (\lam i =>
+                                             (inner-results i).4 *>
+                                             inv ((apply-modular-inside {env {tc}} signature-producer (\lam ind => (inner-results ind).3) ((SubList.extend-right-single-left sublist)) (inner-results i).2)))))
     | red, func (inr b) choosing => {?}
     | blue, func f choosing => {?}
 
   \func funExt {A : \Type} {B : A -> \Type} (f g : \Pi (a : A) -> B a) (h : \Pi (a : A) -> f a = g a) : f = g => ext h
 
-  \func upgrade-metavariables {env : Environment} {context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort} (A : Term env context s meta-signature)
-                              (expansion : \Pi {s : Sort} (m : meta-signature.metaname s) -> \Sigma (m' : new-meta-signature.metaname s) (meta-signature.m-domain m = new-meta-signature.m-domain m'))
-    : Term env context s new-meta-signature \elim A
+  \func apply-modular-inside {env : Environment} {context subst-context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} {n : Nat} {index : Fin n} (producer : Fin n -> MetaSignature Sort)
+                             (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) meta-signature)
+                             (sublist : SubList subst-context context)
+                             (t : Term env context s (producer index)) :
+    MetaSubstitution.apply (upgrade-metavariables producer t) sublist (\lam m => substitutions m.1 m.2) = MetaSubstitution.apply t sublist (substitutions index) \elim t
+    | var index1 p => idp
+    | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (MetaSubstitution.apply.extend-chooser sublist e)) (ext (\lam i => apply-modular-inside producer substitutions sublist (choosing i)))
+    | func f choosing => pmap (func f) (ext (\lam i => apply-modular-inside producer substitutions (SubList.extend-right-single-left sublist) (choosing i)))
+
+  \func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
+    | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
+    | m-domain m => m-domain {(producer (m.1))} m.2
+
+  \func upgrade-metavariables {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+                              (producer : \Pi (Fin n) -> MetaSignature Sort)
+                              (A : Term env context s (producer index))
+    : Term env context s (ModularMetaSignature producer) \elim A
     | var index p => var index p
-    | metavar m choosing => metavar (expansion m).1 (\lam i => upgrade-metavariables (transport (\lam list => \Pi (index : Fin (length list)) -> Term env context (list !! index) meta-signature) (expansion m).2 (choosing) i) expansion)
-    | func f choosing => func f (\lam i => upgrade-metavariables (choosing i) expansion)
+    | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables producer (choosing i))
+    | func f choosing => func f (\lam i => upgrade-metavariables producer (choosing i))
 
   --  \func apply-inner-reduction-after-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f-A : env.FunctionalSymbol.symbol s)
   --                                        (B : Term env context s)
