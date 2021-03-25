@@ -93,21 +93,21 @@
           | :: a additional-context, zero => var zero idp
           | :: a additional-context, suc index => \let inner-shifting => enlarge-substitution meta-signature additional-context subst index
                                                   \in weakening inner-shifting (sublist-skip SubList.identity)
+      }
 
-        \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort} {meta-signature : MetaSignature Sort}
-                        (t : Term env narrow-context s' meta-signature)
-                        (sublist : SubList narrow-context wide-context)
-          : Term env wide-context s' meta-signature \elim t
-          | var index p => \let (index', p') => recalculate-index narrow-context wide-context s' sublist index p \in var index' p'
-          | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
-          | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-left sublist (f !!param i1)))
-          \where {
-            \func recalculate-index {A : \Set} (a b : List A) (point : A) (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
-              | nil, r, sublist-trivial, (), p
-              | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
-              | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index xs ys point sublist ind idp \in (suc ind', p')
-              | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys point sublist ind idp \in (suc ind', p')
-          }
+    \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort} {meta-signature : MetaSignature Sort}
+                    (t : Term env narrow-context s' meta-signature)
+                    (sublist : SubList narrow-context wide-context)
+      : Term env wide-context s' meta-signature \elim t
+      | var index p => \let (index', p') => recalculate-index narrow-context wide-context s' sublist index p \in var index' p'
+      | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
+      | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-left sublist))
+      \where {
+        \func recalculate-index {A : \Set} (a b : List A) (point : A) (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
+          | nil, r, sublist-trivial, (), p
+          | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
+          | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index xs ys point sublist ind idp \in (suc ind', p')
+          | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys point sublist ind idp \in (suc ind', p')
       }
 
     \func adjustContext {env : Environment} {s : Sort} {meta-signature : MetaSignature Sort} (t : Term env nil s meta-signature) {new-context : List Sort} : Term env new-context s meta-signature =>
@@ -124,42 +124,37 @@
   \where {
     \func apply {env : Environment} {context new-context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                 (t : Term env context s meta-signature)
-                (sublist : SubList context new-context)
-                (subst : MetaSubstitution env new-context meta-signature new-meta-signature) : Term env new-context s new-meta-signature \elim t
-      | var index p => var (SubList.shift-index index sublist) (p *> SubList.shift-index-preserves-equality index sublist)
-
-      | metavar (m : meta-signature.metaname s) choosing =>
-        \let | new-term : Term env ((meta-signature.m-domain m) ++ new-context) s new-meta-signature => subst m
-             | basic-term-chooser (i : Fin (length (meta-signature.m-domain m))) : Term env new-context ((meta-signature.m-domain m) !! i) new-meta-signature => apply (choosing i) sublist subst
-        \in Substitution.apply new-term (extend-chooser basic-term-chooser)
-
-      | func f choosing => func f (\lam i =>
-          \let | middle-sublist : SubList (f !!param i ++ context) (f !!param i ++ new-context) => (SubList.extend-left sublist (f !!param i))
-               | extended-substitution : MetaSubstitution env (f !!param i ++ new-context) meta-signature new-meta-signature =>
-                 \lam m => Substitution.apply.weakening (subst m) (SubList.extend-middle (meta-signature.m-domain m) new-context (f !!param i))
-          \in apply (choosing i) middle-sublist extended-substitution)
+                (sublist : SubList new-context context)
+                (subst : MetaSubstitution env new-context meta-signature new-meta-signature) : Term env context s new-meta-signature \elim t
+      | var index p => var index p
+      | metavar m choosing => Substitution.apply (subst m) (extend-chooser sublist (\lam i => apply (choosing i) sublist subst))
+      | func f choosing => func f (\lam i => apply (choosing i) (SubList.extend-right-single-left sublist) subst)
 
       \where {
-        \func extend-chooser {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                             (chooser : \Pi (i : Fin (length left-context)) -> Term env right-context (left-context !! i) meta-signature)
+        \func extend-chooser {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
+                             (sublist : SubList right-context some-context)
+                             (chooser : \Pi (i : Fin (length left-context)) -> Term env some-context (left-context !! i) meta-signature)
                              (j : Fin (length (left-context ++ right-context)))
-          : Term env right-context ((left-context ++ right-context) !! j) meta-signature \elim left-context, j
-          | nil, j => var j idp
+          : Term env some-context ((left-context ++ right-context) !! j) meta-signature
+        \elim left-context, j
+          | nil, j => \let (index, q) => produce-inner-term sublist j \in var index q
           | :: a narrow-context, zero => chooser zero
-          | :: a narrow-context, suc j => extend-chooser (\lam i => chooser (suc i)) j
+          | :: a narrow-context, suc j => extend-chooser sublist (\lam i => chooser (suc i)) j
+          \where {
+            \func produce-inner-term {env : Environment} {right-context some-context : List Sort} (sublist : SubList right-context some-context) (j : Fin (length right-context)) :
+              \Sigma (ind : Fin (length some-context)) (right-context !! j = some-context !! ind) \elim right-context, some-context, sublist, j
+              | :: x xs, :: y ys, sublist-match p sublist, zero => (0, p)
+              | :: x xs, :: y ys, sublist-match p sublist, suc j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
+              | l, :: y ys, sublist-skip sublist, j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
+          }
       }
-
---    \func identity {env : Environment} (any-context : List Sort) : MetaSubstitution env any-context =>
---      \lam (m : MetaSignature {env.Sort}) => metavar m (\lam i => \let | sublist => (SubList.extend-right-single SubList.identity any-context)
---                                                                      | index : Fin (length (m.m-domain ++ any-context)) => SubList.shift-index {_} {m.m-domain} {m.m-domain ++ any-context} i sublist
---                                                                 \in var index (SubList.shift-index-preserves-equality i sublist))
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (L R : Term env context s meta-signature)
   | rule : RewriteRule env {s}
   | substitution : MetaSubstitution env context rule.meta-signature meta-signature
-  | left-coherence : MetaSubstitution.apply (PatternTerm.convertToTerm rule.l) sublist-trivial substitution = L
-  | right-coherence : MetaSubstitution.apply rule.r sublist-trivial substitution = R
+  | left-coherence : MetaSubstitution.apply (Substitution.weakening (PatternTerm.convertToTerm rule.l) SubList.sublist-trivial) SubList.identity substitution = L
+  | right-coherence : MetaSubstitution.apply (Substitution.weakening rule.r SubList.sublist-trivial) SubList.identity substitution = R
 
 \record IndexedSet (A : \Type)
   | J : \Set
