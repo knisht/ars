@@ -210,3 +210,11 @@
                                ((meta-signature.m-domain m-A) !! __)
                                choosing-A
                                (transport-chooser-m {env} p choosing-B))
+
+\class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (set-of-rules : IndexedSet (RewriteRule env)) (meta-signature : MetaSignature Sort) \extends AbstractReductionSystem
+  | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort meta-signature)
+  | ~> a b => \case \elim a, b \with {
+    | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation {env} set-of-rules A (transport2 (\lam a b => Term env a b meta-signature) p q B))
+  }
+
+\class SimpleHigherOrderTermRewritingSystem \extends HigherOrderTermRewritingSystem, SimpleARS
