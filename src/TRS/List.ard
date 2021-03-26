@@ -28,7 +28,7 @@
     \func identity {A : \Type} {list : List A} : SubList list list \elim list
       | nil => sublist-trivial
       | :: a list => sublist-match idp identity
-
+  -- todo: create a meta that automatically extends current sublist predicate to the expected type
     \func extend-left {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (add ++ l) (add ++ r) \elim add
       | nil => sublist
       | :: a add => sublist-match idp (extend-left sublist)
