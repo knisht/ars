@@ -97,23 +97,24 @@
     | get j => Injections.promote-rewrite-rule-right envL envR (rules.get j)
 }
 
---\instance JointHRS {Sort : \Set} {envL envR : Environment Sort}
---                   (L : SimpleHigherOrderTermRewritingSystem envL)
---                   (R : SimpleHigherOrderTermRewritingSystem envR)
--- SimpleHigherOrderTermRewritingSystem (JointEnvironment L.env R.env)
---  | set-of-rules =>
---    \let
---      | injected-left-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-left {_} {envL} {envR} L.set-of-rules
---      | injected-right-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-right {_} {envL} {envR} R.set-of-rules
---    \in JointIndexedSet injected-left-set injected-right-set
---
---\lemma Union-Preserves-Confluence {Sort : \Set} {envL envR : Environment Sort}
---                                  (L : SimpleHigherOrderTermRewritingSystem envL)
---                                  (R : SimpleHigherOrderTermRewritingSystem envR)
---                                  (L-confluence : isConfluent L)
---                                  (R-confluence : isConfluent R)
---  : isConfluent (JointHRS {_} {envL} {envR} L R) => {?}
---
+\instance JointHRS {Sort : \Set} {envL envR : Environment Sort} {meta-signature : MetaSignature Sort}
+                   (L : SimpleHigherOrderTermRewritingSystem envL meta-signature)
+                   (R : SimpleHigherOrderTermRewritingSystem envR meta-signature)
+ : SimpleHigherOrderTermRewritingSystem (JointEnvironment L.env R.env)
+  | set-of-rules =>
+    \let
+      | injected-left-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-left {_} {envL} {envR} L.set-of-rules
+      | injected-right-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-right {_} {envL} {envR} R.set-of-rules
+    \in JointIndexedSet injected-left-set injected-right-set
+  | meta-signature => meta-signature
+
+\lemma Union-Preserves-Confluence {Sort : \Set} {envL envR : Environment Sort} {meta-signature : MetaSignature Sort}
+                                  (L : SimpleHigherOrderTermRewritingSystem envL meta-signature)
+                                  (R : SimpleHigherOrderTermRewritingSystem envR meta-signature)
+                                  (L-confluence : isConfluent L)
+                                  (R-confluence : isConfluent R)
+  : isConfluent (JointHRS {_} {envL} {envR} L R) => {?}
+
 \func TransitivelyClosedRewriteRelation  {env : Environment}
                                          (set-of-rules : IndexedSet (RewriteRule env))
                                          {s : env.Sort} {meta-signature : MetaSignature Sort}
