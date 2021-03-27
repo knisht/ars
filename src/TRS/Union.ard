@@ -193,7 +193,7 @@
   \data BorderedParallelReduction {tc : TheoremContext} (color : Maybe Color) {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
                                   (A B : Term (env {tc}) context s meta-signature) \elim color, A, B
     | _, A, B => equal-trees (A = B)
-    | just color, A, B => reduction-top-level (HasColoredRoot {tc} color A) (HasColoredRoot {tc} color B) (TopLevelColoredReduction {tc} color A B)
+    | just color, A, B => reduction-top-level (HasColoredRoot {tc} color A) (TopLevelColoredReduction {tc} color A B)
     | nothing, func f-A choosing-A, func f-B choosing-B =>
     reduction-subterms (f-A=f-B : f-A = f-B)
                        (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
@@ -207,15 +207,22 @@
   \func bpr-confluence {tc : TheoremContext} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  (A B C : Term env context s meta-signature)
                        (A~>B : BorderedParallelReduction color1 A B)
                        (A~>C : BorderedParallelReduction color2 A C)
-    : StraightJoin B C (TrichromaticParallelReduction) \elim color1, color2, A, B, C, A~>B, A~>C
+    : StraightJoin B C (Closure TrichromaticParallelReduction) \elim color1, color2, A, B, C, A~>B, A~>C
     | _, _, A, B, C, equal-trees p, equal-trees p1 => {?} -- easy
-    | color, just color1, A, B, B1, equal-trees p, reduction-top-level h h1 A~>B1 => {?} -- easy
+    | color, just color1, A, B, B1, equal-trees p, reduction-top-level h A~>B1 => {?} -- easy
     | color, nothing, func f-A choosing-A, B, func f-B choosing-B, equal-trees p, reduction-subterms f-A=f-B _x => {?} -- easy
-    | just color, color1, A, B, B1, reduction-top-level h h1 A~>B, equal-trees p => {?} -- easy
-    | just color, just color1, A, B, B1, reduction-top-level h h1 A~>B, reduction-top-level h2 h3 A~>B1 => {?} -- ?
-    | just color, nothing, func f-A choosing-A, B, func f-C choosing-C, reduction-top-level A-colored B-colored A~>B, reduction-subterms f-A=f-C inner-reduction => {?}
+    | just color, color1, A, B, B1, reduction-top-level h A~>B, equal-trees p => {?} -- easy
+    | just color, just color1, A, B, B1, reduction-top-level h A~>B, reduction-top-level h2 A~>B1 => {?} -- ?
+    | just color, nothing, func f-A choosing-A, B, func f-C choosing-C, reduction-top-level A-colored A~>B, reduction-subterms f-A=f-C inner-reduction
+    => \case \elim f-C, \elim f-A=f-C, \elim choosing-C, \elim inner-reduction \with {
+        | f-C, idp, choosing-C, inner-reduction => \let (X, c1, C~>X, B~>*X) => unify-top color f-A choosing-A choosing-C B A~>B inner-reduction \in \new StraightJoin {
+          | common-reduct => X
+          | a~>cr => B~>*X
+          | b~>cr => (c-basic (c1, C~>X))
+        }
+      }
     | nothing, color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B red-subterms, equal-trees p => {?} -- easy
-    | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level h h1 A~>B' => {?} -- symmetric to 3
+    | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level h A~>B' => {?} -- symmetric to 3
     | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-B1 choosing-B1, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-B1 _x1 => {?} -- inductive step, relatively easy
 
   \func extract-top-level {tc : TheoremContext} (global-context : List tc.Sort') {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
@@ -255,7 +262,7 @@
            pmap (func {env {tc}} (inl f)) (ext (\lam i =>
                (inner-results i).4 *>
                inv ((apply-modular-inside {env {tc}} signature-producer (\lam ind => (inner-results ind).3) ((SubList.extend-right-single-left sublist)) (inner-results i).2)))))
-    | red, func (inr (f-b : tc.envR.FunctionalSymbol.symbol s)) choosing =>
+    | red, func (inr f-b) choosing =>
       \let | singular-signature =>
         \new MetaSignature Sort' {
           | metaname s' => s = s'
@@ -306,6 +313,78 @@
     | var index p => var index p
     | metavar m choosing => metavar (inr (index, m)) (\lam i => upgrade-metavariables-to-pointed m' producer (choosing i))
     | func f choosing => func f (\lam i => upgrade-metavariables-to-pointed m' producer (choosing i))
+
+  \func unify-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
+                  (f : env.FunctionalSymbol.symbol s)
+                  (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                  (B : Term env context s meta-signature)
+                  (A~>B : TopLevelColoredReduction color (func f choosing-A) B)
+                  (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f) -> \Sigma (someColor : Maybe Color)
+                                                                                                     ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
+                                                                                                     (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
+    : \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction c1 (func f choosing-C) X) (Closure TrichromaticParallelReduction B X) \elim B, A~>B
+    | B, rewrite-with-rule-colored h (((inner-meta, l, r), rho, l[rho]=A, r[rho]=B)) i => \let | (sigma, C=l[sigma], reds) => alternate-subst color f choosing-A choosing-C (Substitution.weakening {env} (PatternTerm.convertToTerm {env} l) sublist-trivial) rho (inv l[rho]=A) inner-reductions
+                                                                                               | uni-right => unify-right color l r sigma
+                                                                                               | uni-left => unify-left (Substitution.weakening {env} r sublist-trivial) SubList.identity rho sigma reds \in ((MetaSubstitution.apply {env} (Substitution.weakening {env} r sublist-trivial) SubList.identity sigma), just color, reduction-top-level {?easy} (rewrite C=l[sigma] uni-right), rewriteI r[rho]=B uni-left)
+    | func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?technical}
+
+  \func alternate-subst {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
+                        (f : env.FunctionalSymbol.symbol s)
+                        (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                        {inner-metasignature : MetaSignature Sort'}
+                        (t : Term env context s inner-metasignature)
+                        (rho : MetaSubstitution env context inner-metasignature meta-signature)
+                        (A=t[rho] : (func {env} f choosing-A) = MetaSubstitution.apply {env} t SubList.identity rho)
+                        (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f) -> \Sigma (someColor : Maybe Color)
+                                                                                                           ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
+                                                                                                           (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
+    : \Sigma (sigma : MetaSubstitution env context inner-metasignature meta-signature)
+             ((func {env} f choosing-C) = MetaSubstitution.apply {env} t SubList.identity sigma)
+             (rho~>sigma : \Pi {s : Sort'} (m : inner-metasignature.metaname s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) =>
+    {?interesting}
+
+  \func unify-right {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'} (color : Color)
+                    (t : PatternTerm env nil s inner-metasignature) (s : Term env nil s inner-metasignature)
+                    (sigma : MetaSubstitution env context inner-metasignature meta-signature) :
+    TopLevelColoredReduction {tc} color
+        (MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} t) sublist-trivial) SubList.identity sigma)
+        (MetaSubstitution.apply {env} (Substitution.weakening {env} s sublist-trivial) SubList.identity sigma) =>
+    rewrite-with-rule-colored {?} (\new RewriteStep {
+      | rule => \new RewriteRule {
+        | meta-signature => inner-metasignature
+        | l => t
+        | r => s
+      }
+      | substitution => sigma
+      | left-coherence => idp
+      | right-coherence => idp
+    }) {?}
+
+  \data Closure {A : \Type} (R : A -> A -> \Type) (a b : A)
+    | c-basic (a `R` b)
+    | c-connect (c : A) (a `R` c) (Closure R c b)
+
+  \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'}
+                   (s : Term env context' s inner-metasignature)
+                   (sublist : SubList context context')
+                   (rho sigma : MetaSubstitution env context inner-metasignature meta-signature)
+                   (rho~>sigma : \Pi {s : Sort'} (m : inner-metasignature.metaname s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) :
+    Closure TrichromaticParallelReduction (MetaSubstitution.apply {env} s sublist rho) (MetaSubstitution.apply {env} s sublist sigma) \elim s
+    | var index p => c-basic (nothing, equal-trees idp)
+    | metavar m choosing => \let | main-reduction => rho~>sigma m
+                                 | partial-reductions i => unify-left (choosing i) sublist rho sigma rho~>sigma
+                                 | term-A => (Substitution.apply {env}
+                                     (rho m) (MetaSubstitution.apply.extend-chooser {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho)))
+                                 | term-B => (Substitution.apply {env}
+                                     (rho m) (MetaSubstitution.apply.extend-chooser {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma)))
+                                 | term-C => (Substitution.apply {env}
+                                     (sigma m) (MetaSubstitution.apply.extend-chooser {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma)))
+                                 | term-A~>term-B : \Sigma (jcolor : Maybe Color) (BorderedParallelReduction {tc} jcolor term-A term-B) => {?}
+                                 | term-B~>term-C : \Sigma (jcolor : Maybe Color) (BorderedParallelReduction {tc} jcolor term-B term-C) => {?} \in c-connect term-B term-A~>term-B (c-basic term-B~>term-C)
+    | func f choosing => \let | q i => unify-left (choosing i) (SubList.extend-right-single-left sublist) rho sigma rho~>sigma
+                         \in {?} -- somehow, should not be hard
+
+
 
   --  \func apply-inner-reduction-after-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f-A : env.FunctionalSymbol.symbol s)
   --                                        (B : Term env context s)
