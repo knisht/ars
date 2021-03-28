@@ -399,16 +399,56 @@
       | just color1, A, idp, C, reduction-top-level h t => (\lam {s1} mvar => contradiction, {?}, \lam {s1} m => contradiction) -- easy
     }
     | A, C, lp-metavar metacontext args args-h, someColor, rd => \let | res-term : Term env context s (LinearMetasignature {env} (lp-metavar metacontext args args-h)) => (metavar idp (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist))
-                                                                      | ridp => Substitution.apply {env} (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist))
-                                                                 \in (\lam {s} m => {?}, {?}, {?}) -- Prove that if A~>C and A=phi(t) where phi is some substitution, then t~>s, where C=phi(s)
+                                                                      | ridp => Substitution.apply {env} (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => \let (index', p') => Substitution.weakening.recalculate-index pattern-context context sublist (args dv!! i1) (args-h i1) \in var index' p'))
+                                                                      | q => {?}
+                                                                      | (u, C=phi_u, t=>u) => pull-reduction-along-substitution {tc} A C (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist)) A=t[rho] someColor rd
+                                                                 \in (\lam {s'} m => transport (Term env (metacontext ++ global-context) __ meta-signature) m u,
+                                                                      C=phi_u,
+                                                                      \lam {s1} m => (someColor, Jl (\lam _ s=s' => BorderedParallelReduction someColor (rho s=s') (transport (\lam p0 => Term env (metacontext ++ global-context) p0 meta-signature) s=s' u)) t=>u m)) -- Prove that if A~>C and A=phi(t) where phi is some substitution, then t~>s, where C=phi(s)
     | A, C, lp-func f choosing, someColor, equal-trees A=C => (rho, inv A=C *> A=t[rho], \lam {s1} m => (nothing, equal-trees idp))
     | A, C, lp-func f choosing, just color1, reduction-top-level h t => {?}
-    | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions => \let e : f = f-A => {?} \in \case \elim f-A, \elim f-C, \elim choosing-C, \elim choosing-A, \elim f-A=f-C, \elim inner-reductions, \elim f, \elim e, \elim choosing, \elim rho \with {
-      | f-A, f-C, choosing-C, choosing-A, idp, inner-reductions, f, idp, choosing, rho =>
-        \let insides i => alternate-subst (SubList.extend-left sublist) (SubList.extend-right-single-left gc-sublist) (choosing-A i) (choosing-C i) (choosing i) (\lam m => rho (i, m)) {?} (inner-reductions i).1 (inner-reductions i).3
-        \in (\lam {s1} mvar => (insides mvar.1).1 mvar.2, pmap (func {env} f-A)
-            (ext (\lam index => {?techical})), \lam {s1} m => (insides m.1).3 m.2)
+    | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions => \let e : f = f-A => {?} \in redirection f-A f-C f choosing-A choosing-C choosing sublist gc-sublist e f-A=f-C rho inner-reductions
+    \where {
+      \func redirection {tc : TheoremContext} {context pattern-context global-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                        (f-A f-C f : env.FunctionalSymbol.symbol s)
+                        (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                        (choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-C))) -> Term env ((f-C FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-C FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                        (choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> LinearPattern env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ pattern-context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                        (sublist : SubList pattern-context context)
+                        (gc-sublist : SubList global-context context)
+                        (f=f-A : f = f-A)
+                        (f-A=f-C : f-A = f-C)
+                        (rho : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
+                        (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) -> \Sigma (someColor : Maybe Color)
+                                                                                                             ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f-A))))
+                                                                                                             (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-C choosing-C i))) :
+        \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
+               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} (LinearPattern.convert-to-pattern {env} (lp-func f choosing))) sublist) gc-sublist sigma)
+               (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} (lp-func f choosing)} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) \elim f-A, f-C, f, choosing-A, choosing-C, choosing, f=f-A, f-A=f-C, rho, inner-reductions
+        | f-A, f-C, f, choosing-A, choosing-C, choosing, idp, idp, rho, inner-reductions =>
+          \let insides i => alternate-subst (SubList.extend-left sublist) (SubList.extend-right-single-left gc-sublist) (choosing-A i) (choosing-C i) (choosing i) (\lam m => rho (i, m)) {?} (inner-reductions i).1 (inner-reductions i).3
+          \in (\lam {s1} mvar => (insides mvar.1).1 mvar.2, pmap (func {env} f-A)
+              (ext (\lam index => {?techical})), \lam {s1} m => (insides m.1).3 m.2)
     }
+
+  \func pull-reduction-along-substitution {tc : TheoremContext} {context inner-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                                          (A C : Term env context s meta-signature)
+                                          (t : Term env inner-context s meta-signature)
+                                          (phi : Substitution {env} inner-context context meta-signature)
+                                          (A=phi_t : A = Substitution.apply {env} t phi)
+                                          (someColor : Maybe Color)
+                                          (A=>C : BorderedParallelReduction someColor A C)
+    : \Sigma (u : Term env inner-context s meta-signature)
+             (C = Substitution.apply {env} u phi)
+             (BorderedParallelReduction someColor t u) \elim A, C, t, A=phi_t, someColor, A=>C
+    | A, C, var index p, eq, someColor, equal-trees p1 => (var index p, inv p1 *> eq, equal-trees idp)
+    | A, C, metavar m choosing, idp, someColor, equal-trees p => {?}
+    | A, C, func f choosing, eq, someColor, equal-trees p => {?}
+    | A, C, var index p, idp, just color, reduction-top-level h tlcr => (var index p, {?}, {?})
+    | A, C, metavar m choosing, eq, just color, reduction-top-level h t => \let inner-reductions (i : Nat) => {?} \in {?}
+    | A, C, func f choosing, idp, just color, reduction-top-level h t => {?}
+    | func f-A choosing-A, func f-B choosing-B, var index p, A=phi_t, nothing, reduction-subterms f-A=f-B _x => {?}
+    | func f-A choosing-A, func f-B choosing-B, func f choosing, A=phi_t, nothing, reduction-subterms f-A=f-B _x => {?}
 
   \func unify-right {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
                     (t : LinearPattern env nil s) (s : Term env nil s (LinearMetasignature {env} t))
