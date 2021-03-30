@@ -33,17 +33,14 @@
       | nil => sublist
       | :: a add => sublist-match idp (extend-left sublist)
 
-    \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) (add : List A) : SubList l (r ++ add) \elim l, r, sublist
+    \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (r ++ add) \elim l, r, sublist
       | nil, r, sublist-trivial => sublist-trivial
-      | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist add)
-      | l, :: y ys, sublist-skip sublist => sublist-skip (extend-right-single sublist add)
+      | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist)
+      | l, :: y ys, sublist-skip sublist => sublist-skip (extend-right-single sublist)
 
-    \func extend-right-single-left {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (add ++ r) \elim l, r, sublist, add
-      | nil, nil, sublist-trivial, _ => sublist-trivial
-      | nil, :: a r, sublist-trivial, nil => sublist-trivial
-      | nil, r, sublist-trivial, :: a x => sublist-trivial
-      | _, _, x, nil => x
-      | l, r, x, :: a1 add => sublist-skip (extend-right-single-left x)
+    \func extend-right-single-left {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (add ++ r) \elim add
+      | nil => sublist
+      | :: a add => sublist-skip (extend-right-single-left sublist)
 
     \func extend-middle {A : \Type} (l r add : List A) : SubList (l ++ r) (l ++ add ++ r) \elim l, add
       | nil, nil => identity
