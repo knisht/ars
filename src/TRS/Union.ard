@@ -41,16 +41,6 @@
     | metavar m choosing => metavar m (\lam i => inject-term-left envL envR (choosing i))
     | func f choosing => func (inl f) (\lam i => inject-term-left envL envR (choosing i))
 
-  \func inject-pattern-term-left {Sort : \Set}
-                                 (envL envR : Environment Sort)
-                                 {s : Sort}
-                                 {c : List Sort}
-                                 {meta-signature : MetaSignature Sort}
-                                 (term : PatternTerm envL c s meta-signature) : PatternTerm (JointEnvironment envL envR) c s meta-signature \elim term
-    | pattern-var index p => pattern-var index p
-    | pattern-metavar m arguments coherence => pattern-metavar m arguments coherence
-    | pattern-func f choosing => pattern-func (inl f) (\lam i => inject-pattern-term-left envL envR (choosing i))
-
   \func inject-term-right {Sort : \Set}
                           (envL envR : Environment Sort)
                           {s : Sort}
@@ -61,23 +51,13 @@
     | metavar m choosing => metavar m (\lam i => inject-term-right envL envR (choosing i))
     | func f choosing => func (inr f) (\lam i => inject-term-right envL envR (choosing i))
 
-  \func inject-pattern-term-right {Sort : \Set}
-                                  (envL envR : Environment Sort)
-                                  {s : Sort}
-                                  {c : List Sort}
-                                  {meta-signature : MetaSignature Sort}
-                                  (term : PatternTerm envR c s meta-signature) : PatternTerm (JointEnvironment envL envR) c s meta-signature \elim term
-    | pattern-var index p => pattern-var index p
-    | pattern-metavar m arguments coherence => pattern-metavar m arguments coherence
-    | pattern-func f choosing => pattern-func (inr f) (\lam i => inject-pattern-term-right envL envR (choosing i))
-
   \func promote-rewrite-rule-left {Sort : \Set}
                                   (envL envR : Environment Sort)
                                   (rule : RewriteRule envL)
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
     | meta-signature => rule.meta-signature
-    | l => inject-pattern-term-left envL envR rule.l
+    | l => inject-term-left envL envR rule.l
     | r => inject-term-left envL envR rule.r
 
   \func promote-rewrite-rule-right {Sort : \Set}
@@ -86,7 +66,7 @@
     : RewriteRule (JointEnvironment envL envR) \cowith
     | s => rule.s
     | meta-signature => rule.meta-signature
-    | l => inject-pattern-term-right envL envR rule.l
+    | l => inject-term-right envL envR rule.l
     | r => inject-term-right envL envR rule.r
 
   \func promote-indexed-set-left {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (RewriteRule envL)) : IndexedSet (RewriteRule (JointEnvironment envL envR)) \cowith
@@ -343,28 +323,26 @@
     | lp-var (index : Fin (length context)) (termSort = context !! index)
     | lp-func (f : FunctionalSymbol.symbol termSort)
               (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index))
-    | lp-metavar (meta-context : List Sort)
-                 (arguments : DescendingVector (length meta-context) (length context))
-                 (arguments-coherence : \Pi (index : Fin (length meta-context)) -> meta-context !! index = context !! (arguments dv!! index))
+    | lp-metavar
     \where {
       \func upgrade-metavariables-p {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
                                     (producer : \Pi (Fin n) -> MetaSignature Sort)
-                                    (A : PatternTerm env context s (producer index))
-        : PatternTerm env context s (ModularMetaSignature producer) \elim A
-        | pattern-var index p => pattern-var index p
-        | pattern-metavar m arguments coherence => pattern-metavar (index, m) arguments coherence
-        | pattern-func f choosing => pattern-func f (\lam i => upgrade-metavariables-p producer (choosing i))
+                                    (A : Term env context s (producer index))
+        : Term env context s (ModularMetaSignature producer) \elim A
+        | var index p => var index p
+        | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-p producer (choosing i))
+        | func f choosing => func f (\lam i => upgrade-metavariables-p producer (choosing i))
 
-      \func convert-to-pattern {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : PatternTerm env context s (LinearMetasignature pattern) \elim pattern
-        | lp-var index p => pattern-var index p
-        | lp-func f choosing => pattern-func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-pattern (choosing i)))
-        | lp-metavar meta-context arguments arguments-coherence => pattern-metavar idp arguments arguments-coherence
+      \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetasignature pattern) \elim pattern
+        | lp-var index p => var index p
+        | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-term (choosing i)))
+        | lp-metavar => metavar idp (\lam index => var index idp)
     }
 
   \record LinearRewriteRule \extends RewriteRule {
     | linear-pattern : LinearPattern env nil s
     | meta-signature => LinearMetasignature linear-pattern
-    | l => LinearPattern.convert-to-pattern linear-pattern
+    | l => LinearPattern.convert-to-term linear-pattern
   }
 
   \record LinearRewriteStep \extends RewriteStep {
@@ -380,9 +358,9 @@
       | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetasignature (choosing i)} s)
       | m-domain m => m-domain {LinearMetasignature (choosing m.1)} m.2
     }
-    | lp-metavar meta-context arguments arguments-coherence => \new MetaSignature {
+    | lp-metavar => \new MetaSignature {
       | metaname s' => s = s'
-      | m-domain m => meta-context
+      | m-domain m => context
     }
 
   \func alternate-subst {tc : TheoremContext} {context pattern-context global-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
@@ -391,22 +369,25 @@
                         (A C : Term env context s meta-signature)
                         (t : LinearPattern env pattern-context s)
                         (rho : MetaSubstitution env global-context (LinearMetasignature {env} t) meta-signature)
-                        (A=t[rho] : A = MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} (LinearPattern.convert-to-pattern {env} t)) sublist) gc-sublist rho)
+                        (A=t[rho] : A = MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} t) sublist) gc-sublist rho)
                         (someColor : Maybe Color)
                         (A=>C : BorderedParallelReduction someColor A C)
     : \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} t) meta-signature)
-             (C = MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} (LinearPattern.convert-to-pattern {env} t)) sublist) gc-sublist sigma)
+             (C = MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} t) sublist) gc-sublist sigma)
              (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} t} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) \elim A, C, t, someColor, A=>C
     | A, C, lp-var index p, someColor, rd => \case \elim someColor, \elim A, \elim A=t[rho], \elim C, \elim rd \with {
       | someColor, A, idp, C, equal-trees idp => (\lam {s1} mvar => contradiction, idp, \lam {s1} m => (nothing, contradiction))
       | just color1, A, idp, C, reduction-top-level h t => (\lam {s1} mvar => contradiction, {?}, \lam {s1} m => contradiction) -- easy
     }
-    | A, C, lp-metavar metacontext args args-h, someColor, rd => \let | res-term : Term env context s (LinearMetasignature {env} (lp-metavar metacontext args args-h)) => (metavar idp (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist))
-                                                                      | ridp => Substitution.apply {env} (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => \let (index', p') => Substitution.weakening.recalculate-index pattern-context context sublist (args dv!! i1) (args-h i1) \in var index' p'))
-                                                                      | (u, C=phi_u, t=>u) => pull-reduction-along-substitution {tc} A C (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist)) A=t[rho] someColor rd
-                                                                 \in (\lam {s'} m => transport (Term env (metacontext ++ global-context) __ meta-signature) m u,
-                                                                      C=phi_u,
-                                                                      \lam {s1} m => (someColor, Jl (\lam _ s=s' => BorderedParallelReduction someColor (rho s=s') (transport (\lam p0 => Term env (metacontext ++ global-context) p0 meta-signature) s=s' u)) t=>u m)) -- Prove that if A~>C and A=phi(t) where phi is some substitution, then t~>s, where C=phi(s)
+    | A, C, lp-metavar, someColor, rd => \let | t => rho idp
+                                              | res-term : Term env context s (LinearMetasignature {env} (lp-metavar {env})) => (metavar idp (\lam i1 => Substitution.weakening {env} (var i1 idp) sublist))
+                                              | context-mapping => (MetaSubstitution.apply.extend-chooser {env} {_} {_} {_} {meta-signature} gc-sublist (\lam i1 => \let (index', p') => Substitution.weakening.recalculate-index pattern-context context sublist i1 idp \in var index' p'))
+                                              | ridp => Substitution.apply {env} t context-mapping
+                                              | (u, C=phi_u, t=>u) => pull-reduction-along-substitution {tc} A C (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => Substitution.weakening {env} (var i1 idp) sublist)) A=t[rho] someColor rd
+--                                              | other => (\lam {s' : Sort'} m => transport (Term env (context ++ global-context) __ meta-signature) {_} {s} m u,
+--                                                          C=phi_u,
+--                                                          \lam {s1 : Sort'} m => (someColor, Jl (\lam _ s=s' => BorderedParallelReduction someColor (rho s=s') (transport (\lam p0 => Term env (metacontext ++ global-context) p0 meta-signature) s=s' u)) t=>u {s} m))
+                                         \in {?}
     | A, C, lp-func f choosing, someColor, equal-trees A=C => (rho, inv A=C *> A=t[rho], \lam {s1} m => (nothing, equal-trees idp))
     | A, C, lp-func f choosing, just color1, reduction-top-level h t => {?}
     | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions => \let e : f = f-A => {?} \in redirection f-A f-C f choosing-A choosing-C choosing sublist gc-sublist e f-A=f-C rho inner-reductions
@@ -425,7 +406,7 @@
                                                                                                              ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f-A))))
                                                                                                              (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-C choosing-C i))) :
         \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
-               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} (LinearPattern.convert-to-pattern {env} (lp-func f choosing))) sublist) gc-sublist sigma)
+               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} (lp-func f choosing)) sublist) gc-sublist sigma)
                (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} (lp-func f choosing)} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) \elim f-A, f-C, f, choosing-A, choosing-C, choosing, f=f-A, f-A=f-C, rho, inner-reductions
         | f-A, f-C, f, choosing-A, choosing-C, choosing, idp, idp, rho, inner-reductions =>
           \let insides i => alternate-subst (SubList.extend-left sublist) (SubList.extend-right-single-left gc-sublist) (choosing-A i) (choosing-C i) (choosing i) (\lam m => rho (i, m)) {?} (inner-reductions i).1 (inner-reductions i).3
@@ -456,7 +437,7 @@
                     (t : LinearPattern env nil s) (s : Term env nil s (LinearMetasignature {env} t))
                     (sigma : MetaSubstitution env context (LinearMetasignature {env} t) meta-signature) :
     TopLevelColoredReduction {tc} color
-        (MetaSubstitution.apply {env} (Substitution.weakening {env} (PatternTerm.convertToTerm {env} (LinearPattern.convert-to-pattern {env} t)) sublist-trivial) SubList.identity sigma)
+        (MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} t) sublist-trivial) SubList.identity sigma)
         (MetaSubstitution.apply {env} (Substitution.weakening {env} s sublist-trivial) SubList.identity sigma) =>
     rewrite-with-rule-colored {?} (\new LinearRewriteStep {
       | rule => \new LinearRewriteRule {

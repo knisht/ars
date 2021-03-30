@@ -47,12 +47,6 @@
   | func (f : FunctionalSymbol.symbol termSort) -- | Functional symbol
          (choosing : \Pi (index : Fin (length (domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index) meta-signature)
 
-\record PackedTerm {env : Environment}
-  | context : List Sort
-  | termSort : Sort
-  | meta-signature : MetaSignature Sort
-  | term : Term env context termSort meta-signature
-
 \data PatternTerm (env : Environment)
                   (context : List Sort)
                   (termSort : Sort)
@@ -115,8 +109,13 @@
   }
 
 \record RewriteRule (env : Environment) {s : env.Sort} {meta-signature : MetaSignature Sort}
-                    (l : PatternTerm env nil s meta-signature)
+                    (l : Term env nil s meta-signature)
                     (r : Term env nil s meta-signature)
+
+\record PatternRewriteRule \extends RewriteRule {
+  | pattern : PatternTerm env nil s meta-signature
+  | l => PatternTerm.convertToTerm pattern
+}
 
 -- | Substitution of metavariables
 \func MetaSubstitution (env : Environment) (new-context : List Sort) (meta-signature new-meta-signature : MetaSignature Sort): \Set =>
@@ -153,7 +152,7 @@
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (L R : Term env context s meta-signature)
   | rule : RewriteRule env {s}
   | substitution : MetaSubstitution env context rule.meta-signature meta-signature
-  | left-coherence : MetaSubstitution.apply (Substitution.weakening (PatternTerm.convertToTerm rule.l) SubList.sublist-trivial) SubList.identity substitution = L
+  | left-coherence : MetaSubstitution.apply (Substitution.weakening rule.l SubList.sublist-trivial) SubList.identity substitution = L
   | right-coherence : MetaSubstitution.apply (Substitution.weakening rule.r SubList.sublist-trivial) SubList.identity substitution = R
 
 \record IndexedSet (A : \Type)
