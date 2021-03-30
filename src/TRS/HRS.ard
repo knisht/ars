@@ -83,15 +83,15 @@
       : Term env new-context s meta-signature \elim t
       | var index p => transport (Term env new-context __ meta-signature) (inv p) (map index)
       | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
-      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (enlarge-substitution meta-signature (f !!param i) map))
+      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (enlarge-substitution map))
       \where {
-        \func enlarge-substitution {env : Environment} {old-context new-context : List Sort} (meta-signature : MetaSignature Sort)
-                                   (additional-context : List Sort)
+        \func enlarge-substitution {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+                                   {additional-context : List Sort}
                                    (subst : Substitution old-context new-context meta-signature)
                                    (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) meta-signature \elim additional-context, index
           | nil, index => subst index
           | :: a additional-context, zero => var zero idp
-          | :: a additional-context, suc index => \let inner-shifting => enlarge-substitution meta-signature additional-context subst index
+          | :: a additional-context, suc index => \let inner-shifting => enlarge-substitution subst index
                                                   \in weakening inner-shifting (sublist-skip SubList.identity)
       }
 

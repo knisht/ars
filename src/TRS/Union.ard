@@ -327,8 +327,15 @@
     | B, rewrite-with-rule-colored h ((rul : LinearRewriteRule (env {tc})), rho, l[rho]=A, r[rho]=B) => \let
       | (sigma, C=l[sigma], reds) => alternate-subst sublist-trivial SubList.identity (func f choosing-A) (func f choosing-C) rul.linear-pattern rho (inv l[rho]=A) nothing  (reduction-subterms idp inner-reductions)
       | uni-right => unify-right color rul.linear-pattern rul.r sigma
-      | uni-left => unify-left (Substitution.weakening {env} rul.r sublist-trivial) SubList.identity rho sigma reds \in ((MetaSubstitution.apply {env} (Substitution.weakening {env} rul.r sublist-trivial) SubList.identity sigma), just color, reduction-top-level {?easy} (rewrite C=l[sigma] uni-right), rewriteI r[rho]=B uni-left)
-    | func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?technical}
+      | uni-left => unify-left (Substitution.weakening {env} rul.r sublist-trivial) SubList.identity rho sigma reds \in ((MetaSubstitution.apply {env} (Substitution.weakening {env} rul.r sublist-trivial) SubList.identity sigma), just color, reduction-top-level (recreate-coloring-for-root h) (rewrite C=l[sigma] uni-right), rewriteI r[rho]=B uni-left)
+    | func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => (func f {?}, {?}, {?}, {?})
+    \where {
+      \func recreate-coloring-for-root {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} {color : Color} {f : env.FunctionalSymbol.symbol s}
+                                       {choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature}
+                                       (h : HasColoredRoot color (func f choosing-A)) : HasColoredRoot color (func f choosing-C) \elim color, f, h
+        | red, inl s1, red-func-root => red-func-root
+        | blue, inr s1, blue-func-root => blue-func-root
+    }
 
   \data LinearPattern (env : Environment)
                       (context : List Sort)
@@ -396,7 +403,6 @@
     }
     | A, C, lp-metavar metacontext args args-h, someColor, rd => \let | res-term : Term env context s (LinearMetasignature {env} (lp-metavar metacontext args args-h)) => (metavar idp (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist))
                                                                       | ridp => Substitution.apply {env} (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => \let (index', p') => Substitution.weakening.recalculate-index pattern-context context sublist (args dv!! i1) (args-h i1) \in var index' p'))
-                                                                      | q => {?}
                                                                       | (u, C=phi_u, t=>u) => pull-reduction-along-substitution {tc} A C (rho idp) (MetaSubstitution.apply.extend-chooser {env} gc-sublist (\lam i1 => Substitution.weakening {env} (var (args dv!! i1) (args-h i1)) sublist)) A=t[rho] someColor rd
                                                                  \in (\lam {s'} m => transport (Term env (metacontext ++ global-context) __ meta-signature) m u,
                                                                       C=phi_u,
@@ -502,10 +508,9 @@
     }
     | metavar m choosing => {?} -- like the bottom one
     | func f choosing =>
-      \let | choosing-a i => (Substitution.apply {env} (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) a-subst))
-           | choosing-b i => (Substitution.apply {env}
-               (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) b-subst))
-           | q i => apply-reducible-substitution (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) a-subst) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) b-subst) {?}
+      \let | choosing-a i => (Substitution.apply {env} (choosing i) (Substitution.apply.enlarge-substitution {env} a-subst))
+           | choosing-b i => (Substitution.apply {env} (choosing i) (Substitution.apply.enlarge-substitution {env} b-subst))
+           | q i => apply-reducible-substitution (choosing i) (Substitution.apply.enlarge-substitution {env} a-subst) (Substitution.apply.enlarge-substitution {env} b-subst) {?}
       \in gather-closure f choosing-a choosing-b q
 
   \func extend-reduction-to-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
@@ -515,11 +520,24 @@
                                          (t~>s : BorderedParallelReduction someColor t s')
     : BorderedParallelReduction someColor (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', someColor, t~>s
     | t, s', someColor, equal-trees p => equal-trees (pmap (Substitution.apply {env} __ subst) p)
-    | t, s, just color, reduction-top-level h t1 => {?}
+    | t, s', just color, reduction-top-level h tlcr => reduction-top-level {?} (lemma-tlcr t s' subst color tlcr)
     | func f-A choosing-A, func f-B choosing-B, nothing, reduction-subterms f-A=f-B _x => \case \elim f-A, \elim choosing-A, \elim f-B, \elim choosing-B, \elim f-A=f-B, \elim _x \with {
       | f-A, choosing-A, f-B, choosing-B, idp, _x => reduction-subterms idp (\lam i => \let (col, or, reduct) => _x i \in
-        (col, or, extend-reduction-to-substitution (choosing-A i) (choosing-B i) ((Substitution.apply.enlarge-substitution {env} meta-signature (f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) subst)) col reduct))
-    }
+        (col, or, extend-reduction-to-substitution (choosing-A i) (choosing-B i) ((Substitution.apply.enlarge-substitution {env} subst)) col reduct))
+    } \where {
+    \func lemma-tlcr {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                     (t s' : Term env context s meta-signature)
+                     (subst : Substitution {env} context context' meta-signature)
+                     (color : Color)
+                     (t~>s : TopLevelColoredReduction color t s') : TopLevelColoredReduction color (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', t~>s
+      | t, s', rewrite-with-rule-colored h (rule,metasubst,m[l]=t,m[r]=s') => rewrite-with-rule-colored {?} (\new LinearRewriteStep {
+        | rule => rule
+        | substitution m => Substitution.apply {env} (metasubst m) (Substitution.apply.enlarge-substitution {env} subst)
+        | left-coherence => {?}
+        | right-coherence => {?}
+      })
+      | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
+  }
 
   \func gather-closure {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                        (f : env.FunctionalSymbol.symbol s)
