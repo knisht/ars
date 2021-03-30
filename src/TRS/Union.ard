@@ -521,19 +521,31 @@
     : BorderedParallelReduction someColor (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', someColor, t~>s
     | t, s', someColor, equal-trees p => equal-trees (pmap (Substitution.apply {env} __ subst) p)
     | t, s', just color, reduction-top-level h tlcr => reduction-top-level {?} (lemma-tlcr t s' subst color tlcr)
-    | func f-A choosing-A, func f-B choosing-B, nothing, reduction-subterms f-A=f-B _x => \case \elim f-A, \elim choosing-A, \elim f-B, \elim choosing-B, \elim f-A=f-B, \elim _x \with {
-      | f-A, choosing-A, f-B, choosing-B, idp, _x => reduction-subterms idp (\lam i => \let (col, or, reduct) => _x i \in
-        (col, or, extend-reduction-to-substitution (choosing-A i) (choosing-B i) ((Substitution.apply.enlarge-substitution {env} subst)) col reduct))
-    } \where {
-    \func lemma-tlcr {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-                     (t s' : Term env context s meta-signature)
-                     (subst : Substitution {env} context context' meta-signature)
-                     (color : Color)
-                     (t~>s : TopLevelColoredReduction color t s') : TopLevelColoredReduction color (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', t~>s
-      | t, s', rewrite-with-rule-colored h (rule,metasubst,m[l]=t,m[r]=s') => rewrite-with-rule-colored {?} (\new LinearRewriteStep {
-        | rule => rule
-        | substitution m => Substitution.apply {env} (metasubst m) (Substitution.apply.enlarge-substitution {env} subst)
-        | left-coherence => {?}
+    | func f-A choosing-A, func f-B choosing-B, nothing, reduction-subterms f-A=f-B _x => redirection f-A f-B choosing-A choosing-B f-A=f-B _x subst
+    \where {
+      \func redirection {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                        (f-A f-C : env.FunctionalSymbol.symbol s)
+                        (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                        (choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-C))) -> Term env ((f-C FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-C FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                        (f-A=f-C : f-A = f-C)
+                        (inner-reductions : \Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
+                          (someColor : Maybe Color)
+                          ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
+                          (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-C choosing-C i)))
+                        (subst : Substitution {env} context context' meta-signature)
+        : BorderedParallelReduction nothing (Substitution.apply {env} (func f-A choosing-A) subst) (Substitution.apply {env} (func f-C choosing-C) subst) \elim f-A=f-C
+        | idp => reduction-subterms idp (\lam i => \let (col, or, reduct) => inner-reductions i \in
+          (col, or, extend-reduction-to-substitution (choosing-A i) (choosing-C i) ((Substitution.apply.enlarge-substitution {env} subst)) col reduct))
+
+      \func lemma-tlcr {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                       (t s' : Term env context s meta-signature)
+                       (subst : Substitution {env} context context' meta-signature)
+                       (color : Color)
+                       (t~>s : TopLevelColoredReduction color t s') : TopLevelColoredReduction color (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', t~>s
+        | t, s', rewrite-with-rule-colored h (rule,metasubst,m[l]=t,m[r]=s') => rewrite-with-rule-colored {?} (\new LinearRewriteStep {
+          | rule => rule
+          | substitution m => Substitution.apply {env} (metasubst m) (Substitution.apply.enlarge-substitution {env} subst)
+          | left-coherence => {?}
         | right-coherence => {?}
       })
       | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
