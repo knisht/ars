@@ -93,15 +93,15 @@
                     (t : Term env narrow-context s' meta-signature)
                     (sublist : SubList narrow-context wide-context)
       : Term env wide-context s' meta-signature \elim t
-      | var index p => \let (index', p') => recalculate-index narrow-context wide-context sublist index p \in var index' p'
+      | var index p => \let (index', p') => recalculate-index sublist index p \in var index' p'
       | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
       | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-left sublist))
       \where {
-        \func recalculate-index {A : \Set} (a b : List A) {point : A} (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
+        \func recalculate-index {A : \Set} {a b : List A} {point : A} (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
           | nil, r, sublist-trivial, (), p
           | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
-          | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index xs ys sublist ind idp \in (suc ind', p')
-          | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index l ys sublist ind idp \in (suc ind', p')
+          | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
+          | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
       }
 
     \func adjustContext {env : Environment} {s : Sort} {meta-signature : MetaSignature Sort} (t : Term env nil s meta-signature) {new-context : List Sort} : Term env new-context s meta-signature =>

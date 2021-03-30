@@ -1,0 +1,18 @@
+\import Data.List (::, List, nil)
+\import Logic
+\import Logic.Meta
+\import Paths
+\import Paths.Meta
+\import TRS.HRS
+\import TRS.List
+
+\func plain-identity {env : Environment} {context : List Sort} {meta-signature : MetaSignature Sort} : Substitution context context meta-signature =>
+  \lam i => var i idp
+
+\func plain-identity-effect {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
+                            (t : Term env context s meta-signature) : Substitution.apply t plain-identity = t \elim t
+  | var index p => \case \elim s, \elim p \with {
+    | s, idp => idp
+  }
+  | metavar m choosing => pmap (metavar m) (ext (\lam index => plain-identity-effect (choosing index)))
+  | func f choosing => pmap (func f) (ext (\lam index => {?}))
