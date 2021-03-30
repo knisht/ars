@@ -465,6 +465,11 @@
   \data Closure {A : \Type} (R : A -> A -> \Type) (a b : A)
     | c-basic (a `R` b)
     | c-connect (c : A) (a `R` c) (Closure R c b)
+    \where {
+      \func concat {A : \Type} {R : A -> A -> \Type} {a b c : A} (a~>b : Closure R a b) (b~>c : Closure R b c) : Closure R a c \elim a~>b, b~>c
+        | c-basic r, rx => c-connect b r rx
+        | c-connect c1 r a~>b, rx => c-connect c1 r (concat a~>b rx)
+    }
 
   \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'}
                    (s : Term env context' s inner-metasignature)
@@ -481,14 +486,13 @@
                                  | term-B => (Substitution.apply {env} (rho m) sigma-subst)
                                  | in-indices i => (unify-left (choosing i) sublist rho sigma rho~>sigma)
                                  | term-C => (Substitution.apply {env} (sigma m) (MetaSubstitution.apply.extend-chooser {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma)))
-                                 | term-A~>term-B : Closure TrichromaticParallelReduction term-A term-B => apply-reducible-substitution (rho m) {?} rho-subst sigma-subst {?}
-                                 | term-B~>term-C : TrichromaticParallelReduction term-B term-C => {?} \in {?}
+                                 | term-A~>term-B : Closure TrichromaticParallelReduction term-A term-B => apply-reducible-substitution (rho m) rho-subst sigma-subst {?}
+                                 | term-B~>term-C : TrichromaticParallelReduction term-B term-C => (main-reduction.1, extend-reduction-to-substitution (rho m) (sigma m) sigma-subst main-reduction.1 main-reduction.2) \in Closure.concat term-A~>term-B (Closure.c-basic term-B~>term-C)
     | func f choosing => \let | q i => unify-left (choosing i) (SubList.extend-right-single-left sublist) rho sigma rho~>sigma
-                         \in {?} -- somehow, should not be hard
+                         \in gather-closure f (\lam i => MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single-left sublist) rho) (\lam i => MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single-left sublist) sigma) q
 
   \func apply-reducible-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                      (s : Term env context s meta-signature)
-                                     (sublist : SubList context context')
                                      (a-subst b-subst : Substitution {env} context context' meta-signature)
                                      (a~>b : \Pi (index : Fin (length context)) -> Closure TrichromaticParallelReduction (a-subst index) (b-subst index))
     : Closure TrichromaticParallelReduction (Substitution.apply {env} s a-subst) (Substitution.apply {env} s b-subst)
@@ -501,14 +505,28 @@
       \let | choosing-a i => (Substitution.apply {env} (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) a-subst))
            | choosing-b i => (Substitution.apply {env}
                (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) b-subst))
-           | q i => apply-reducible-substitution (choosing i) (SubList.extend-left sublist) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) a-subst) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) b-subst) {?}
+           | q i => apply-reducible-substitution (choosing i) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) a-subst) (Substitution.apply.enlarge-substitution {env} meta-signature (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) b-subst) {?}
       \in gather-closure f choosing-a choosing-b q
+
+  \func extend-reduction-to-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                                         (t s' : Term env context s meta-signature)
+                                         (subst : Substitution {env} context context' meta-signature)
+                                         (someColor : Maybe Color)
+                                         (t~>s : BorderedParallelReduction someColor t s')
+    : BorderedParallelReduction someColor (Substitution.apply {env} t subst) (Substitution.apply {env} s' subst) \elim t, s', someColor, t~>s
+    | t, s', someColor, equal-trees p => equal-trees (pmap (Substitution.apply {env} __ subst) p)
+    | t, s, just color, reduction-top-level h t1 => {?}
+    | func f-A choosing-A, func f-B choosing-B, nothing, reduction-subterms f-A=f-B _x => \case \elim f-A, \elim choosing-A, \elim f-B, \elim choosing-B, \elim f-A=f-B, \elim _x \with {
+      | f-A, choosing-A, f-B, choosing-B, idp, _x => reduction-subterms idp (\lam i => \let (col, or, reduct) => _x i \in
+        (col, or, extend-reduction-to-substitution (choosing-A i) (choosing-B i) ((Substitution.apply.enlarge-substitution {env} meta-signature (f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) subst)) col reduct))
+    }
 
   \func gather-closure {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                        (f : env.FunctionalSymbol.symbol s)
                        (choosing-A choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
                        (args : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Closure TrichromaticParallelReduction (choosing-A index) (choosing-B index))
-    : Closure TrichromaticParallelReduction (func {env} f choosing-A) (func f choosing-B) => {?} -- purely technical concatenation of closures
+    : Closure TrichromaticParallelReduction (func {env} f choosing-A) (func f choosing-B) =>
+    {?} -- purely technical concatenation of closures
 }
 
 
