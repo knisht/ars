@@ -1,7 +1,7 @@
 \import Algebra.Ring.Localization
 \import Confluence
 \import Data.Bool
-\import Data.List (++, ++-assoc, List, nil)
+\import Data.List (++, ++-assoc, ::, List, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -378,10 +378,9 @@
       | someColor, A, idp, C, equal-trees idp => (\lam {s1} mvar => contradiction, idp, \lam {s1} m => (nothing, contradiction))
       | just color1, A, idp, C, reduction-top-level h t => (\lam {s1} mvar => contradiction, {?}, \lam {s1} m => contradiction) -- easy
     }
-    | A, C, lp-metavar, someColor, rd => \let | tttt => rho idp
-                                              | context-mapping => (MetaSubstitution.apply.extend-chooser {env} (SubList.extend-right-single-left SubList.identity)
+    | A, C, lp-metavar, someColor, rd => \let | context-mapping => (MetaSubstitution.apply.extend-chooser {env} (SubList.extend-right-single-left SubList.identity)
                                                   (\lam i => (\let (index', p') => Substitution.weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp \in var index' p')))
-                                              | context-mapping-is-identical : context-mapping = plain-identity {env} => {?}
+                                              | context-mapping-is-identical : context-mapping = plain-identity {env} => ext (identify-context-mapping {env})
                                               | res-term : Term env (pattern-context ++ global-context) s meta-signature => Substitution.apply {env} (rho idp) context-mapping
                                               | modified-rd : BorderedParallelReduction someColor (rho idp) C => transport (BorderedParallelReduction someColor __ C) (A=t[rho] *> (pmap (Substitution.apply {env} (rho idp)) context-mapping-is-identical) *> plain-identity-effect {env} (rho idp)) rd
                                          \in (\lam {s1} mvar => transport (Term env (pattern-context ++ global-context) __ meta-signature) mvar C,
@@ -391,6 +390,14 @@
     | A, C, lp-func f choosing, just color1, reduction-top-level h t => {?}
     | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions => \let e : f = f-A => {?} \in redirection f-A f-C f choosing-A choosing-C choosing e f-A=f-C rho inner-reductions
     \where {
+      \func identify-context-mapping {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort} (ind : Fin (length (left-context ++ right-context))) : (MetaSubstitution.apply.extend-chooser {env} {_} {_} {_} {meta-signature} (SubList.extend-right-single-left SubList.identity)
+          (\lam i => (\let (index', p') => Substitution.weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp \in var index' p'))) ind = var ind idp \elim left-context, right-context, ind
+        | nil, :: a right-context, zero => idp
+        | nil, :: a right-context, suc ind => {?} -- retrieving indices over identity list returns the same index; technical lemma
+        | :: a left-context, nil, zero => idp
+        | :: a left-context, r, suc ind => \let q => identify-context-mapping {_} {_} {_} {meta-signature} ind \in {?} -- tricky induction step should not be hard
+        | :: a left-context, :: a1 right-context, zero => idp
+
       \func redirection {tc : TheoremContext} {pattern-context global-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                         (f-A f-C f : env.FunctionalSymbol.symbol s)
                         (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ (pattern-context ++ global-context)) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
@@ -403,7 +410,7 @@
                                                                                                              ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f-A))))
                                                                                                              (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-C choosing-C i))) :
         \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
-               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} (lp-func f choosing)) {?}) {?} sigma)
+               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (Substitution.weakening {env} (LinearPattern.convert-to-term {env} (lp-func f choosing)) (SubList.extend-right-single SubList.identity)) (SubList.extend-right-single-left SubList.identity) sigma)
                (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} (lp-func f choosing)} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) \elim f-A, f-C, f, choosing-A, choosing-C, choosing, f=f-A, f-A=f-C, rho, inner-reductions
         | f-A, f-C, f, choosing-A, choosing-C, choosing, idp, idp, rho, inner-reductions =>
           \let insides i => \let | q => rewriteI ++-assoc (choosing-A i)
