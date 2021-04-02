@@ -39,6 +39,10 @@
       | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
       | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
       | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
+
+    \func recalculate-index-over-identity {A : \Set} {a : List A} (ind : Fin (length a)) : recalculate-index SubList.identity ind idp = (ind, idp) \elim a, ind
+      | :: a a1, zero => idp
+      | :: a a1, suc ind => rewrite (recalculate-index-over-identity ind) idp
   }
 
 \func extend-substitution-right {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
@@ -51,7 +55,7 @@
   | :: a narrow-context, zero => chooser zero
   | :: a narrow-context, suc j => extend-substitution-right sublist (\lam i => chooser (suc i)) j
   \where {
-    \func produce-inner-term {env : Environment} {right-context some-context : List Sort} (sublist : SubList right-context some-context) (j : Fin (length right-context)) :
+    \func produce-inner-term {A : \Type} {right-context some-context : List A} (sublist : SubList right-context some-context) (j : Fin (length right-context)) :
       \Sigma (ind : Fin (length some-context)) (right-context !! j = some-context !! ind) \elim right-context, some-context, sublist, j
       | :: x xs, :: y ys, sublist-match p sublist, zero => (0, p)
       | :: x xs, :: y ys, sublist-match p sublist, suc j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)

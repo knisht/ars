@@ -425,10 +425,37 @@
       \func identify-context-mapping {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort} (ind : Fin (length (left-context ++ right-context))) : (extend-substitution-right {env} {_} {_} {_} {meta-signature} (SubList.extend-right-single-left SubList.identity)
           (\lam i => (\let (index', p') => weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp \in var index' p'))) ind = var ind idp \elim left-context, right-context, ind
         | nil, :: a right-context, zero => idp
-        | nil, :: a right-context, suc ind => {?} -- retrieving indices over identity list returns the same index; technical lemma
+        | nil, :: a right-context, suc ind => rewrite (extension-over-identity-is-identity ind) idp
         | :: a left-context, nil, zero => idp
-        | :: a left-context, r, suc ind => \let q => identify-context-mapping {_} {_} {_} {meta-signature} ind \in {?} -- tricky induction step should not be hard
+        | :: a left-context, r, suc ind => \let q => identify-context-mapping {_} {_} {_} {meta-signature} ind \in identify-context-mapping.extension-over-skipping (\lam i => weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp) ind q
         | :: a left-context, :: a1 right-context, zero => idp
+        \where {
+          \func extension-over-identity-is-identity {A : \Type} {some-context : List A} (j : Fin (length some-context)) : extend-substitution-right.produce-inner-term (SubList.identity) j = (j, idp) \elim some-context, j
+            | :: a some-context, zero => idp
+            | :: a some-context, suc j => rewrite (extension-over-identity-is-identity j) idp
+
+          \func extension-over-skipping {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort} {a : Sort}
+                                        (index-calculator : \Pi (i : Fin (length left-context)) -> \Sigma (j' : Fin (length (left-context ++ right-context))) (left-context !! i = (left-context ++ right-context) !! j'))
+                                        (j : Fin (length (left-context ++ right-context)))
+                                        (eq : extend-substitution-right {_} {_} {_} {_} {meta-signature} (SubList.extend-right-single-left SubList.identity) (\lam i => \let (index, p) => index-calculator i \in var index p) j = var j idp)
+            : extend-substitution-right {_} {_} {_} {a :: (left-context ++ right-context)} {meta-signature}(sublist-skip (SubList.extend-right-single-left SubList.identity)) (\lam i => \let (index, p) => index-calculator i \in var (suc index) p) j = var (suc j) idp =>
+            \let | rrr => pmap (weakening {_} {_} {_} {a :: (left-context ++ right-context)} __ (sublist-skip SubList.identity)) eq
+                 | qqq : rrr @ right = var (suc j) idp => \let internal => internal-lemma {_} {a} j \in pmap sigma-to-var internal
+                 | zzz : rrr @ left = extend-substitution-right {_} {_} {_} {a :: (left-context ++ right-context)} {meta-signature}(sublist-skip (SubList.extend-right-single-left SubList.identity)) (\lam i => \let (index, p) => index-calculator i \in var (suc index) p) j => {?}
+            \in inv zzz *> rrr *> qqq
+
+          \func sigma-to-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (sig : \Sigma (i : Fin (length context)) (s = context !! i)) : Term env context s meta-signature =>
+            var sig.1 sig.2
+
+          \func internal-lemma {A : \Set} {point' : A} {a : List A} (ind : Fin (length a)) : weakening.recalculate-index {_} {a} {point' :: a} (sublist-skip SubList.identity) ind idp = (suc ind, idp) \elim a, ind
+            | :: a a1, zero => idp
+            | :: a a1, suc ind => rewrite (weakening.recalculate-index-over-identity ind) idp
+
+--          \func internal-lemma-2 {env : Environment} {left-context right-context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
+--                                 (subst : \Pi (i : Fin (length left-context)) -> Term env (left-context ++ right-context) left-context (left-context ++ right-context) meta-signature)
+--                                 (j : Fin (length left-context))
+--                                 : weakening (extend-substitution-right (SubList.extend-right-single-left SubList.identity) subst j) (sublist-skip SubList.identity) = extend-substitution-right (sublist-skip (SubList.extend-right-single-left SubList.identity)) subst
+        }
 
       \func redirection {tc : TheoremContext} {pattern-context global-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                         (f-A f-C f : env.FunctionalSymbol.symbol s)
