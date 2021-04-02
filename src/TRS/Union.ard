@@ -60,7 +60,17 @@
     | meta-signature => rule.meta-signature
     | l => inject-term-left envL envR rule.l
     | r => inject-term-left envL envR rule.r
-    | l-is-func => {?}
+    | l-is-func => promote-injection-left {_} {envL} {envR} rule.l rule.l-is-func
+    \where {
+      \func promote-injection-left {Sort : \Set}
+                                   {envL envR : Environment Sort}
+                                   {context : List Sort}
+                                   {s : Sort}
+                                   {meta-signature : MetaSignature Sort}
+                                   (t : Term envL context s meta-signature)
+                                   (t-is-func : FunctionalRoot {envL} t) : FunctionalRoot {JointEnvironment envL envR} (inject-term-left envL envR t) \elim t, t-is-func
+        | func f choosing, T-has-functional-root => T-has-functional-root {JointEnvironment envL envR}
+    }
 
   \func promote-rewrite-rule-right {Sort : \Set}
                                    (envL envR : Environment Sort)
@@ -70,7 +80,17 @@
     | meta-signature => rule.meta-signature
     | l => inject-term-right envL envR rule.l
     | r => inject-term-right envL envR rule.r
-    | l-is-func => {?}
+    | l-is-func => promote-injection-right {_} {envL} {envR} rule.l rule.l-is-func
+    \where {
+      \func promote-injection-right {Sort : \Set}
+                                   {envL envR : Environment Sort}
+                                   {context : List Sort}
+                                   {s : Sort}
+                                   {meta-signature : MetaSignature Sort}
+                                   (t : Term envR context s meta-signature)
+                                   (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointEnvironment envL envR} (inject-term-right envL envR t) \elim t, t-is-func
+        | func f choosing, T-has-functional-root => T-has-functional-root {JointEnvironment envL envR}
+    }
 
   \func promote-indexed-set-left {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (RewriteRule envL)) : IndexedSet (RewriteRule (JointEnvironment envL envR)) \cowith
     | J => rules.J
