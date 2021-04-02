@@ -433,16 +433,19 @@
                                      (sublist : SubList right-context (left-context ++ right-context))
                                      (sublist' : SubList left-context (left-context ++ right-context))
                                      (ind : Fin (length (left-context ++ right-context))) :
-        (extend-substitution-right {env} {_} {_} {_} {meta-signature} (sublist)
-            (\lam i => (\let (index', p') => weakening.recalculate-index sublist' i idp \in var index' p'))) ind = var ind idp
+        (extend-substitution-right {env} {_} {_} {_} {meta-signature} sublist (wide-identity sublist')) ind = var ind idp
       \elim left-context, right-context, ind
         | nil, :: a right-context, zero => {?}
         | nil, :: a right-context, suc ind => {?} -- rewrite (extension-over-identity-is-identity ind) idp
         | :: a left-context, nil, zero => {?}
         | :: a left-context, r, suc ind => {?}
-        --        \let q => identify-context-mapping {_} {_} {_} {meta-signature} sublist sublist' ind \in identify-context-mapping.extension-over-skipping (\lam i => weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp) ind q
         | :: a left-context, :: a1 right-context, zero => {?}
         \where {
+          \func outer-equality-to-identity {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
+                                           (sublist : SubList right-context (left-context ++ right-context))
+                                           (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context))) : extend-substitution-right sublist (wide-identity sublist') i = plain-identity {_} {_} {meta-signature} i =>
+            {?}
+
           \func extension-over-identity-is-identity {A : \Type} {some-context : List A} (j : Fin (length some-context)) : extend-substitution-right.produce-inner-term SubList.identity j = (j, idp) \elim some-context, j
             | :: a some-context, zero => idp
             | :: a some-context, suc j => rewrite (extension-over-identity-is-identity j) idp
@@ -601,18 +604,29 @@
                    (rho~>sigma : \Pi {s : Sort'} (m : inner-metasignature.metaname s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m))) :
     Closure TrichromaticParallelReduction (MetaSubstitution.apply {env} s sublist rho) (MetaSubstitution.apply {env} s sublist sigma) \elim s
     | var index p => c-basic (nothing, equal-trees idp)
-    | metavar m choosing => \let | main-reduction => rho~>sigma m
-                                 | partial-reductions i => unify-left (choosing i) sublist rho sigma rho~>sigma
-                                 | rho-subst => (extend-substitution-right {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho))
-                                 | sigma-subst => (extend-substitution-right {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma))
-                                 | term-A => (Substitution.apply {env} (rho m) rho-subst)
-                                 | term-B => (Substitution.apply {env} (rho m) sigma-subst)
-                                 | in-indices i => (unify-left (choosing i) sublist rho sigma rho~>sigma)
-                                 | term-C => (Substitution.apply {env} (sigma m) sigma-subst)
-                                 | term-A~>term-B : Closure TrichromaticParallelReduction term-A term-B => apply-reducible-substitution (rho m) rho-subst sigma-subst {?}
-                                 | term-B~>term-C : TrichromaticParallelReduction term-B term-C => (main-reduction.1, extend-reduction-to-substitution (rho m) (sigma m) sigma-subst main-reduction.1 main-reduction.2) \in Closure.concat term-A~>term-B (Closure.c-basic term-B~>term-C)
+    | metavar m choosing =>
+      \let | main-reduction => rho~>sigma m
+           | partial-reductions i => unify-left (choosing i) sublist rho sigma rho~>sigma
+           | rho-subst => (extend-substitution-right {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho))
+           | sigma-subst => (extend-substitution-right {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma))
+           | term-A => (Substitution.apply {env} (rho m) rho-subst)
+           | term-B => (Substitution.apply {env} (rho m) sigma-subst)
+           | in-indices i => (unify-left (choosing i) sublist rho sigma rho~>sigma)
+           | term-C => (Substitution.apply {env} (sigma m) sigma-subst)
+           | term-A~>term-B : Closure TrichromaticParallelReduction term-A term-B => apply-reducible-substitution (rho m) rho-subst sigma-subst (\lam index => reduction-over-extension ((\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho)) (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma) sublist in-indices index)
+           | term-B~>term-C : TrichromaticParallelReduction term-B term-C => (main-reduction.1, extend-reduction-to-substitution (rho m) (sigma m) sigma-subst main-reduction.1 main-reduction.2)
+      \in Closure.concat term-A~>term-B (Closure.c-basic term-B~>term-C)
     | func f choosing => \let | q i => unify-left (choosing i) (SubList.extend-right-single-left sublist) rho sigma rho~>sigma
                          \in gather-closure f (\lam i => MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single-left sublist) rho) (\lam i => MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single-left sublist) sigma) q
+
+  \func reduction-over-extension {tc : TheoremContext} {basic-context extended-context additional-context : List Sort'} {meta-signature : MetaSignature Sort'}
+                                 (substA substB : Substitution {env} basic-context extended-context meta-signature)
+                                 (sublist : SubList additional-context extended-context)
+                                 (A=>B : \Pi (i : Fin (length basic-context)) -> Closure TrichromaticParallelReduction (substA i) (substB i))
+                                 (j : Fin (length (basic-context ++ additional-context))) : Closure TrichromaticParallelReduction (extend-substitution-right {env} sublist substA j) (extend-substitution-right {env} sublist substB j) \elim basic-context, j
+    | nil, j => c-basic (nothing, equal-trees idp)
+    | :: a basic-context, zero => A=>B zero
+    | :: a basic-context, suc j => reduction-over-extension (\lam i => substA (suc i)) (\lam i => substB (suc i)) sublist (\lam i => A=>B (suc i)) j
 
   \func apply-reducible-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                      (s : Term env context s meta-signature)

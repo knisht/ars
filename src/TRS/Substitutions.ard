@@ -9,6 +9,9 @@
 \func plain-identity {env : Environment} {context : List Sort} {meta-signature : MetaSignature Sort} : Substitution context context meta-signature =>
   \lam i => var i idp
 
+\func wide-identity {env : Environment} {context wide-context : List Sort} (sublist : SubList context wide-context) {meta-signature : MetaSignature Sort} : Substitution context wide-context meta-signature =>
+  \lam i => weakening (var i idp) sublist
+
 \func plain-identity-effect {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
                             (t : Term env context s meta-signature) : Substitution.apply t plain-identity = t \elim t
   | var index p => \case \elim s, \elim p \with {
