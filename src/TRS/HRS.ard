@@ -87,6 +87,11 @@
 \record RewriteRule (env : Environment) {s : env.Sort} {meta-signature : MetaSignature Sort}
                     (l : Term env nil s meta-signature)
                     (r : Term env nil s meta-signature)
+                    (l-is-func : FunctionalRoot l)
+
+\data FunctionalRoot {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
+                     (T : Term env context s meta-signature) \elim T
+  | func _ _ => T-has-functional-root
 
 \record PatternRewriteRule \extends RewriteRule {
   | pattern : PatternTerm env nil s meta-signature
