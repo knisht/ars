@@ -425,7 +425,7 @@
                                  (T : Term env nil s meta-signature)
                                  (subst : MetaSubstitution env context meta-signature new-meta-signature)
                                  (someIndex : Fin (length context)) (someProof : s = context !! someIndex)
-        (eq : MetaSubstitution.apply (weakening T sublist-trivial) SubList.identity subst = var someIndex someProof)
+                                 (eq : MetaSubstitution.apply (weakening T sublist-trivial) SubList.identity subst = var someIndex someProof)
                                  (T-functional : FunctionalRoot T) : Empty \elim T, T-functional
         | func f choosing, T-has-functional-root => contradiction
 
@@ -434,13 +434,13 @@
                                      (sublist' : SubList left-context (left-context ++ right-context))
                                      (ind : Fin (length (left-context ++ right-context))) :
         (extend-substitution-right {env} {_} {_} {_} {meta-signature} (sublist)
-          (\lam i => (\let (index', p') => weakening.recalculate-index sublist' i idp \in var index' p'))) ind = var ind idp
+            (\lam i => (\let (index', p') => weakening.recalculate-index sublist' i idp \in var index' p'))) ind = var ind idp
       \elim left-context, right-context, ind
         | nil, :: a right-context, zero => {?}
         | nil, :: a right-context, suc ind => {?} -- rewrite (extension-over-identity-is-identity ind) idp
         | :: a left-context, nil, zero => {?}
         | :: a left-context, r, suc ind => {?}
---        \let q => identify-context-mapping {_} {_} {_} {meta-signature} sublist sublist' ind \in identify-context-mapping.extension-over-skipping (\lam i => weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp) ind q
+        --        \let q => identify-context-mapping {_} {_} {_} {meta-signature} sublist sublist' ind \in identify-context-mapping.extension-over-skipping (\lam i => weakening.recalculate-index (SubList.extend-right-single SubList.identity) i idp) ind q
         | :: a left-context, :: a1 right-context, zero => {?}
         \where {
           \func extension-over-identity-is-identity {A : \Type} {some-context : List A} (j : Fin (length some-context)) : extend-substitution-right.produce-inner-term SubList.identity j = (j, idp) \elim some-context, j
@@ -501,32 +501,66 @@
                (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} (lp-func f choosing)} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m)))
       \elim f-A, f-C, f, choosing-A, choosing-C, choosing, f=f-A, f-A=f-C, rho, inner-reductions
         | f-A, f-C, f, choosing-A, choosing-C, choosing, idp, idp, rho, inner-reductions =>
-          \let | x => 1
+          \let | equality-of-choosers => inv (unwrap-func' {env} global-equality)
 
-            | insides i => alternate-subst
-              (choosing-A i)
-              (choosing-C i)
-              (SubList.extend-left pattern-sublist)
-              (SubList.extend-right-single-left glb-sublist)
-              (rewrite ++-assoc (pmap ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) ++ __) eq))
-              (choosing i)
-              (\lam m => rho (i, m))
-              {?}
-              (inner-reductions i).1
-              (inner-reductions i).3
+               | insides i => alternate-subst
+                   (choosing-A i)
+                   (choosing-C i)
+                   (SubList.extend-left pattern-sublist)
+                   (SubList.extend-right-single-left glb-sublist)
+                   (rewrite ++-assoc (pmap ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) ++ __) eq))
+                   (choosing i)
+                   (\lam m => rho (i, m))
+                   ((pmap (__ i) equality-of-choosers) *> (inv
+                       (apply-modularity {env}
+                       (\lam ind => LinearMetasignature {env} (choosing ind))
+                       (\lam ii m => rho (ii, m))
+                       (SubList.extend-right-single-left glb-sublist)
+                       (SubList.extend-left pattern-sublist)
+                       (LinearPattern.convert-to-term {env} (choosing i)))))
+                   (inner-reductions i).1
+                   (inner-reductions i).3
           \in (\lam {s1} mvar => (insides mvar.1).1 mvar.2,
                pmap (func {env} f-A)
                    (ext (\lam index => (insides index).2 *> apply-modularity {env} (\lam ind => LinearMetasignature {env} (choosing ind)) (\lam ind => (insides ind).1) (SubList.extend-right-single-left glb-sublist) (SubList.extend-left pattern-sublist) (LinearPattern.convert-to-term {env} (choosing index)))),
                \lam {s1} m => (insides m.1).3 m.2)
 
+      \func unwrap-func {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
+                        (T : Term env context s meta-signature) : Or Nat
+          (\Sigma (f : env.FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
+              Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature)) \elim T
+        | var index p => inl 0
+        | metavar m choosing1 => inl 0
+        | func f1 choosing1 => inr (f1, choosing1)
 
+      \func unwrap-func' {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
+                         {f'' : env.FunctionalSymbol.symbol s}
+                         {choosing choosing' : \Pi (index : Fin (length (env.FunctionalSymbol.domain f''))) ->
+                             Term env ((f'' FunctionalSignature.!!param index) ++ context) (f'' FunctionalSignature.!!sort index) meta-signature}
+                         (eq : func f'' choosing = func f'' choosing') : choosing' = choosing =>
+        \let | extracted => pmap (extractFunSymbol (f'', choosing)) eq
+             | eq1 : (extracted @ left).1 = (extracted @ right).1 => idp
+             | eq3 : (extracted @ left).1 = f'' => idp
+             | eq2 => pmapd (\lam sig => \Pi (index : Fin (length (env.FunctionalSymbol.domain sig.1))) ->
+                 Term env ((sig.1 FunctionalSignature.!!param index) ++ context) (sig.1 FunctionalSignature.!!sort index) meta-signature)
+                 (\lam sig => sig.2)
+                 extracted
+             \in {?} -- weird homotopical stuff
+
+      \func extractFunSymbol {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
+                             (default : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
+                                 Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature)) (T : Term env context s meta-signature) : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
+          Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature) \elim T
+        | var index p => default
+        | metavar m choosing => default
+        | func f choosing => (f, choosing)
 
       \func apply-modularity {env : Environment} {context subst-context pattern-context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} {n : Nat} {index : Fin n}
-                                   (producer : Fin n -> MetaSignature Sort)
-                                   (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) meta-signature)
-                                   (sublist : SubList subst-context context)
-                                   (pat-sublist : SubList pattern-context context)
-                                   (t : Term env pattern-context s (producer index)) :
+                             (producer : Fin n -> MetaSignature Sort)
+                             (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) meta-signature)
+                             (sublist : SubList subst-context context)
+                             (pat-sublist : SubList pattern-context context)
+                             (t : Term env pattern-context s (producer index)) :
         MetaSubstitution.apply (weakening t pat-sublist) sublist (substitutions index) = MetaSubstitution.apply (weakening (LinearPattern.upgrade-metavariables-p producer t) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim t
         | var index1 p => idp
         | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-right sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (choosing i)))
