@@ -637,8 +637,22 @@
     | func f choosing =>
       \let | choosing-a i => (Substitution.apply {env} (choosing i) (append-context-left {env} a-subst))
            | choosing-b i => (Substitution.apply {env} (choosing i) (append-context-left {env} b-subst))
-           | q i => apply-reducible-substitution (choosing i) (append-context-left {env} a-subst) (append-context-left {env} b-subst) {?}
+           | q i => apply-reducible-substitution (choosing i) (append-context-left {env} a-subst) (append-context-left {env} b-subst) (reduction-over-left-append a-subst b-subst a~>b)
       \in gather-closure f choosing-a choosing-b q
+
+  \func reduction-over-left-append {tc : TheoremContext} {context add-context context' : List Sort'} {meta-signature : MetaSignature Sort'}
+                                   (a-subst b-subst : Substitution {env} context context' meta-signature)
+                                   (a~>b : \Pi (index : Fin (length context)) -> Closure TrichromaticParallelReduction (a-subst index) (b-subst index))
+                                   (i : Fin (length (add-context ++ context))) : Closure TrichromaticParallelReduction (append-context-left {env} a-subst i) (append-context-left {env} b-subst i) \elim add-context, i
+    | nil, i => a~>b i
+    | :: a add-context, zero => c-basic (nothing, equal-trees idp)
+    | :: a add-context, suc i => \let x => reduction-over-left-append a-subst b-subst a~>b i \in reduction-over-weakening (append-context-left {env} a-subst i) (append-context-left {env} b-subst i) x (sublist-skip SubList.identity)
+
+  \func reduction-over-weakening {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                                 (T S : Term env context s meta-signature)
+                                 (T~>S : Closure TrichromaticParallelReduction T S)
+                                 (sublist : SubList context new-context)
+                                 : Closure TrichromaticParallelReduction (weakening {env} T sublist) (weakening {env} S sublist) => {?}
 
   \func extend-reduction-to-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                          (t s' : Term env context s meta-signature)
