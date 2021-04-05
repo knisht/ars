@@ -220,7 +220,7 @@
         (RewriteRelation rules A B)
         (RewriteRelation rules A C) -> StraightJoin B C (Closure (RewriteRelation rules))
 
-  \func bpr-confluence {tc : TheoremContext} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  (A B C : Term env context s meta-signature)
+  \func bpr-confluence {tc : TheoremContext} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  {A B C : Term env context s meta-signature}
                        (A~>B : BorderedParallelReduction color1 A B)
                        (A~>C : BorderedParallelReduction color2 A C)
                        (left-confluence : ConfluentialSystem envL L-rules)
@@ -254,7 +254,31 @@
       }
     | nothing, color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B red-subterms, equal-trees p => {?} -- easy
     | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level A~>B' => {?} -- symmetric to 3
-    | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-B1 choosing-B1, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-B1 _x1 => {?} -- inductive step, relatively easy
+    | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-C choosing-C, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-C _x1 => redirection f-A f-B f-C f-A=f-B f-A=f-C choosing-A choosing-B choosing-C _x _x1 left-confluence right-confluence
+    \where {
+      \func redirection  {tc : TheoremContext} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                         (f-A f-B f-C : env.FunctionalSymbol.symbol s)
+                         (f-A=f-B : f-A = f-B)
+                         (f-A=f-C : f-A = f-C)
+                         (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                         (choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-B))) -> Term env ((f-B FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-B FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                         (choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-C))) -> Term env ((f-C FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-C FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                         (distrib-ab : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) ->
+                             \Sigma (someColor : Maybe Color) (Or (someColor = nothing) (someColor = just (Color.flip (color-of-root f-A))))
+                                    (BorderedParallelReduction someColor (choosing-A i) (transport-chooser-f {env} f-A=f-B choosing-B i)))
+                         (distrib-ac : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) ->
+                             \Sigma (someColor : Maybe Color) (Or (someColor = nothing) (someColor = just (Color.flip (color-of-root f-A))))
+                                    (BorderedParallelReduction someColor (choosing-A i) (transport-chooser-f {env} f-A=f-C choosing-C i)))
+                         (left-confluence : ConfluentialSystem envL L-rules)
+                         (right-confluence : ConfluentialSystem envR R-rules): StraightJoin (func {env} f-B choosing-B) (func f-C choosing-C) (Closure TrichromaticParallelReduction)
+        \elim f-A=f-B, f-A=f-C
+          | idp, idp => \let distribution i => bpr-confluence (distrib-ab i).1 (distrib-ac i).1 (distrib-ab i).3 (distrib-ac i).3 left-confluence right-confluence
+                        \in \new StraightJoin {
+              | common-reduct => func f-A (\lam index => common-reduct {distribution index})
+              | a~>cr => {?} -- prove the fact that if there were a red reduction in a result, then at least one of joinable reductions was red.
+              | b~>cr => {?}
+            }
+    }
 
   \func extract-top-level {tc : TheoremContext} (global-context : List tc.Sort') {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                           (color : Color)
@@ -350,9 +374,10 @@
                   (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
                   (B : Term env context s meta-signature)
                   (A~>B : TopLevelColoredReduction color (func f choosing-A) B)
-                  (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f) -> \Sigma (someColor : Maybe Color)
-                                                                                                     ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
-                                                                                                     (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
+                  (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f) ->
+                      \Sigma (someColor : Maybe Color)
+                             ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
+                             (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
     : \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction c1 (func f choosing-C) X) (Closure TrichromaticParallelReduction B X) \elim B, A~>B
     | B, rewrite-with-rule-colored h ((rul : LinearRewriteRule (env {tc})), rho, l[rho]=A, r[rho]=B) => \let
       | (sigma, C=l[sigma], reds) => alternate-subst {_} {nil} {context} (func f choosing-A) (func f choosing-C) sublist-trivial SubList.identity idp rul.linear-pattern rho (inv l[rho]=A) nothing (reduction-subterms idp inner-reductions)
@@ -445,8 +470,10 @@
     }
 
     | A, C, lp-func f choosing, someColor, equal-trees A=C => (rho, inv A=C *> A=t[rho], \lam {s1} m => (nothing, equal-trees idp))
-    | A, C, lp-func f choosing, just color1, reduction-top-level t => {?}
-    | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions => \let e : f = f-A => {?} \in redirection f-A f-C f choosing-A choosing-C {?} {?} {?} choosing e f-A=f-C rho A=t[rho] inner-reductions
+    | A, C, lp-func f choosing, just color1, reduction-top-level t => {?} -- here should that passed or be useful; color1 must differ from previous color (that was not changed), but color of f is unique.
+    | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions =>
+      \let e : f = f-A => {?}
+      \in redirection f-A f-C f choosing-A choosing-C pattern-sublist glb-sublist eq choosing e f-A=f-C rho A=t[rho] inner-reductions
     \where {
       \func pattern-can't-be-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                                  (T : Term env nil s meta-signature)

@@ -17,7 +17,7 @@
   : StraightJoin B C (Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))) =>
   \let | A=>B => embed-rewrite-relation A B A~>B
        | A=>C => embed-rewrite-relation A C A~>C
-       | grand-result : StraightJoin B C (Closure TrichromaticParallelReduction) => bpr-confluence A=>B.1 A=>C.1 A B C A=>B.2 A=>C.2 l-confluential r-confluential
+       | grand-result : StraightJoin B C (Closure TrichromaticParallelReduction) => bpr-confluence A=>B.1 A=>C.1 A=>B.2 A=>C.2 l-confluential r-confluential
   \in \new StraightJoin {
     | common-reduct => grand-result.common-reduct
     | a~>cr => \let closure-sequence => Closure.lift {_} {_} {_}
