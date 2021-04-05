@@ -472,7 +472,7 @@
     | A, C, lp-func f choosing, someColor, equal-trees A=C => (rho, inv A=C *> A=t[rho], \lam {s1} m => (nothing, equal-trees idp))
     | A, C, lp-func f choosing, just color1, reduction-top-level t => {?} -- here should that passed or be useful; color1 must differ from previous color (that was not changed), but color of f is unique.
     | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions =>
-      \let e : f = f-A => {?}
+      \let e : f = f-A => pmap (\lam x => (decomposeTermAsFunctionalSymbol {env} (f-A, choosing-A) x).1) (inv A=t[rho])
       \in redirection f-A f-C f choosing-A choosing-C pattern-sublist glb-sublist eq choosing e f-A=f-C rho A=t[rho] inner-reductions
     \where {
       \func pattern-can't-be-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
@@ -595,14 +595,14 @@
                          {choosing choosing' : \Pi (index : Fin (length (env.FunctionalSymbol.domain f''))) ->
                              Term env ((f'' FunctionalSignature.!!param index) ++ context) (f'' FunctionalSignature.!!sort index) meta-signature}
                          (eq : func f'' choosing = func f'' choosing') : choosing' = choosing => sigma-set-equalizer (\lam f => \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
-            Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature) (inv (pmap (extractFunSymbol (f'', choosing)) eq))
+          Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature) (inv (pmap (decomposeTermAsFunctionalSymbol (f'', choosing)) eq))
 
       \func sigma-set-equalizer {A : \Set} (B : A -> \Type) {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b'
         => pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (\lam t => B t.1) __.2 p
 
-      \func extractFunSymbol {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
-                             (default : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
-                                 Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature)) (T : Term env context s meta-signature) : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
+      \func decomposeTermAsFunctionalSymbol {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
+                                            (default : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
+                                                Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature)) (T : Term env context s meta-signature) : \Sigma (f : FunctionalSymbol.symbol s) (\Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
           Term env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index) meta-signature) \elim T
         | var index p => default
         | metavar m choosing => default
