@@ -1,6 +1,10 @@
-\import Data.List (List)
+\import Data.List (++, List)
+\import Data.Or
 \import TRS.HRS
+\import TRS.List
+\import TRS.Maybe
 \import TRS.Union
+\import TRS.Utils
 \open Confluence
 \open TheoremContext
 
@@ -18,20 +22,45 @@
     | common-reduct => grand-result.common-reduct
     | a~>cr => \let closure-sequence => Closure.lift {_} {_} {_}
         {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))} (\lam x => x)
-        unembed-rewrite-relation B grand-result.common-reduct grand-result.a~>cr
+        (\lam tpr => unembed-rewrite-relation tpr.1 tpr.2) B grand-result.common-reduct grand-result.a~>cr
                \in Closure.flatten closure-sequence
     | b~>cr => \let closure-sequence => Closure.lift {_} {_} {_}
         {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))} (\lam x => x)
-        unembed-rewrite-relation C grand-result.common-reduct grand-result.b~>cr
+        (\lam tpr => unembed-rewrite-relation tpr.1 tpr.2) C grand-result.common-reduct grand-result.b~>cr
                \in Closure.flatten closure-sequence
   }
 
 \func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                              (A B : Term env context s meta-signature)
                              (A~>B : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B)
-  : TrichromaticParallelReduction A B => {?}
+  : TrichromaticParallelReduction A B => {?} -- headache with universes, I'll delay it as far as possible
 
 \func unembed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                               (color : Maybe Color)
                                {A B : Term env context s meta-signature}
-                               (A=>B : TrichromaticParallelReduction A B)
-                               : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B => {?}
+                               (A=>B : BorderedParallelReduction color A B)
+  : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B \elim color, A, B, A=>B
+  | color, A, B, equal-trees p => c-trivial p
+  | just color, A, B, reduction-top-level t => c-basic (unembed-tlcr color t)
+  | nothing, func f-A choosing-A, func f-B choosing-B, reduction-subterms f-A=f-B _x => redirection f-A f-B f-A=f-B choosing-A choosing-B _x
+  \where {
+    \func redirection {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                      (f-A f-B : env.FunctionalSymbol.symbol s)
+                      (f-A=f-B : f-A = f-B)
+                      (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                      (choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-B))) -> Term env ((f-B FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-B FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                      (args : (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
+                        (someColor : Maybe Color)
+                        ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
+                        (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-B choosing-B i))))
+      : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f-A choosing-A) (func f-B choosing-B) \elim f-A=f-B
+      | idp => gather-closure-regular f-A choosing-A choosing-B (\lam i => unembed-rewrite-relation (args i).1 (args i).3)
+  }
+
+\func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                   (color : Color)
+                   {A B : Term env context s meta-signature}
+                   (A=>B : TopLevelColoredReduction color A B)
+  : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
+  | A, B, rewrite-with-rule-colored h step => rewrite-with-rule step {?}
+  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}

@@ -211,7 +211,7 @@
                          ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
                          (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-B choosing-B i)))
 
-  \func TrichromaticParallelReduction {tc : TheoremContext} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (A B : Term env context s meta-signature) : \Type =>
+  \func TrichromaticParallelReduction {tc : TheoremContext} {meta-signature : MetaSignature Sort'} {context : List tc.Sort'} {s : Sort'}  (A B : Term env context s meta-signature) : \Type =>
     \Sigma (color : Maybe Color) (BorderedParallelReduction color A B)
 
   \func ConfluentialSystem (env : Environment) (rules : IndexedSet (RewriteRule env)) : \Type =>
@@ -616,12 +616,14 @@
     })
 
   \data Closure {A : \Type} (R : A -> A -> \Type) (a b : A)
+    | c-trivial (a = b)
     | c-basic (a `R` b)
     | c-connect (c : A) (a `R` c) (Closure R c b)
     \where {
       \func concat {A : \Type} {R : A -> A -> \Type} {a b c : A} (a~>b : Closure R a b) (b~>c : Closure R b c) : Closure R a c \elim a~>b, b~>c
         | c-basic r, rx => c-connect b r rx
         | c-connect c1 r a~>b, rx => c-connect c1 r (concat a~>b rx)
+        | c-trivial idp, b~>c => b~>c
 
       \func lift {A B : \Type} {Rel : A -> A -> \Type} {Rel' : B -> B -> \Type} (map : A -> B)
                  (rel-map : \Pi {a b : A} (Rel a b) -> Rel' (map a) (map b))
@@ -629,12 +631,14 @@
                  (closure : Closure Rel x y) : Closure Rel' (map x) (map y) \elim closure
         | c-basic r => c-basic (rel-map r)
         | c-connect c r closure => c-connect (map c) (rel-map r) (lift map rel-map c y closure)
+        | c-trivial idp => c-trivial idp
 
       \func flatten {A : \Type} {Rel : A -> A -> \Type}
                     {x y : A}
                     (closure : Closure (Closure Rel) x y) : Closure Rel x y \elim closure
         | c-basic r => r
         | c-connect c r closure => concat r (flatten closure)
+        | c-trivial idp => c-trivial idp
     }
 
   \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'}
@@ -792,5 +796,12 @@
                        (args : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Closure TrichromaticParallelReduction (choosing-A index) (choosing-B index))
     : Closure TrichromaticParallelReduction (func {env} f choosing-A) (func f choosing-B) =>
     {?} -- purely technical concatenation of closures
+
+  \func gather-closure-regular {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                               (f : env.FunctionalSymbol.symbol s)
+                               (choosing-A choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                               (args : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (choosing-A index) (choosing-B index))
+    : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f choosing-A) (func f choosing-B) =>
+    {?} -- similar to above, don't want to think about it rn
 
 }
