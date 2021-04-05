@@ -102,15 +102,20 @@
     | get j => Injections.promote-rewrite-rule-right envL envR (rules.get j)
 }
 
+\func JointRules {Sort : \Set} {envL envR : Environment Sort}
+                 (L-rules : IndexedSet (RewriteRule envL))
+                 (R-rules : IndexedSet (RewriteRule envR))
+  : IndexedSet (RewriteRule (JointEnvironment envL envR)) =>
+  \let
+    | injected-left-set : IndexedSet (RewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-left {_} {envL} {envR} L-rules
+    | injected-right-set : IndexedSet (RewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-right {_} {envL} {envR} R-rules
+  \in JointIndexedSet injected-left-set injected-right-set
+
 \instance JointHRS {Sort : \Set} {envL envR : Environment Sort} {meta-signature : MetaSignature Sort}
                    (L : SimpleHigherOrderTermRewritingSystem envL meta-signature)
                    (R : SimpleHigherOrderTermRewritingSystem envR meta-signature)
- : SimpleHigherOrderTermRewritingSystem (JointEnvironment L.env R.env)
-  | set-of-rules =>
-    \let
-      | injected-left-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-left {_} {envL} {envR} L.set-of-rules
-      | injected-right-set : IndexedSet (RewriteRule (JointEnvironment L.env R.env)) => Injections.promote-indexed-set-right {_} {envL} {envR} R.set-of-rules
-    \in JointIndexedSet injected-left-set injected-right-set
+: SimpleHigherOrderTermRewritingSystem (JointEnvironment L.env R.env)
+  | set-of-rules => JointRules {_} {envL} {envR} L.set-of-rules R.set-of-rules
   | meta-signature => meta-signature
 
 \lemma Union-Preserves-Confluence {Sort : \Set} {envL envR : Environment Sort} {meta-signature : MetaSignature Sort}
@@ -624,6 +629,12 @@
                  (closure : Closure Rel x y) : Closure Rel' (map x) (map y) \elim closure
         | c-basic r => c-basic (rel-map r)
         | c-connect c r closure => c-connect (map c) (rel-map r) (lift map rel-map c y closure)
+
+      \func flatten {A : \Type} {Rel : A -> A -> \Type}
+                    {x y : A}
+                    (closure : Closure (Closure Rel) x y) : Closure Rel x y \elim closure
+        | c-basic r => r
+        | c-connect c r closure => concat r (flatten closure)
     }
 
   \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'}
