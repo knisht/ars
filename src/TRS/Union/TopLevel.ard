@@ -1,0 +1,76 @@
+\import Data.List (++, List)
+\import Paths
+\import TRS.HRS
+\import TRS.List
+\import TRS.Substitutions
+\import TRS.Union
+\open Confluence
+\open Confluence.TheoremContext
+
+\func join-tlcrs {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                 (color : Color)
+                 (A B C : Term env context s meta-signature)
+                 (A~>B : TopLevelColoredReduction color A B)
+                 (A~>C : TopLevelColoredReduction color A C)
+                 (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
+  : StraightJoin B C (Closure (TopLevelColoredReduction color)) =>
+  \let | (inner-ms, subst, a, eq-a) => decompose-term color A
+       | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
+       | (c, eq-c, a~>c) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a C subst (transport (TopLevelColoredReduction color __ C) (inv eq-a) A~>C))
+       | join-b-c : StraightJoin b c (Closure (monochrome-reduction color {_} {_} {inner-ms})) => join-monochrome-terms color {_} {_} {inner-ms} a b c a~>b a~>c monochrome-confluence
+       | injected-reduct => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} join-b-c.common-reduct) SubList.identity subst
+       | lifted-b~>d => Closure.lift {_} {_} {_} {\lam e f => TopLevelColoredReduction color e f}
+           (\lam term => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} term) SubList.identity subst)
+           (lift-relation {_} {_} {_} {inner-ms} color subst)
+           b
+           join-b-c.common-reduct
+           join-b-c.a~>cr
+       | lifted-c~>d => Closure.lift {_} {_} {_} {\lam e f => TopLevelColoredReduction color e f}
+           (\lam term => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} term) SubList.identity subst)
+           (lift-relation {_} {_} {_} {inner-ms} color subst)
+           c
+           join-b-c.common-reduct
+           join-b-c.b~>cr
+  \in \new StraightJoin {
+    | common-reduct => injected-reduct
+    | a~>cr => transport (Closure (TopLevelColoredReduction color) __ injected-reduct) eq-b lifted-b~>d
+    | b~>cr => transport (Closure (TopLevelColoredReduction color) __ injected-reduct) eq-c lifted-c~>d
+  }
+
+\func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature outer-meta-signature : MetaSignature Sort'}
+                    (color : Color)
+                    (subst : MetaSubstitution env context meta-signature outer-meta-signature)
+                    {t u : Term (colored-env color) context s meta-signature}
+                    (t~>u : monochrome-reduction color t u)
+  : TopLevelColoredReduction color
+    (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst)
+    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst) => {?}
+
+\func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                     (color : Color)
+                     (A : Term env context s meta-signature) :
+  \Sigma (new-meta-signature : MetaSignature Sort')
+         (subst : MetaSubstitution env context new-meta-signature meta-signature)
+         (t : Term (colored-env {tc} color) context s new-meta-signature)
+         (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst = A) =>
+  {?}
+
+\func join-monochrome-terms {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                            (a b c : Term (colored-env color) context s meta-signature)
+                            (a~>b : monochrome-reduction color a b)
+                            (a~>c : monochrome-reduction color a c)
+                            (conf : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
+  : StraightJoin b c (Closure (monochrome-reduction color)) \elim color
+  | red => conf a b c a~>b a~>c
+  | blue => conf a b c a~>b a~>c
+
+\func decompose-along-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
+                                (color : Color)
+                                (t : Term (colored-env {tc} color) context s inner-meta-signature)
+                                (B : Term env context s meta-signature)
+                                (subst : MetaSubstitution env context inner-meta-signature meta-signature)
+                                (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst) B)
+  : \Sigma (u : Term (colored-env color) context s inner-meta-signature)
+           (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst = B)
+           (monochrome-reduction color t u) => {?}
+
