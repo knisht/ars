@@ -2,6 +2,7 @@
 \import Data.Or
 \import Logic
 \import Logic.Meta
+\import Meta
 \import Paths
 \import Paths.Meta
 \import TRS.HRS
@@ -121,14 +122,62 @@
            (monochrome-reduction color t u) \elim color, t, B, A~>B
   | red, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
   | blue, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
-  | red, var index p, B, rewrite-with-rule-colored h step => {?}
-  | red, metavar m choosing, B, A~>B => ({?}, {?}, {?})
-  | red, func f choosing, var index p, rewrite-with-rule-colored h step => {?}
-  | red, func f choosing, metavar m choosing1, rewrite-with-rule-colored h step => {?}
-  | red, func f choosing, func f1 choosing1, rewrite-with-rule-colored h step => {?}
-  | blue, var index p, B, rewrite-with-rule-colored h step => {?}
+  | red, var index p, B, rewrite-with-rule-colored h step => {?} -- top level symbol must be func
+  | blue, var index p, B, rewrite-with-rule-colored h step => {?} -- same as above
+  | red, metavar m choosing, B, A~>B => {?} -- deep diving in colors
   | blue, metavar m choosing, B, A~>B => {?}
-  | blue, func f choosing, var index p, rewrite-with-rule-colored h step => {?}
-  | blue, func f choosing, metavar m choosing1, rewrite-with-rule-colored h step => {?}
-  | blue, func f choosing, func f1 choosing1, rewrite-with-rule-colored h step => {?}
+  | color, func f choosing, B, rewrite-with-rule-colored h (((rule : LinearRewriteRule),inner-ms,l[inner-ms]=injt,r[inner-ms]=B)) =>
+    \let | pattern => uninject-linear-pattern color rule.linear-pattern
+         | s-subst => downgrade-metasubstitution color inner-ms
+         | linear-ms-eq : LinearMetasignature {colored-env color} pattern = LinearMetasignature {env} (rule.linear-pattern) => {?}
+         | modified-eq : MetaSubstitution.apply {env}
+             (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} pattern)) sublist-trivial) SubList.identity
+             s-subst = MetaSubstitution.apply {env} (inject-monochrome-term color (func f choosing)) SubList.identity subst => {?}
+         | (inner-subst, peq) => decompose-metasubstitution color sublist-trivial pattern (func f choosing) (s-subst) subst modified-eq
+         | uninjected-r => rewriteI linear-ms-eq (uninject-term color rule.r)
+         | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} uninjected-r sublist-trivial) SubList.identity inner-subst
+    \in (term-u, (unfold term-u {?}) *> r[inner-ms]=B, produce-monochrome-reduction color (func f choosing) term-u)
+
+\func produce-monochrome-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
+                                   (l r : Term (colored-env color) context s meta-signature) : monochrome-reduction color l r => {?}
+
+\func uninject-linear-pattern {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
+                              (l : LinearPattern env context s)
+  : LinearPattern (colored-env color) context s => {?}
+
+\func uninject-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
+                    (t : Term env context s meta-signature)
+  : Term (colored-env color) context s meta-signature => {?}
+
+\func downgrade-metasubstitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
+                                 {p : LinearPattern env context' s}
+                                 (subst : MetaSubstitution env context (LinearMetasignature {env} p) meta-signature)
+  : MetaSubstitution env context (LinearMetasignature {colored-env color} (uninject-linear-pattern color p)) meta-signature =>
+  {?}
+
+\func decompose-metasubstitution {tc : TheoremContext} {pattern-context context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
+                                 (color : Color)
+                                 (sublist : SubList pattern-context context)
+                                 (l : LinearPattern (colored-env color) pattern-context s)
+                                 (t : Term (colored-env color) context s inner-meta-signature)
+                                 (subst-from-pattern : MetaSubstitution env context (LinearMetasignature {colored-env color} l) meta-signature)
+                                 (subst-from-injected : MetaSubstitution env context inner-meta-signature meta-signature)
+                                 (eq : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} l)) sublist) SubList.identity subst-from-pattern =
+                                 MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst-from-injected)
+  : \Sigma (inter-subst : MetaSubstitution (colored-env color) context (LinearMetasignature {colored-env color} l) inner-meta-signature)
+           (\Pi {s : Sort'} (m : metaname {LinearMetasignature {colored-env color} l} s) -> subst-from-pattern m = MetaSubstitution.apply {env} (inject-monochrome-term color (inter-subst m)) (SubList.extend-right-single-left SubList.identity) subst-from-injected) \elim color, l, t, eq
+  | red, lp-var index p, var index1 p1, eq => {?}
+  | red, lp-var index p, metavar m choosing, eq => {?}
+  | red, lp-func f choosing, metavar m choosing1, eq => {?}
+  | red, lp-func f choosing, func f1 choosing1, eq => {?}
+  | red, lp-metavar, var index p, eq => {?}
+  | red, lp-metavar, metavar m choosing, eq => {?}
+  | red, lp-metavar, func f choosing, eq => {?}
+  | blue, lp-var index p, var index1 p1, eq => {?}
+  | blue, lp-var index p, metavar m choosing, eq => {?}
+  | blue, lp-func f choosing, metavar m choosing1, eq => {?}
+  | blue, lp-func f choosing, func f1 choosing1, eq => {?}
+  | blue, lp-metavar, var index p, eq => {?}
+  | blue, lp-metavar, metavar m choosing, eq => {?}
+  | blue, lp-metavar, func f choosing, eq => {?}
 
