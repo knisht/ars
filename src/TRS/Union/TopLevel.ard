@@ -1,9 +1,14 @@
 \import Data.List (++, List)
+\import Data.Or
+\import Logic
+\import Logic.Meta
 \import Paths
+\import Paths.Meta
 \import TRS.HRS
 \import TRS.List
 \import TRS.Substitutions
 \import TRS.Union
+\import TRS.Utils
 \open Confluence
 \open Confluence.TheoremContext
 
@@ -14,7 +19,7 @@
                  (A~>C : TopLevelColoredReduction color A C)
                  (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
   : StraightJoin B C (Closure (TopLevelColoredReduction color)) =>
-  \let | (inner-ms, subst, a, eq-a) => decompose-term color A
+  \let | (inner-ms, a, subst, eq-a) => decompose-term color SubList.identity A
        | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
        | (c, eq-c, a~>c) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a C subst (transport (TopLevelColoredReduction color __ C) (inv eq-a) A~>C))
        | join-b-c : StraightJoin b c (Closure (monochrome-reduction color {_} {_} {inner-ms})) => join-monochrome-terms color {_} {_} {inner-ms} a b c a~>b a~>c monochrome-confluence
@@ -46,14 +51,55 @@
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst) => {?}
 
-\func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func decompose-term {tc : TheoremContext} {global-context context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                      (color : Color)
+                     (sublist : SubList global-context context)
                      (A : Term env context s meta-signature) :
   \Sigma (new-meta-signature : MetaSignature Sort')
-         (subst : MetaSubstitution env context new-meta-signature meta-signature)
          (t : Term (colored-env {tc} color) context s new-meta-signature)
-         (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst = A) =>
-  {?}
+         (subst : MetaSubstitution env global-context new-meta-signature meta-signature)
+         (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist subst = A) \elim color, A
+  | color, var index p =>
+    \let | empty-signature => \new MetaSignature Sort' {
+      | metaname _ => Empty
+      | m-domain a => contradiction
+    }
+    \in (empty-signature, var index p, \lam _ => contradiction, \case \elim color, \elim empty-signature \with {
+      | red, sig => idp
+      | blue, sig => idp
+    })
+  | color, metavar m choosing =>
+    \let | inner-results i => decompose-term color sublist (choosing i)
+         | signature-producer i => (inner-results i).1
+         | unified-metasignature => PointedModularMetaSignature {colored-env color} m signature-producer
+         | unified-substitution : MetaSubstitution env global-context unified-metasignature meta-signature =>
+           \lam {s'} m => \case \elim m \with {
+           | inl a => \let q => weakening {env} {_} {_} {meta-signature.m-domain m ++ global-context} (metavar {env} m (\lam index => var index idp)) ((SubList.extend-right-single SubList.identity)) \in transport (Term env (meta-signature.m-domain m ++ global-context) __ meta-signature) a q
+           | inr b => ((inner-results (b.1)).3 b.2)
+         }
+    \in (unified-metasignature,
+         metavar (inl idp) (\lam i => upgrade-metavariables-to-pointed {colored-env color} m signature-producer (inner-results i).2),
+         unified-substitution,
+         {?}) -- provable, technical
+  | red, func (inl f) choosing => \let | inner-results (i : F-param-index {_} {env.FunctionalSymbol} (inl f)) => decompose-term red (SubList.extend-right-single-left sublist) (choosing i)
+                                       | signature-producer i => (inner-results i).1
+                                       | unified-metasignature => ModularMetaSignature {env} signature-producer
+                                       | unified-substitution : MetaSubstitution env global-context unified-metasignature meta-signature => \lam m => ((inner-results (m.1)).3 m.2)
+                                  \in (unified-metasignature,
+                                       func f (\lam index => upgrade-metavariables {envL} signature-producer (inner-results index).2),
+                                       unified-substitution,
+                                       pmap (func {env {tc}} (inl f)) (ext (\lam i => {?})))
+  | blue, func (inl f) choosing => {?}
+  | red, func (inr f) choosing =>
+    \let | singular-signature => \new MetaSignature Sort' {
+      | metaname s' => s = s'
+      | m-domain p => context
+    }
+         | singular-term : Term envL context s singular-signature => metavar idp (\lam i => var i idp)
+         | singular-metasubstitution : MetaSubstitution env global-context singular-signature meta-signature =>
+           \lam m => weakening {env {tc}} (transport (Term env context __ meta-signature) m (func {env {tc}} (inr (f : tc.envR.FunctionalSymbol.symbol s)) choosing)) (SubList.extend-right-single SubList.identity)
+    \in (singular-signature, singular-term, singular-metasubstitution, pmap (func {env} (inr f)) (ext (\lam i => {?})))
+  | blue, func (inr b) choosing => {?}
 
 \func join-monochrome-terms {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                             (a b c : Term (colored-env color) context s meta-signature)
@@ -72,5 +118,17 @@
                                 (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst) B)
   : \Sigma (u : Term (colored-env color) context s inner-meta-signature)
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst = B)
-           (monochrome-reduction color t u) => {?}
+           (monochrome-reduction color t u) \elim color, t, B, A~>B
+  | red, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
+  | blue, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
+  | red, var index p, B, rewrite-with-rule-colored h step => {?}
+  | red, metavar m choosing, B, A~>B => ({?}, {?}, {?})
+  | red, func f choosing, var index p, rewrite-with-rule-colored h step => {?}
+  | red, func f choosing, metavar m choosing1, rewrite-with-rule-colored h step => {?}
+  | red, func f choosing, func f1 choosing1, rewrite-with-rule-colored h step => {?}
+  | blue, var index p, B, rewrite-with-rule-colored h step => {?}
+  | blue, metavar m choosing, B, A~>B => {?}
+  | blue, func f choosing, var index p, rewrite-with-rule-colored h step => {?}
+  | blue, func f choosing, metavar m choosing1, rewrite-with-rule-colored h step => {?}
+  | blue, func f choosing, func f1 choosing1, rewrite-with-rule-colored h step => {?}
 
