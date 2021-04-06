@@ -129,17 +129,18 @@
   | color, func f choosing, B, rewrite-with-rule-colored h (((rule : LinearRewriteRule),injected-metasubst,l[inner-ms]=injt,r[inner-ms]=B)) =>
     \let | pattern => uninject-linear-pattern color rule.linear-pattern
          | linear-ms-eq : LinearMetasignature {colored-env color} pattern = LinearMetasignature {env} (rule.linear-pattern) => {?}
-         | uninjected-metasubst => rewriteI linear-ms-eq injected-metasubst
+         | uninjected-metasubst => transport (\lam (x : MetaSignature (Sort {env})) => MetaSubstitution env context x meta-signature) (inv linear-ms-eq) injected-metasubst
          | modified-eq : MetaSubstitution.apply {env}
              (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} pattern)) sublist-trivial) SubList.identity uninjected-metasubst
            = MetaSubstitution.apply {env} (inject-monochrome-term color (func f choosing)) SubList.identity subst
          => {?}
          | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution color sublist-trivial pattern (func f choosing) uninjected-metasubst subst modified-eq
-         | uninjected-r => rewriteI linear-ms-eq (uninject-term color rule.r)
-         | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} uninjected-r sublist-trivial) SubList.identity middle-subst
+         | monochrome-r => transport (Term (colored-env color) nil s) (inv linear-ms-eq) (uninject-term color rule.r)
+         | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} monochrome-r sublist-trivial) SubList.identity middle-subst
          | coh => coherent-application {env} (inv linear-ms-eq) injected-metasubst rule.r
+         | colored-coherence => colored-metacomposition color middle-subst subst uninjected-metasubst substitution-equality SubList.identity (weakening {colored-env color} monochrome-r sublist-trivial)
          | x => {?}
-    \in (term-u, (unfold term-u {?}) *> (inv coh) *> r[inner-ms]=B, produce-monochrome-reduction color pattern uninjected-r middle-subst (func f choosing) term-u l-eq idp)
+    \in (term-u, (inv colored-coherence) *> (pmap (MetaSubstitution.apply {env} __ SubList.identity uninjected-metasubst) {?}) *> (inv coh) *> r[inner-ms]=B, produce-monochrome-reduction color pattern monochrome-r middle-subst (func f choosing) term-u l-eq idp)
 
 \func coherent-application {env : Environment} {context  : List Sort} {inner-meta-signature meta-signature inner-meta-signature' : MetaSignature Sort}
                            (metasig-eq : inner-meta-signature = inner-meta-signature')
@@ -182,6 +183,21 @@
 \func uninject-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
                     (t : Term env context s meta-signature)
   : Term (colored-env color) context s meta-signature => {?}
+
+\func colored-metacomposition {tc : TheoremContext} {global-context : List Sort'} {ms-a ms-b ms-c : MetaSignature Sort'}
+                              (color : Color)
+                              (subst-a : MetaSubstitution (colored-env color) global-context ms-a ms-b)
+                              (subst-b : MetaSubstitution env global-context ms-b ms-c)
+                              (subst-c : MetaSubstitution env global-context ms-a ms-c)
+                              (eq : \Pi {s : Sort'} (m : ms-a.metaname s) -> subst-c m = MetaSubstitution.apply {env} (inject-monochrome-term color (subst-a m)) (SubList.extend-right-single-left SubList.identity) subst-b)
+                              {context : List Sort'} {s : Sort'} (sublist : SubList global-context context) (t : Term (colored-env color) context s ms-a)
+  : MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist subst-c = MetaSubstitution.apply {env} (inject-monochrome-term color (MetaSubstitution.apply {colored-env color} t sublist subst-a)) sublist subst-b \elim color, t
+  | red, var index p => idp
+  | red, metavar m choosing => {?}
+  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => colored-metacomposition red subst-a subst-b subst-c eq (SubList.extend-right-single-left sublist) (choosing index)))
+  | blue, var index p => {?}
+  | blue, metavar m choosing => {?}
+  | blue, func f choosing => {?}
 
 \func metacomposition {env : Environment} {global-context : List Sort} {ms-a ms-b ms-c : MetaSignature Sort}
                       (subst-a : MetaSubstitution env global-context ms-a ms-b)
