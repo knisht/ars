@@ -19,7 +19,7 @@
                  (A~>B : TopLevelColoredReduction color A B)
                  (A~>C : TopLevelColoredReduction color A C)
                  (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
-  : StraightJoin B C (Closure (TopLevelColoredReduction color)) =>
+  : \Sigma (X : Term env context s meta-signature) (TopLevelColoredReduction color B X) (TopLevelColoredReduction color C X) =>
   \let | (inner-ms, a, subst, eq-a) => decompose-term color SubList.identity A
        | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
        | (c, eq-c, a~>c) => (decompose-along-reduction {_} {_} {_} {inner-ms} {meta-signature} color a C subst (transport (TopLevelColoredReduction color __ C) (inv eq-a) A~>C))
@@ -37,11 +37,7 @@
            c
            join-b-c.common-reduct
            join-b-c.b~>cr
-  \in \new StraightJoin {
-    | common-reduct => injected-reduct
-    | a~>cr => transport (Closure (TopLevelColoredReduction color) __ injected-reduct) eq-b lifted-b~>d
-    | b~>cr => transport (Closure (TopLevelColoredReduction color) __ injected-reduct) eq-c lifted-c~>d
-  }
+  \in (injected-reduct, transport (TopLevelColoredReduction color __ injected-reduct) eq-b lifted-b~>d, transport (TopLevelColoredReduction color __ injected-reduct) eq-c lifted-c~>d)
 
 \func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature outer-meta-signature : MetaSignature Sort'}
                     (color : Color)
