@@ -203,15 +203,21 @@
   \data BorderedParallelReduction {tc : TheoremContext} (color : Maybe Color) {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
                                   (A B : Term (env {tc}) context s meta-signature) \elim color, A, B
     | _, A, B => equal-trees (A = B)
-    | just color, A, B => reduction-top-level (TopLevelColoredReduction {tc} color A B)
-    | nothing, func f-A choosing-A, func f-B choosing-B =>
-    reduction-subterms (f-A=f-B : f-A = f-B)
-                       (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
-                         (someColor : Maybe Color)
-                         ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
-                         (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-B choosing-B i)))
+    | color, func f choosing, B =>
+    parallelization-f
+      (mediator : \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) ->
+          Term (env {tc}) ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+      (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f) -> \Sigma
+        (someColor : Maybe Color)
+        ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
+        (BorderedParallelReduction {tc} someColor (choosing i) (mediator i)))
+      (ColorwiseReduction {tc} color (func f mediator) B)
 
-  \func TrichromaticParallelReduction {tc : TheoremContext} {meta-signature : MetaSignature Sort'} {context : List tc.Sort'} {s : Sort'}  (A B : Term env context s meta-signature) : \Type =>
+  \data ColorwiseReduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Maybe Color) (A B : Term env context s meta-signature) \elim color
+    | nothing => cr-skip (A = B)
+    | just color => cr-rewrite (TopLevelColoredReduction {tc} color A B)
+
+  \func TrichromaticParallelReduction {tc : TheoremContext} {meta-signature : MetaSignature Sort'} {context : List tc.Sort'} {s : Sort'} (A B : Term env context s meta-signature) : \Type =>
     \Sigma (color : Maybe Color) (BorderedParallelReduction color A B)
 
   \func ConfluentialSystem (env : Environment) (rules : IndexedSet (RewriteRule env)) : \Type =>
@@ -225,60 +231,49 @@
                        (A~>C : BorderedParallelReduction color2 A C)
                        (left-confluence : ConfluentialSystem envL L-rules)
                        (right-confluence : ConfluentialSystem envR R-rules)
-    : StraightJoin B C (Closure TrichromaticParallelReduction) \elim color1, color2, A, B, C, A~>B, A~>C
-    | _, _, A, B, C, equal-trees p, equal-trees p1 => {?} -- easy
-    | color, just color1, A, B, B1, equal-trees p, reduction-top-level A~>B1 => {?} -- easy
-    | color, nothing, func f-A choosing-A, B, func f-B choosing-B, equal-trees p, reduction-subterms f-A=f-B _x => {?} -- easy
-    | just color, color1, A, B, B1, reduction-top-level A~>B, equal-trees p => {?} -- easy
-    | just color, just color1, A, B, C, reduction-top-level A~>B, reduction-top-level A~>C => \case \elim color, \elim color1, \elim A~>B, \elim A~>C \with {
-      | red, red, A~>B, A~>C => \let tlcrs : StraightJoin B C (Closure (TopLevelColoredReduction red)) => join-tlcrs red A B C A~>B A~>C left-confluence \in \new StraightJoin {
-        | common-reduct => tlcrs.common-reduct
-        | a~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just red, reduction-top-level tlcr)) B tlcrs.common-reduct tlcrs.a~>cr
-        | b~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just red, reduction-top-level tlcr)) C tlcrs.common-reduct tlcrs.b~>cr
-      }
-      | red, blue, A~>B, A~>C => {?} -- easy derivation of contradiction based on top level color
-      | blue, red, A~>B, A~>C => {?}
-      | blue, blue, A~>B, A~>C => \let tlcrs : StraightJoin B C (Closure (TopLevelColoredReduction blue)) => join-tlcrs blue A B C A~>B A~>C right-confluence \in \new StraightJoin {
-        | common-reduct => tlcrs.common-reduct
-        | a~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just blue, reduction-top-level tlcr)) B tlcrs.common-reduct tlcrs.a~>cr
-        | b~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just blue, reduction-top-level tlcr)) C tlcrs.common-reduct tlcrs.b~>cr
-      }
-    }
-    | just color, nothing, func f-A choosing-A, B, func f-C choosing-C, reduction-top-level A~>B, reduction-subterms f-A=f-C inner-reduction
-    => \case \elim f-C, \elim f-A=f-C, \elim choosing-C, \elim inner-reduction \with {
-        | f-C, idp, choosing-C, inner-reduction => \let (X, c1, C~>X, B~>*X) => unify-top color f-A choosing-A choosing-C B A~>B inner-reduction \in \new StraightJoin {
-          | common-reduct => X
-          | a~>cr => B~>*X
-          | b~>cr => (c-basic (c1, C~>X))
-        }
-      }
-    | nothing, color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B red-subterms, equal-trees p => {?} -- easy
-    | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level A~>B' => {?} -- symmetric to 3
-    | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-C choosing-C, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-C _x1 => redirection f-A f-B f-C f-A=f-B f-A=f-C choosing-A choosing-B choosing-C _x _x1 left-confluence right-confluence
-    \where {
-      \func redirection  {tc : TheoremContext} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-                         (f-A f-B f-C : env.FunctionalSymbol.symbol s)
-                         (f-A=f-B : f-A = f-B)
-                         (f-A=f-C : f-A = f-C)
-                         (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-                         (choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-B))) -> Term env ((f-B FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-B FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-                         (choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-C))) -> Term env ((f-C FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-C FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-                         (distrib-ab : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) ->
-                             \Sigma (someColor : Maybe Color) (Or (someColor = nothing) (someColor = just (Color.flip (color-of-root f-A))))
-                                    (BorderedParallelReduction someColor (choosing-A i) (transport-chooser-f {env} f-A=f-B choosing-B i)))
-                         (distrib-ac : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) ->
-                             \Sigma (someColor : Maybe Color) (Or (someColor = nothing) (someColor = just (Color.flip (color-of-root f-A))))
-                                    (BorderedParallelReduction someColor (choosing-A i) (transport-chooser-f {env} f-A=f-C choosing-C i)))
-                         (left-confluence : ConfluentialSystem envL L-rules)
-                         (right-confluence : ConfluentialSystem envR R-rules): StraightJoin (func {env} f-B choosing-B) (func f-C choosing-C) (Closure TrichromaticParallelReduction)
-        \elim f-A=f-B, f-A=f-C
-          | idp, idp => \let distribution i => bpr-confluence (distrib-ab i).1 (distrib-ac i).1 (distrib-ab i).3 (distrib-ac i).3 left-confluence right-confluence
-                        \in \new StraightJoin {
-              | common-reduct => func f-A (\lam index => common-reduct {distribution index})
-              | a~>cr => {?} -- prove the fact that if there were a red reduction in a result, then at least one of joinable reductions was red.
-              | b~>cr => {?}
-            }
-    }
+    : \Sigma (D : Term env context s meta-signature) (BorderedParallelReduction color2 B D) (BorderedParallelReduction color1 C D) \elim color1, color2, A, B, C, A~>B, A~>C
+    | color1, color2, A, B, C, equal-trees p, equal-trees p1 => {?} -- easy
+    | color1, color2, func f choosing, B, C, equal-trees p, parallelization-f mediator _x c => {?} -- easy
+    | color1, color2, func f choosing, B, C, parallelization-f mediator _x c, equal-trees p => {?} -- easy
+    | nothing, nothing, func f choosing, B, C, parallelization-f mediator choosing->med (cr-skip famed=B), parallelization-f mediator' choosing->med' (cr-skip famed'=C)
+    => \let | inner-confluences i => bpr-confluence (choosing->med i).1 (choosing->med' i).1 (choosing->med i).3 (choosing->med' i).3 left-confluence right-confluence
+            | D => func {env} f (\lam i => (inner-confluences i).1)
+       \in (func f (\lam i => (inner-confluences i).1),
+            rewriteI famed=B (parallelization-f (\lam i => (inner-confluences i).1) (\lam i => ((choosing->med' i).1, (choosing->med' i).2, (inner-confluences i).2)) (cr-skip idp)),
+            rewriteI famed'=C (parallelization-f (\lam i => (inner-confluences i).1) (\lam i => ((choosing->med i).1, (choosing->med i).2, (inner-confluences i).3)) (cr-skip idp)))
+    | nothing, just a, func f choosing, B, C, parallelization-f mediator _x (cr-skip p), parallelization-f mediator1 _x1 (cr-rewrite t) => {?} -- subcases of the last one
+    | just a, nothing, func f choosing, B, C, parallelization-f mediator _x (cr-rewrite t), parallelization-f mediator1 _x1 (cr-skip p) => {?}
+    | just a, just a1, func f choosing, B, C, parallelization-f mediator _x (cr-rewrite t), parallelization-f mediator1 _x1 (cr-rewrite t1) => {?}
+    --    | _, _, A, B, C, equal-trees p, equal-trees p1 => {?} -- easy
+
+--    | color, just color1, A, B, B1, equal-trees p, reduction-top-level A~>B1 => {?} -- easy
+--    | color, nothing, func f-A choosing-A, B, func f-B choosing-B, equal-trees p, reduction-subterms f-A=f-B _x => {?} -- easy
+--    | just color, color1, A, B, B1, reduction-top-level A~>B, equal-trees p => {?} -- easy
+--    | just color, just color1, A, B, C, reduction-top-level A~>B, reduction-top-level A~>C => \case \elim color, \elim color1, \elim A~>B, \elim A~>C \with {
+--      | red, red, A~>B, A~>C => \let tlcrs : StraightJoin B C (Closure (TopLevelColoredReduction red)) => join-tlcrs red A B C A~>B A~>C left-confluence \in \new StraightJoin {
+--        | common-reduct => tlcrs.common-reduct
+--        | a~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just red, reduction-top-level tlcr)) B tlcrs.common-reduct tlcrs.a~>cr
+--        | b~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just red, reduction-top-level tlcr)) C tlcrs.common-reduct tlcrs.b~>cr
+--      }
+--      | red, blue, A~>B, A~>C => {?} -- easy derivation of contradiction based on top level color
+--      | blue, red, A~>B, A~>C => {?}
+--      | blue, blue, A~>B, A~>C => \let tlcrs : StraightJoin B C (Closure (TopLevelColoredReduction blue)) => join-tlcrs blue A B C A~>B A~>C right-confluence \in \new StraightJoin {
+--        | common-reduct => tlcrs.common-reduct
+--        | a~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just blue, reduction-top-level tlcr)) B tlcrs.common-reduct tlcrs.a~>cr
+--        | b~>cr => Closure.lift (\lam x => x) (\lam tlcr => (just blue, reduction-top-level tlcr)) C tlcrs.common-reduct tlcrs.b~>cr
+--      }
+--    }
+--    | just color, nothing, func f-A choosing-A, B, func f-C choosing-C, reduction-top-level A~>B, reduction-subterms f-A=f-C inner-reduction
+--    => \case \elim f-C, \elim f-A=f-C, \elim choosing-C, \elim inner-reduction \with {
+--        | f-C, idp, choosing-C, inner-reduction => \let (X, c1, C~>X, B~>*X) => unify-top color f-A choosing-A choosing-C B A~>B inner-reduction \in \new StraightJoin {
+--          | common-reduct => X
+--          | a~>cr => B~>*X
+--          | b~>cr => (c-basic (c1, C~>X))
+--        }
+--      }
+--    | nothing, color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B red-subterms, equal-trees p => {?} -- easy
+--    | nothing, just color, func f-A choosing-A, func f-B choosing-B, B, reduction-subterms f-A=f-B _x, reduction-top-level A~>B' => {?} -- symmetric to 3
+--    | nothing, nothing, func f-A choosing-A, func f-B choosing-B, func f-C choosing-C, reduction-subterms f-A=f-B _x, reduction-subterms f-A=f-C _x1 => redirection f-A f-B f-C f-A=f-B f-A=f-C choosing-A choosing-B choosing-C _x _x1 left-confluence right-confluence
 
   \func extract-top-level {tc : TheoremContext} (global-context : List tc.Sort') {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                           (color : Color)
