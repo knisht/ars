@@ -407,7 +407,7 @@
       | injected-u : Term env context s (LinearMetasignature {env} (inject-linear-pattern color t)) => rewriteI eqs (inject-monochrome-term color u)
       | modified-rho => transport (MetaSubstitution env context __ meta-signature) eqs rho
       | (sigma, C=t[sigma], reds) => alternate-subst {_} {nil} {context} color (func f choosing-A) (func f choosing-C) sublist-trivial SubList.identity idp (inject-linear-pattern {_} color t) modified-rho {?} nothing (parallelization-f choosing-C inner-reductions (cr-skip idp))
-      | uni-right => unify-right color (inject-linear-pattern color t) injected-u sigma {?}
+      | uni-right => lift-relation color (transport (MetaSubstitution env context __ meta-signature) (inv eqs) sigma) t~>u
       | uni-left => unify-left color color injected-u SubList.identity modified-rho sigma reds
     \in metasignature-unificator eqs color B (func f choosing-C)
         (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t))
@@ -416,7 +416,7 @@
         sigma
         lu[rho]=B
         (rewriteI eqs2 C=t[sigma])
-        (rewriteI eqs2 uni-right)
+        uni-right
         uni-left
     \where {
       \func metasignature-unificator {tc : TheoremContext} {context : List Sort'} {s : Sort'} {left-meta-signature right-meta-signature outer-meta-signature : MetaSignature Sort'}
@@ -429,8 +429,8 @@
                                      (lu[rho]=b : MetaSubstitution.apply {env} inj-u SubList.identity rho = B)
                                      (C=t[sigma] : C = MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-t) SubList.identity sigma)
                                      (uni-right : TopLevelColoredReduction color
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-t) SubList.identity sigma)
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) SubList.identity sigma))
+                                         (MetaSubstitution.apply {env} (inj-t) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) (inv meta-signature-equality) sigma))
+                                         (MetaSubstitution.apply {env} (inj-u) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) (inv meta-signature-equality) sigma)))
                                      (uni-left : BorderedParallelReduction color nothing
                                          (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) meta-signature-equality rho))
                                          (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) SubList.identity sigma))
@@ -673,28 +673,6 @@
         | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-right sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (choosing i)))
         | func f choosing => pmap (func f) (ext (\lam i => apply-modularity producer substitutions (SubList.extend-right-single-left sublist) (SubList.extend-left pat-sublist) (choosing i)))
     }
-
-  \func unify-right {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
-                    (t : LinearPattern env context s) (s : Term env context s (LinearMetasignature {env} t))
-                    (sigma : MetaSubstitution env context (LinearMetasignature {env} t) meta-signature)
-    --                    {rho : MetaSubstitution env context (LinearMetasignature {env} t) meta-signature}
-    --                    (h : HasColoredRoot color (MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) SubList.identity rho))
-                    (t-is-func : FunctionalRoot {env} (LinearPattern.convert-to-term {env} t)) :
-    TopLevelColoredReduction {tc} color
-        (MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) SubList.identity sigma)
-        (MetaSubstitution.apply {env} (s) SubList.identity sigma) => {?}
-  --    rewrite-with-rule-colored (\case \elim t, \elim sigma, \elim rho, \elim h, \elim t-is-func \with {
-  --      | lp-func f choosing, sigma, rho, h, T-has-functional-root => unify-top.recreate-coloring-for-root h
-  --    }) (\new LinearRewriteStep {
-  --      | rule => \new LinearRewriteRule {
-  --        | linear-pattern => t
-  --        | r => s
-  --        | l-is-func => t-is-func
-  --      }
-  --      | substitution => sigma
-  --      | left-coherence => idp
-  --      | right-coherence => idp
-  --    })
 
   \data Closure {A : \Type} (R : A -> A -> \Type) (a b : A)
     | c-trivial (a = b)
