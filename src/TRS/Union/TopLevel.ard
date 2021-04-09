@@ -41,20 +41,19 @@
 
 \func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature outer-meta-signature : MetaSignature Sort'}
                     (color : Color)
-                    (subst : MetaSubstitution env context meta-signature outer-meta-signature)
+                    (subst : MetaSubstitution env nil meta-signature outer-meta-signature)
                     {t u : Term (colored-env color) context s meta-signature}
                     (t~>u : monochrome-reduction color t u)
   : TopLevelColoredReduction color
-    (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst)
-    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst) => {?}
+    (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst)
+    (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst) => {?}
 
-\func decompose-term {tc : TheoremContext} {global-context context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                      (color : Color)
-                     (sublist : SubList global-context context)
                      (A : Term env context s meta-signature) :
   \Sigma (t : LinearPattern (colored-env {tc} color) context s)
-         (subst : MetaSubstitution env global-context (LinearMetasignature {colored-env color} t) meta-signature)
-         (MetaSubstitution.apply {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t)) sublist subst = A)
+         (subst : MetaSubstitution env nil (LinearMetasignature {colored-env color} t) meta-signature)
+         (MetaSubstitution.apply {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t)) sublist-trivial subst = A)
          (\Pi {s : Sort'} (m : metaname {LinearMetasignature {colored-env color} t} s) -> HasColoredRoot (Color.flip color) (subst m)) \elim color, A
   | color, var index p => {?}
 --    \let | empty-signature => \new MetaSignature Sort' {
@@ -113,10 +112,10 @@
                                 (color : Color)
                                 (t : Term (colored-env {tc} color) context s inner-meta-signature)
                                 (B : Term env context s meta-signature)
-                                (subst : MetaSubstitution env context inner-meta-signature meta-signature)
-                                (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.identity subst) B)
+                                (subst : MetaSubstitution env nil inner-meta-signature meta-signature)
+                                (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst) B)
   : \Sigma (u : Term (colored-env color) context s inner-meta-signature)
-           (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.identity subst = B)
+           (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst = B)
            (monochrome-reduction color t u) \elim color, t, B, A~>B
   | red, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
   | blue, func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}

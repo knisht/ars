@@ -1,7 +1,7 @@
 \import Algebra.Ring.Localization
 \import Confluence
 \import Data.Bool
-\import Data.List (++, ++-assoc, ::, List, nil)
+\import Data.List (++, ++-assoc, ++_nil, ::, List, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -400,15 +400,15 @@
              (TopLevelColoredReduction color (func f choosing-C) X)
              (BorderedParallelReduction color nothing B X) =>
     \let
-      | (t, rho, t[rho]=A, root-colors) => decompose-term color SubList.identity (func f choosing-A)
+      | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f choosing-A)
       | (u, lu[rho]=B, t~>u) => decompose-along-reduction color (LinearPattern.convert-to-term {colored-env color} t) B rho (rewrite t[rho]=A A~>B)
       | eqs : LinearMetasignature {colored-env color} t = LinearMetasignature {env} (inject-linear-pattern color t) => {?} -- obvious
       | eqs2 : (LinearPattern.convert-to-term {env} (inject-linear-pattern color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t))) => {?} -- technical
       | injected-u : Term env context s (LinearMetasignature {env} (inject-linear-pattern color t)) => rewriteI eqs (inject-monochrome-term color u)
-      | modified-rho => transport (MetaSubstitution env context __ meta-signature) eqs rho
-      | (sigma, C=t[sigma], reds) => alternate-subst {_} {nil} {context} color (func f choosing-A) (func f choosing-C) sublist-trivial SubList.identity idp (inject-linear-pattern {_} color t) modified-rho {?} nothing (parallelization-f choosing-C inner-reductions (cr-skip idp))
-      | uni-right => lift-relation color (transport (MetaSubstitution env context __ meta-signature) (inv eqs) sigma) t~>u
-      | uni-left => unify-left color color injected-u SubList.identity modified-rho sigma reds
+      | modified-rho => transport (MetaSubstitution env nil __ meta-signature) eqs rho
+      | (sigma, C=t[sigma], reds) => alternate-subst {_} color (func f choosing-A) (func f choosing-C) (inject-linear-pattern {_} color t) modified-rho {?} nothing (inl idp) (parallelization-f choosing-C inner-reductions (cr-skip idp))
+      | uni-right => lift-relation color (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma) t~>u
+      | uni-left => unify-left color color injected-u sublist-trivial modified-rho sigma reds
     \in metasignature-unificator eqs color B (func f choosing-C)
         (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t))
         (inject-monochrome-term color u)
@@ -424,20 +424,20 @@
                                      (color : Color)
                                      (B C : Term env context s outer-meta-signature)
                                      (inj-t inj-u : Term env context s left-meta-signature)
-                                     (rho : MetaSubstitution env context left-meta-signature outer-meta-signature)
-                                     (sigma : MetaSubstitution env context right-meta-signature outer-meta-signature)
-                                     (lu[rho]=b : MetaSubstitution.apply {env} inj-u SubList.identity rho = B)
-                                     (C=t[sigma] : C = MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-t) SubList.identity sigma)
+                                     (rho : MetaSubstitution env nil left-meta-signature outer-meta-signature)
+                                     (sigma : MetaSubstitution env nil right-meta-signature outer-meta-signature)
+                                     (lu[rho]=b : MetaSubstitution.apply {env} inj-u sublist-trivial rho = B)
+                                     (C=t[sigma] : C = MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-t) sublist-trivial sigma)
                                      (uni-right : TopLevelColoredReduction color
-                                         (MetaSubstitution.apply {env} (inj-t) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) (inv meta-signature-equality) sigma))
-                                         (MetaSubstitution.apply {env} (inj-u) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) (inv meta-signature-equality) sigma)))
+                                         (MetaSubstitution.apply {env} (inj-t) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) (inv meta-signature-equality) sigma))
+                                         (MetaSubstitution.apply {env} (inj-u) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) (inv meta-signature-equality) sigma)))
                                      (uni-left : BorderedParallelReduction color nothing
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) SubList.identity (transport (MetaSubstitution env context __ outer-meta-signature) meta-signature-equality rho))
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) SubList.identity sigma))
+                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) meta-signature-equality rho))
+                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) sublist-trivial sigma))
         : \Sigma (X : Term env context s outer-meta-signature)
                  (TopLevelColoredReduction color C X)
                  (BorderedParallelReduction color nothing B X) \elim meta-signature-equality
-        | idp => (MetaSubstitution.apply {env} inj-u SubList.identity sigma,
+        | idp => (MetaSubstitution.apply {env} inj-u sublist-trivial sigma,
                   rewrite C=t[sigma] uni-right,
                   rewriteI lu[rho]=b uni-left)
 
@@ -488,29 +488,31 @@
       | m-domain m => context
     }
 
-  \func alternate-subst {tc : TheoremContext} {pattern-context global-context context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+  \func alternate-subst {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                         (gc : Color)
-                        (A C : Term env (context) s meta-signature)
-                        (pattern-sublist : SubList pattern-context context)
-                        (glb-sublist : SubList global-context context)
-                        (eq : pattern-context ++ global-context = context)
+                        (A C : Term env context s meta-signature)
                         (t : LinearPattern env context s)
-                        (rho : MetaSubstitution env global-context (LinearMetasignature {env} t) meta-signature)
-                        (A=t[rho] : A = MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-term {env} t) SubList.identity) (glb-sublist) rho)
+                        (rho : MetaSubstitution env nil (LinearMetasignature {env} t) meta-signature)
+                        (A=t[rho] : A = MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) sublist-trivial rho)
                         (someColor : Maybe Color)
+                        (some-color-diff : (someColor = nothing) `Or` (someColor = just (Color.flip gc)))
                         (A=>C : BorderedParallelReduction gc someColor A C)
-    : \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} t) meta-signature)
-             (C = MetaSubstitution.apply {env} (LinearPattern.convert-to-term {env} t) (glb-sublist) sigma)
+    : \Sigma (sigma : MetaSubstitution env nil (LinearMetasignature {env} t) meta-signature)
+             (C = MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) (sublist-trivial) sigma)
              (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} t} s) ->
-                 \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) =>
-    {?}
-    --  \elim A, C, t, someColor, A=>C
-    --    | A, C, lp-var index p, someColor, rd => \case \elim someColor, \elim A, \elim A=t[rho], \elim C, \elim rd \with {
-    --      | someColor, A, idp, C, equal-trees idp => (\lam {s1} mvar => contradiction, idp, \lam {s1} m => (nothing, contradiction))
-    --      | just color1, A, idp, C, reduction-top-level t => (\lam {s1} mvar => contradiction, \case \elim t \with {
-    --        | rewrite-with-rule-colored h1 (((rule : LinearRewriteRule env),m,t,t1)) => \let q => pattern-can't-be-var {env} (rule.l) m ((weakening.recalculate-index (pattern-sublist) index p).1) ((weakening.recalculate-index (pattern-sublist) index p).2) t (rule.l-is-func) \in contradiction
-    --      }, \lam {s1} m => contradiction)
-    --    }
+                 \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) \elim A, C, t, someColor, A=>C
+    | A, C, lp-func f choosing, someColor, equal-trees p => {?}
+    | A, C, lp-metavar, someColor, equal-trees p => {?}
+    | func f choosing, C, lp-func f1 choosing1, nothing, parallelization-f mediator inner-reductions (cr-skip p) => \let inner-confluence i => alternate-subst gc (choosing i) (mediator i) (choosing1 i) \in {?}
+    | func f choosing, C, lp-func f1 choosing1, just a, parallelization-f mediator inner-reductions (cr-rewrite t p) => \case \elim some-color-diff \with {
+      | inl a1 => contradiction
+      | inr b => {?}  -- impossible, as by hypothesis color is nothing or Different from gc
+    }
+    | func f choosing, C, lp-metavar, someColor, A=>C =>
+      \let x => 1
+      \in (\lam {s1} mvar => transport2 (\lam context sort => Term env context sort meta-signature) (inv ++_nil) mvar C,
+           {?}, -- applying of identity
+           \lam {s1} m => {?}) -- technical juggling with equalities
     --    | A, C, lp-metavar, someColor, rd => \case \elim context, \elim C, \elim pattern-sublist, \elim glb-sublist, \elim eq, \elim A, \elim rd, \elim rho, \elim A=t[rho] \with {
     --      | context, C, pattern-sublist, glb-sublist, idp, A, rd, rho, A=t[rho] =>
     --            \let | context-mapping => (extend-substitution-right {env} glb-sublist
