@@ -20,19 +20,20 @@
 {- | Definition of accessibility (termination) for SimpleARS -}
 \data Acc {A : \Set} (R : Rel A) (a : A)
   | acc (\Pi (a' : A) -> a `R` a' -> Acc R a')
-  \where {
-    \func apply {A : \Set} {R : Rel A} {a : A} (acc : Acc R a) (b : A) (p : a `R` b) : Acc R b \elim acc
-      | acc f => f b p
-  }
 
 \func Acc-Trans {A : \Set} (R : Rel A) (a : A) : \Type => Acc (transitive-closure R) a
 
-\lemma Acc=>AccTrans {A : \Set} {R : Rel A} (a : A) (a-acc : Acc R a) : Acc-Trans R a =>
-  well-founded-induction (Acc-Trans R) (\lam a f => acc (\lam a' aR+a' => transit-to-last f aR+a')) a a-acc
+\lemma Acc=>AccTrans
+  {A : \Set} {R : Rel A}
+  (a : A) (a-acc : Acc R a) : Acc (transitive-closure R) a =>
+  well-founded-induction
+      (Acc (transitive-closure R))
+      (\lam a f => acc (\lam a' aR+a' => transit-to-last f aR+a')) a a-acc
   \where {
-    \lemma transit-to-last {A : \Set} {R : Rel A} {a b : A}
-                           (f : \Pi (b : A) -> R a b -> Acc-Trans R b)
-                           (aR+b : transitive-closure R a b): Acc-Trans R b \elim aR+b
+    \lemma transit-to-last
+      {A : \Set} {R : Rel A} {a b : A}
+      (f : \Pi (b : A) -> R a b -> Acc (transitive-closure R) b)
+      (aR+b : transitive-closure R a b): Acc (transitive-closure R) b \elim aR+b
       | tc-direct aRb => f b aRb
       | tc-connect c aRc t => \case (f c aRc) \with {
         | acc g => transit-to-last (\lam b cRb => g b (tc-direct cRb)) t
@@ -55,9 +56,11 @@
       a
       (Acc=>AccTrans a (term))
 
-\func well-founded-induction {A : \Set} {R : Rel A} (C : A -> \Type)
-                             (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
-                             (a : A) (a-is-accessible : Acc R a) : C a \elim a-is-accessible
+\func well-founded-induction
+  {A : \Set} {R : Rel A} (C : A -> \Type)
+  (induction : \Pi (a : A) (\Pi (b : A) (a `R` b) -> C b) -> C a)
+  (a : A) (a-is-accessible : Acc R a) : C a
+\elim a-is-accessible
   | acc successors => induction a (\lam b a~>b => well-founded-induction C induction b (successors b a~>b))
 
 \func well-founded-induction-transitive {A : \Set} {R : Rel A} (C : A -> \Type)

@@ -1,3 +1,4 @@
+\import Data.List (length)
 \import Logic
 \import Logic.Meta
 \import Paths

@@ -7,9 +7,6 @@
 \import Set
 \import TRS.Utils
 \open Nat
-\func length {A : \Type} (list : List A) : Nat \elim list
-  | nil => 0
-  | :: a list => suc (length list)
 
 \func map-fixes-length {A B : \Type} {L : List A} {f : A -> B} : length (map f L) = length L \elim L
   | nil => idp

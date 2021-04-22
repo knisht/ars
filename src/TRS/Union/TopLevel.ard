@@ -6,6 +6,7 @@
 \import Paths
 \import Paths.Meta
 \import TRS.HRS
+\import TRS.Linearity
 \import TRS.List
 \import TRS.Substitutions
 \import TRS.Union
@@ -47,6 +48,9 @@
   : TopLevelColoredReduction color
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst) => {?}
+
+
+
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                      (color : Color)

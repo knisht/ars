@@ -1,0 +1,47 @@
+\import Data.List (++, List, length, nil)
+\import TRS.HRS
+
+\func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
+  | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
+  | m-domain m => m-domain {(producer (m.1))} m.2
+
+
+\data LinearPattern (env : Environment)
+                    (context : List Sort)
+                    (termSort : Sort)
+  | lp-func (f : FunctionalSymbol.symbol termSort)
+            (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index))
+  | lp-metavar
+  \where {
+    \func upgrade-metavariables-p {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+                                  (producer : \Pi (Fin n) -> MetaSignature Sort)
+                                  (A : Term env context s (producer index))
+      : Term env context s (ModularMetaSignature producer) \elim A
+      | var index p => var index p
+      | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-p producer (choosing i))
+      | func f choosing => func f (\lam i => upgrade-metavariables-p producer (choosing i))
+
+    \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetasignature pattern) \elim pattern
+      | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-term (choosing i)))
+      | lp-metavar => metavar idp (\lam index => var index idp)
+  }
+
+\record LinearRewriteRule \extends RewriteRule {
+  | linear-pattern : LinearPattern env nil s
+  | meta-signature => LinearMetasignature linear-pattern
+  | l => LinearPattern.convert-to-term linear-pattern
+}
+
+\record LinearRewriteStep \extends RewriteStep {
+  \override  rule : LinearRewriteRule env {s}
+}
+
+\func LinearMetasignature {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaSignature Sort \elim pattern
+  | lp-func f choosing => \new MetaSignature {
+    | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetasignature (choosing i)} s)
+    | m-domain m => m-domain {LinearMetasignature (choosing m.1)} m.2
+  }
+  | lp-metavar => \new MetaSignature {
+    | metaname s' => s = s'
+    | m-domain m => context
+  }

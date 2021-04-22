@@ -1,7 +1,7 @@
 \import Algebra.Ring.Localization
 \import Confluence
 \import Data.Bool
-\import Data.List (++, ++-assoc, ++_nil, ::, List, nil)
+\import Data.List (++, ++-assoc, ++_nil, ::, List, length, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -11,6 +11,7 @@
 \import Relation
 \import Set
 \import TRS.HRS
+\import TRS.Linearity
 \import TRS.List
 \import TRS.Maybe
 \import TRS.Substitutions
@@ -204,9 +205,9 @@
                                   (global-color : Color)
                                   (color : Maybe Color)
                                   {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
-                                  (A B : Term (env {tc}) context s meta-signature) \elim A, B
-    | A, B => equal-trees (A = B)
-    | func f choosing, B =>
+                                  (A B : Term (env {tc}) context s meta-signature) \elim A
+    | A => equal-trees (A = B)
+    | func f choosing =>
     parallelization-f
       (mediator : \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) ->
           Term (env {tc}) ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
@@ -215,6 +216,11 @@
         ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
         (BorderedParallelReduction {tc} global-color someColor (choosing i) (mediator i)))
       (ColorwiseReduction {tc} global-color color (func f mediator) B)
+  --    | metavar m choosing =>
+  --    parallelization-m
+  --      (mediator : \Pi (index : Fin (length (m-domain m))) -> Term (env {tc}) (context) (m-domain m !! index) meta-signature)
+  --      (\Pi (i : Fin (length (m-domain m))) -> (BorderedParallelReduction {tc} global-color color (choosing i) (mediator i)))
+  --      (metavar {env {tc}} m mediator = B)
 
   \data ColorwiseReduction {tc : TheoremContext}
                            {context : List Sort'}
@@ -241,7 +247,7 @@
                        (right-confluence : ConfluentialSystem envR R-rules)
     : \Sigma (D : Term env context s meta-signature)
              (color3 : Maybe Color)
-             ((color3 = color2) `Or` (color3 = nothing))
+             ((color3 = nothing) `Or` (color3 = color2) )
              (color4 : Maybe Color)
              ((color4 = color1) `Or` (color4 = nothing))
              (BorderedParallelReduction gc2 color3 B D)
@@ -358,9 +364,6 @@
     | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-right sublist e)) (ext (\lam i => apply-modular-inside producer substitutions sublist (choosing i)))
     | func f choosing => pmap (func f) (ext (\lam i => apply-modular-inside producer substitutions (SubList.extend-right-single-left sublist) (choosing i)))
 
-  \func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
-    | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
-    | m-domain m => m-domain {(producer (m.1))} m.2
 
   \func PointedModularMetaSignature {env : Environment} {n : Nat} {pointed-signature : MetaSignature Sort} {s : Sort} (m : pointed-signature.metaname s)
                                     (producer : Fin n -> MetaSignature Sort) : MetaSignature Sort \cowith
@@ -406,7 +409,8 @@
       | eqs2 : (LinearPattern.convert-to-term {env} (inject-linear-pattern color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t))) => {?} -- technical
       | injected-u : Term env context s (LinearMetasignature {env} (inject-linear-pattern color t)) => rewriteI eqs (inject-monochrome-term color u)
       | modified-rho => transport (MetaSubstitution env nil __ meta-signature) eqs rho
-      | (sigma, C=t[sigma], reds) => alternate-subst {_} color (func f choosing-A) (func f choosing-C) (inject-linear-pattern {_} color t) modified-rho {?} nothing (inl idp) (parallelization-f choosing-C inner-reductions (cr-skip idp))
+      | eqs3 : (func {env} f choosing-A) = (MetaSubstitution.apply {env} (LinearPattern.convert-to-term {env} (inject-linear-pattern color t)) sublist-trivial modified-rho) => {?}
+      | (sigma, C=t[sigma], reds) => alternate-subst {_} color (func f choosing-C) (inject-linear-pattern {_} color t) modified-rho nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
       | uni-right => lift-relation color (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma) t~>u
       | uni-left => unify-left color color injected-u sublist-trivial modified-rho sigma reds
     \in metasignature-unificator eqs color B (func f choosing-C)
@@ -448,88 +452,29 @@
         | blue, inr s1, blue-func-root => blue-func-root
     }
 
-  \data LinearPattern (env : Environment)
-                      (context : List Sort)
-                      (termSort : Sort)
-    | lp-func (f : FunctionalSymbol.symbol termSort)
-              (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index))
-    | lp-metavar
-    \where {
-      \func upgrade-metavariables-p {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
-                                    (producer : \Pi (Fin n) -> MetaSignature Sort)
-                                    (A : Term env context s (producer index))
-        : Term env context s (ModularMetaSignature producer) \elim A
-        | var index p => var index p
-        | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-p producer (choosing i))
-        | func f choosing => func f (\lam i => upgrade-metavariables-p producer (choosing i))
-
-      \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetasignature pattern) \elim pattern
-        | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-term (choosing i)))
-        | lp-metavar => metavar idp (\lam index => var index idp)
-    }
-
-  \record LinearRewriteRule \extends RewriteRule {
-    | linear-pattern : LinearPattern env nil s
-    | meta-signature => LinearMetasignature linear-pattern
-    | l => LinearPattern.convert-to-term linear-pattern
-  }
-
-  \record LinearRewriteStep \extends RewriteStep {
-    \override  rule : LinearRewriteRule env {s}
-  }
-
-  \func LinearMetasignature {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaSignature Sort \elim pattern
-    | lp-func f choosing => \new MetaSignature {
-      | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetasignature (choosing i)} s)
-      | m-domain m => m-domain {LinearMetasignature (choosing m.1)} m.2
-    }
-    | lp-metavar => \new MetaSignature {
-      | metaname s' => s = s'
-      | m-domain m => context
-    }
-
   \func alternate-subst {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                         (gc : Color)
-                        (A C : Term env context s meta-signature)
+                        (C : Term env context s meta-signature)
                         (t : LinearPattern env context s)
                         (rho : MetaSubstitution env nil (LinearMetasignature {env} t) meta-signature)
-                        (A=t[rho] : A = MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) sublist-trivial rho)
                         (someColor : Maybe Color)
                         (some-color-diff : (someColor = nothing) `Or` (someColor = just (Color.flip gc)))
-                        (A=>C : BorderedParallelReduction gc someColor A C)
+                        (A=>C : BorderedParallelReduction gc someColor (MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) sublist-trivial rho) C)
     : \Sigma (sigma : MetaSubstitution env nil (LinearMetasignature {env} t) meta-signature)
              (C = MetaSubstitution.apply {env} ((LinearPattern.convert-to-term {env} t)) (sublist-trivial) sigma)
              (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} t} s) ->
-                 \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) \elim A, C, t, someColor, A=>C
-    | A, C, lp-func f choosing, someColor, equal-trees p => {?}
-    | A, C, lp-metavar, someColor, equal-trees p => {?}
-    | func f choosing, C, lp-func f1 choosing1, nothing, parallelization-f mediator inner-reductions (cr-skip p) => \let inner-confluence i => alternate-subst gc (choosing i) (mediator i) (choosing1 i) \in {?}
-    | func f choosing, C, lp-func f1 choosing1, just a, parallelization-f mediator inner-reductions (cr-rewrite t p) => \case \elim some-color-diff \with {
-      | inl a1 => contradiction
-      | inr b => {?}  -- impossible, as by hypothesis color is nothing or Different from gc
-    }
-    | func f choosing, C, lp-metavar, someColor, A=>C =>
-      \let x => 1
-      \in (\lam {s1} mvar => transport2 (\lam context sort => Term env context sort meta-signature) (inv ++_nil) mvar C,
-           {?}, -- applying of identity
-           \lam {s1} m => {?}) -- technical juggling with equalities
-    --    | A, C, lp-metavar, someColor, rd => \case \elim context, \elim C, \elim pattern-sublist, \elim glb-sublist, \elim eq, \elim A, \elim rd, \elim rho, \elim A=t[rho] \with {
-    --      | context, C, pattern-sublist, glb-sublist, idp, A, rd, rho, A=t[rho] =>
-    --            \let | context-mapping => (extend-substitution-right {env} glb-sublist
-    --                (\lam i => (\let (index', p') => weakening.recalculate-index (pattern-sublist) i idp \in var index' p')))
-    --                 | context-mapping-is-identical : context-mapping = plain-identity {env} => ext (identify-context-mapping {env} glb-sublist pattern-sublist)
-    --                 | res-term : Term env (pattern-context ++ global-context) s meta-signature => Substitution.apply {env} (rho idp) context-mapping
-    --                 | modified-rd : BorderedParallelReduction someColor (rho idp) C => transport (BorderedParallelReduction someColor __ C) (A=t[rho] *> (pmap (Substitution.apply {env} (rho idp)) context-mapping-is-identical) *> plain-identity-effect {env} (rho idp)) rd
-    --            \in (\lam {s1} mvar => transport (Term env (pattern-context ++ global-context) __ meta-signature) mvar C,
-    --                 inv (plain-identity-effect {env} C) *> (pmap (Substitution.apply {env} C) (inv context-mapping-is-identical)),
-    --                 \lam {s1} m => (someColor, Jl (\lam _ s=s' => BorderedParallelReduction someColor (rho s=s') (transport (\lam p0 => Term env (pattern-context ++ global-context) p0 meta-signature) s=s' C)) modified-rd m))
-    --    }
-    --
---    | A, C, lp-func f choosing, someColor, equal-trees A=C => (rho, inv A=C *> A=t[rho], \lam {s1} m => (nothing, equal-trees idp))
-    --    | A, C, lp-func f choosing, just color1, reduction-top-level t => {?} -- here should that passed or be useful; color1 must differ from previous color (that was not changed), but color of f is unique.
-    --    | func f-A choosing-A, func f-C choosing-C, lp-func f choosing, nothing, reduction-subterms f-A=f-C inner-reductions =>
-    --      \let e : f = f-A => pmap (\lam x => (decomposeTermAsFunctionalSymbol {env} (f-A, choosing-A) x).1) (inv A=t[rho])
-    --      \in redirection f-A f-C f choosing-A choosing-C pattern-sublist glb-sublist eq choosing e f-A=f-C rho A=t[rho] inner-reductions
+                 \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m)))
+    \elim C, t, someColor, A=>C
+      | C, lp-func f choosing, nothing, parallelization-f mediator inner-reductions (cr-skip p) =>
+        \let inductive-result i => alternate-subst gc (mediator i) (choosing i) (\lam m => rho (i, m)) (inner-reductions i).1 {?} {?}  -- color of root is obviusly gc, as it is pmatch on t
+        \in (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2, inv p *> {?}, \lam {s1} m => (inductive-result (m.1)).3 m.2) -- technical
+      | C, lp-func f choosing, just a, parallelization-f mediator _x (cr-rewrite t p) => {?} -- impossible because of tlcr
+      | C, lp-func f choosing, someColor, equal-trees p => {?}
+      | C, lp-metavar, color, rd =>
+        (\lam {s1} mvar => transport2 (\lam ctx srt => Term env ctx srt meta-signature) (inv ++_nil) mvar C,
+         {?}, -- applying identity
+         \lam {s1} m => {?} -- apply rd
+        )
     \where {
       \func pattern-can't-be-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                                  (T : Term env nil s meta-signature)
@@ -588,55 +533,6 @@
               (\lam i => \let (index, p) => index-calculator i \in var (suc index) p)
               j => {?}
         }
-
-      --      \func redirection {tc : TheoremContext} {pattern-context global-context context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-      --                        (f-A f-C f : env.FunctionalSymbol.symbol s)
-      --                        (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) ->
-      --                            Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-      --                        (choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-C))) ->
-      --                            Term env ((f-C FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-C FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-      --                        (pattern-sublist : SubList pattern-context context)
-      --                        (glb-sublist : SubList global-context context)
-      --                        (eq : pattern-context ++ global-context = context)
-      --                        (choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) ->
-      --                            LinearPattern env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ pattern-context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
-      --                        (f=f-A : f = f-A)
-      --                        (f-A=f-C : f-A = f-C)
-      --                        (rho : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
-      --                        (global-equality : func {env} f-A choosing-A = func f (\lam i => MetaSubstitution.apply {env} (weakening {env} (LinearPattern.upgrade-metavariables-p {env}
-      --                            (\lam i => LinearMetasignature {env} (choosing i)) (LinearPattern.convert-to-term {env} (choosing i)))
-      --                            (SubList.extend-left pattern-sublist)) (SubList.extend-right-single-left glb-sublist) rho))
-      --                        (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f-A) -> \Sigma (someColor : Maybe Color)
-      --                                                                                                             ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f-A))))
-      --                                                                                                             (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-C choosing-C i))) :
-      --        \Sigma (sigma : MetaSubstitution env global-context (LinearMetasignature {env} (lp-func f choosing)) meta-signature)
-      --               ((func {env} f-C choosing-C) = MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-term {env} (lp-func f choosing)) pattern-sublist) (glb-sublist) sigma)
-      --               (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignature {env} (lp-func f choosing)} s) -> \Sigma (mcolor : Maybe Color) (BorderedParallelReduction mcolor (rho m) (sigma m)))
-      --      \elim f-A, f-C, f, choosing-A, choosing-C, choosing, f=f-A, f-A=f-C, rho, inner-reductions
-      --        | f-A, f-C, f, choosing-A, choosing-C, choosing, idp, idp, rho, inner-reductions =>
-      --          \let | equality-of-choosers => inv (unwrap-func' {env} global-equality)
-      --
---               | insides i => alternate-subst
-      --                   (choosing-A i)
-      --                   (choosing-C i)
-      --                   (SubList.extend-left pattern-sublist)
-      --                   (SubList.extend-right-single-left glb-sublist)
-      --                   (rewrite ++-assoc (pmap ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i) ++ __) eq))
-      --                   (choosing i)
-      --                   (\lam m => rho (i, m))
-      --                   ((pmap (__ i) equality-of-choosers) *> (inv
-      --                       (apply-modularity {env}
-      --                       (\lam ind => LinearMetasignature {env} (choosing ind))
-      --                       (\lam ii m => rho (ii, m))
-      --                       (SubList.extend-right-single-left glb-sublist)
-      --                       (SubList.extend-left pattern-sublist)
-      --                       (LinearPattern.convert-to-term {env} (choosing i)))))
-      --                   (inner-reductions i).1
-      --                   (inner-reductions i).3
-      --          \in (\lam {s1} mvar => (insides mvar.1).1 mvar.2,
-      --               pmap (func {env} f-A)
-      --                   (ext (\lam index => (insides index).2 *> apply-modularity {env} (\lam ind => LinearMetasignature {env} (choosing ind)) (\lam ind => (insides ind).1) (SubList.extend-right-single-left glb-sublist) (SubList.extend-left pattern-sublist) (LinearPattern.convert-to-term {env} (choosing index)))),
-      --               \lam {s1} m => (insides m.1).3 m.2)
 
       \func unwrap-func {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
                         (T : Term env context s meta-signature) : Or Nat

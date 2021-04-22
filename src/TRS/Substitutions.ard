@@ -1,4 +1,4 @@
-\import Data.List (++, ::, List, nil)
+\import Data.List (++, ::, List, length, nil)
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -20,10 +20,13 @@
   | metavar m choosing => pmap (metavar m) (ext (\lam index => plain-identity-effect (choosing index)))
   | func f choosing => pmap (func f) (ext (\lam index => {?}))
 
-\func append-context-left {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
-                          {additional-context : List Sort}
-                          (subst : Substitution old-context new-context meta-signature)
-                          (index : Fin (length (additional-context ++ old-context))) : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) meta-signature \elim additional-context, index
+\func append-context-left
+  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+  {additional-context : List Sort}
+  (subst : Substitution old-context new-context meta-signature)
+  (index : Fin (length (additional-context ++ old-context)))
+  : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) meta-signature
+\elim additional-context, index
   | nil, index => subst index
   | :: a additional-context, zero => var zero idp
   | :: a additional-context, suc index => weakening (append-context-left subst index) (sublist-skip SubList.identity)
