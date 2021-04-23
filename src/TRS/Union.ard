@@ -407,7 +407,7 @@
              (BorderedParallelReduction color nothing B X) =>
     \let
       | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f choosing-A)
-      | (u, lu[rho]=B, t~>u) => decompose-along-reduction color (LinearTerm.convert-to-term {colored-env color} t) B rho (rewrite t[rho]=A A~>B)
+      | (u, lu[rho]=B, t~>u) => decompose-along-reduction color t B rho (rewrite t[rho]=A A~>B)
       | eqs : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) => {?} -- obvious
       | eqs2 : (LinearTerm.convert-to-term {env} (inject-linear-term color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))) => {?} -- technical
       | injected-u : Term env context s (LinearMetasignatureT {env} (inject-linear-term color t)) => rewriteI eqs (inject-monochrome-term color u)
