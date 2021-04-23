@@ -1,4 +1,4 @@
-\import Data.List (++, ::, List, length, nil)
+\import Data.List (!!, ++, ::, List, length, nil)
 \import Logic
 \import Logic.Meta
 \import Paths

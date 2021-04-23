@@ -1,10 +1,71 @@
-\import Data.List (++, List, length, nil)
+\import Data.List (!!, ++, List, length, nil)
+\import Data.Or
+\import Logic
+\import Logic.Meta
 \import TRS.HRS
 
 \func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
   | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
   | m-domain m => m-domain {(producer (m.1))} m.2
 
+\func PointedModularMetaSignature {env : Environment} (point : Sort) (pointed-list : List Sort)
+                                  (producer : \Pi (Fin (length pointed-list)) -> MetaSignature Sort) : MetaSignature Sort \cowith
+  | metaname s => (s = point) `Or` (\Sigma (i : Fin (length pointed-list)) (metaname {producer i} s))
+  | m-domain m => \case \elim m \with {
+    | inl eq => pointed-list
+    | inr m => m-domain {(producer (m.1))} m.2
+  }
+
+\func SingularMetaSignature {env : Environment} (point : Sort) (context : List Sort)
+  : MetaSignature Sort \cowith
+  | metaname s => s = point
+  | m-domain eq => context
+
+\func EmptyMetasignature {env : Environment} : MetaSignature Sort \cowith
+  | metaname m => Empty
+  | m-domain e => contradiction
+
+-- | Linear term, designed specifically for decomposition
+\data LinearTerm (env : Environment)
+                 (context : List Sort)
+                 (termSort : Sort)
+  | lt-func (f : FunctionalSymbol.symbol termSort)
+            (choosing : \Pi (index : Fin (length (domain f))) -> LinearTerm env ((f FunctionalSignature.!!param index) ++ context) (f FunctionalSignature.!!sort index))
+  | lt-metavar (params : List Sort) (choosing : \Pi (index : Fin (length params)) -> LinearTerm env context (params !! index))
+  | lt-full-metavar
+  | lt-var (index : Fin (length context)) (termSort = context !! index)
+  \where {
+    \func upgrade-metavariables-t {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+                                  (metas : \Pi (Fin n) -> MetaSignature Sort)
+                                  (A : Term env context s (metas index))
+      : Term env context s (ModularMetaSignature metas) \elim A
+      | var index p => var index p
+      | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-t metas (choosing i))
+      | func f choosing => func f (\lam i => upgrade-metavariables-t metas (choosing i))
+
+    \func upgrade-metavariables-mt {env : Environment} {context : List Sort} {s : Sort}
+                                   (point : Sort)
+                                   (pointed-context : List Sort)
+                                   {index : Fin (length pointed-context)}
+                                   (metas : \Pi (Fin (length pointed-context)) -> MetaSignature Sort)
+                                   (A : Term env context s (metas index))
+      : Term env context s (PointedModularMetaSignature point pointed-context metas) \elim A
+      | var index p => var index p
+      | metavar m choosing => metavar (inr (index, m)) (\lam i => upgrade-metavariables-mt point pointed-context metas (choosing i))
+      | func f choosing => func f (\lam i => upgrade-metavariables-mt point pointed-context metas (choosing i))
+
+    \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : Term env context s (LinearMetasignatureT term) \elim term
+      | lt-func f choosing => func f (\lam i => upgrade-metavariables-t (\lam i => LinearMetasignatureT (choosing i)) (convert-to-term (choosing i)))
+      | lt-metavar params choosing => metavar (inl idp) (\lam i => upgrade-metavariables-mt s params (\lam i => LinearMetasignatureT (choosing i)) (convert-to-term (choosing i)))
+      | lt-var index p => var index p
+      | lt-full-metavar => metavar idp (\lam i => var i idp)
+  }
+
+\func LinearMetasignatureT {env : Environment} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : MetaSignature Sort \elim term
+  | lt-func f choosing => ModularMetaSignature (\lam i => LinearMetasignatureT (choosing i))
+  | lt-metavar params choosing => PointedModularMetaSignature s params (\lam i => LinearMetasignatureT (choosing i))
+  | lt-var index p => EmptyMetasignature
+  | lt-full-metavar => SingularMetaSignature s context
 
 \data LinearPattern (env : Environment)
                     (context : List Sort)

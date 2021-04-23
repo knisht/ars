@@ -1,5 +1,5 @@
 \import ARS
-\import Data.List (++, ++-assoc, ++_nil, ::, List, length, map, nil)
+\import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, map, nil)
 \import Data.Or
 \import Equiv
 \import Equiv.Univalence

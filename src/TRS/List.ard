@@ -12,10 +12,6 @@
   | nil => idp
   | :: a L => pmap suc map-fixes-length
 
-\func \infix 7 !! {A : \Type} (v : List A) (index : Fin (length v)) : A \elim v, index
-  | :: a v, suc index => v !! index
-  | :: a v, zero => a
-
 -- | `l` is a sublist of `r`
 \data SubList {A : \Type} (l r : List A) \elim l, r
   | nil, _ => sublist-trivial
