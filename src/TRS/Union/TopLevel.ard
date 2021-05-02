@@ -192,11 +192,28 @@
                               {context : List Sort'} {s : Sort'} (sublist : SubList global-context context) (t : Term (colored-env color) context s ms-a)
   : MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist subst-c = MetaSubstitution.apply {env} (inject-monochrome-term color (MetaSubstitution.apply {colored-env color} t sublist subst-a)) sublist-trivial subst-b \elim color, t
   | red, var index p => idp
-  | red, metavar m choosing => {?}
-  | red, func f choosing => {?}
-  | blue, var index p => {?}
+  | red, metavar m choosing =>
+    \let |  inner i : MetaSubstitution.apply {env} (inject-monochrome-term red (choosing i)) sublist subst-c = MetaSubstitution.apply {env} (inject-monochrome-term red (MetaSubstitution.apply {colored-env red} (choosing i) sublist subst-a)) sublist-trivial subst-b => colored-metacomposition red subst-a subst-b subst-c eq sublist (choosing i)
+         | inner-ext : (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term red (choosing i)) sublist subst-c) = (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term red (MetaSubstitution.apply {colored-env red} (choosing i) sublist subst-a)) sublist-trivial subst-b) => ext inner
+    \in rewrite (eq m) (inv (rewrite inner-ext (commutation sublist subst-b (\lam i => MetaSubstitution.apply {envL} (choosing i) sublist subst-a) (subst-a m))))
+  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => (colored-metacomposition red subst-a subst-b subst-c eq (SubList.extend-right-single-left sublist) (choosing index)) *> {?}))
+  | blue, var index p => idp
   | blue, metavar m choosing => {?}
   | blue, func f choosing => {?}
+  \where {
+    \func commutation {tc : TheoremContext} {global-context inner-context context : List Sort'} {s : Sort'} {ms-a ms-b : MetaSignature Sort'}
+                      (sublist : SubList global-context context)
+                      (metasubst : MetaSubstitution env nil ms-a ms-b)
+                      (subst : Substitution {envL} inner-context context ms-a)
+                      (T : Term envL (inner-context ++ global-context) s ms-a)
+      : MetaSubstitution.apply {env} (Injections.inject-term-left envL envR (Substitution.apply {envL} T (extend-substitution-right {envL} sublist subst))) sublist-trivial metasubst =
+    Substitution.apply {env} (MetaSubstitution.apply {env} (Injections.inject-term-left envL envR T) (sublist-trivial) metasubst) (extend-substitution-right {env} sublist (\lam i => MetaSubstitution.apply {env} (Injections.inject-term-left envL envR (subst i)) sublist-trivial metasubst)) \elim T
+      | var index p => \case \elim s, \elim p \with {
+        | s, idp => {?}
+      }
+      | metavar m choosing => {?}
+      | func f choosing => {?}
+  }
 
 \func metacomposition {env : Environment} {global-context : List Sort} {ms-a ms-b ms-c : MetaSignature Sort}
                       (subst-a : MetaSubstitution env global-context ms-a ms-b)
