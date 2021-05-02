@@ -1,4 +1,4 @@
-\import Data.List (++, ++_nil, List, nil)
+\import Data.List (++, ++-assoc, ++_nil, List, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -129,7 +129,7 @@
              (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} pattern)) sublist-trivial) SubList.identity unlarge-metasubst
            = MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing))) sublist-trivial subst
          => {?} *> l[inner-ms]=injt -- a bit technical
-         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution color sublist-trivial pattern (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) unlarge-metasubst subst modified-eq
+         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution color sublist-trivial SubList.identity idp pattern (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) unlarge-metasubst subst modified-eq
          | monochrome-r => transport (Term (colored-env color) nil s) (inv linear-ms-eq) (uninject-term color rule.r)
          | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} monochrome-r sublist-trivial) SubList.identity middle-subst
          | coh => coherent-application {env} (inv linear-ms-eq) large-metasubst rule.r
@@ -244,34 +244,49 @@
   }
 
 \func decompose-metasubstitution
-  {tc : TheoremContext} {pattern-context context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
+  {tc : TheoremContext} {pattern-context context core-context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
   (color : Color)
   (sublist : SubList pattern-context context)
+  (sublist-core : SubList core-context context)
+  (context-eqs : pattern-context ++ core-context = context)
   (l : LinearPattern (colored-env color) pattern-context s)
   (t : Term (colored-env color) context s inner-meta-signature)
-  (big-substitution : MetaSubstitution env context (LinearMetasignature {colored-env color} l) meta-signature)
+  (big-substitution : MetaSubstitution env core-context (LinearMetasignature {colored-env color} l) meta-signature)
   (middle-substitution : MetaSubstitution env nil inner-meta-signature meta-signature)
   (eq :
   MetaSubstitution.apply {env}
       (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} l)) sublist)
-      SubList.identity big-substitution =
+      sublist-core big-substitution =
   MetaSubstitution.apply {env}
       (inject-monochrome-term color t)
       sublist-trivial
       middle-substitution)
-  : \Sigma (inner-substitution : MetaSubstitution (colored-env color) context (LinearMetasignature {colored-env color} l) inner-meta-signature)
+  : \Sigma (inner-substitution : MetaSubstitution (colored-env color) core-context (LinearMetasignature {colored-env color} l) inner-meta-signature)
            (\Pi {s : Sort'} (m : metaname {LinearMetasignature {colored-env color} l} s) ->
                big-substitution m = MetaSubstitution.apply {env} (inject-monochrome-term color (inner-substitution m)) sublist-trivial middle-substitution)
-           (MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} l) sublist) SubList.identity inner-substitution = t) \elim color, l, t, eq
-  | red, lp-func f choosing, metavar m choosing1, eq => {?} -- same argument as above
-  | red, lp-func f choosing, func f1 choosing1, eq => {?}
-  | red, lp-metavar, var index p, eq => {?} -- somehow show that everything is a var
-  | red, lp-metavar, metavar m choosing, eq => {?}
-  | red, lp-metavar, func f choosing, eq => {?}
+           (MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} l) sublist) sublist-core inner-substitution = t) \elim color, l, t, eq
+  | red, lp-func f choosing, metavar m choosing1, eq => {?} -- impossible by some outer lemma
+  | red, lp-func f choosing, func f1 choosing1, eq =>
+    \let | f-eq : f = f1 => {?}
+    \in \case \elim f, \elim f-eq, \elim choosing, \elim big-substitution, \elim eq \with {
+      | f, idp, choosing, big-substitution, eq =>
+        \let | args-eq : (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (LinearPattern.upgrade-metavariables-p {envL}
+            (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
+            (SubList.extend-left sublist)) (SubList.extend-right-single-left sublist-core) big-substitution) = (\lam i => MetaSubstitution.apply {env}
+            (Injections.inject-term-left envL envR (choosing1 i)) (SubList.extend-right-single-left sublist-trivial)
+            middle-substitution) => {?}
+             | inductive i => decompose-metasubstitution red
+                 (SubList.extend-left sublist)
+                 (SubList.extend-right-single-left sublist-core)
+                 (rewrite ++-assoc (pmap ((domain f1 Data.List.!! i).1 ++ __) context-eqs))
+                 (choosing i)
+                 (choosing1 i)
+                 (\lam m => big-substitution (i, m)) middle-substitution ({?} *> (pmap (__ i) args-eq) *> {?})
+        \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2, \lam {s1} m => (inductive m.1).2 m.2, pmap (func {envL} f1) (ext (\lam index => {?}))) -- technical lemma about wrapping linear signature
+    }
+  | red, lp-metavar, t, eq => (\lam {s1} mvar => transport2 (\lam sort ctx => Term envL ctx sort inner-meta-signature) mvar (inv context-eqs) t, {?}, {?})
   -- symmetrical
   | blue, lp-func f choosing, metavar m choosing1, eq => {?}
   | blue, lp-func f choosing, func f1 choosing1, eq => {?}
-  | blue, lp-metavar, var index p, eq => {?}
-  | blue, lp-metavar, metavar m choosing, eq => {?}
-  | blue, lp-metavar, func f choosing, eq => {?}
+  | blue, lp-metavar, t, eq => {?}
 
