@@ -182,6 +182,14 @@
           | blue, blue, inr s1, blue-func-root, blue-func-root => idp
           | red, blue, inr b, (), hcl2
           | blue, red, inl a, (), hcl2
+
+        \func reorganize {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                         {f : env.FunctionalSymbol.symbol s}
+                         {choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature}
+                         (hcl : HasColoredRoot color (func f choosing))
+                         : color-of-root f = color \elim color, f, hcl
+          | red, inl s1, red-func-root => idp
+          | blue, inr s1, blue-func-root => idp
       }
 --      | _, metavar _ _ => uncolored-metavar-root
 
@@ -291,10 +299,10 @@
             inl idp,
             rewriteI famed=B (parallelization-f (\lam i => (inner-confluences i).1) (\lam i => ((inner-confluences i).2, (twist-colors (inner-confluences i).3 (choosing->med' i).2), (inner-confluences i).6)) (cr-skip idp)),
             rewriteI famed'=C (parallelization-f (\lam i => (inner-confluences i).1) (\lam i => ((inner-confluences i).4, (twist-colors' (inner-confluences i).5 (choosing->med i).2), (inner-confluences i).7)) (cr-skip idp)))
-    | nothing, just right-color, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-skip p), parallelization-f mediator' choosing=>med' (cr-rewrite med~>C gc2=right-color) =>
+    | nothing, just right-color, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-skip p), parallelization-f mediator' choosing=>med' (cr-rewrite med'~>C gc2=right-color) =>
       \let | joined-mediators i => bpr-confluence (choosing=>med i).1 (choosing=>med' i).1 (choosing=>med i).3 (choosing=>med' i).3 left-confluence right-confluence
            | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
-           | (rightmost-reduct, flr~>rr, C=>rr) => unify-top right-color gc1 f mediator' (\lam i => (joined-mediators i).1) C med~>C (\lam index => ((joined-mediators index).4, (twist-colors' (joined-mediators index).5 (choosing=>med index).2), (joined-mediators index).7))
+           | (rightmost-reduct, flr~>rr, C=>rr) => unify-top right-color gc1 f mediator' (\lam i => (joined-mediators i).1) C med'~>C (\lam index => ((joined-mediators index).4, (twist-colors' (joined-mediators index).5 (choosing=>med index).2), (joined-mediators index).7))
       \in (rightmost-reduct,
            just right-color,
            inr idp,
@@ -302,7 +310,17 @@
            inl idp,
            rewriteI p (parallelization-f (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (twist-colors (joined-mediators i).3 (choosing=>med' i).2), (joined-mediators i).6)) (cr-rewrite flr~>rr gc2=right-color)),
            C=>rr)
-    | just a, nothing, func f choosing, B, C, parallelization-f mediator _x (cr-rewrite t gc1=a), parallelization-f mediator1 _x1 (cr-skip p) => {?}
+    | just left-color, nothing, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' choosing=>med' (cr-skip p) =>
+      \let | joined-mediators i => bpr-confluence (choosing=>med i).1 (choosing=>med' i).1 (choosing=>med i).3 (choosing=>med' i).3 left-confluence right-confluence
+           | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+           | (leftmost-reduct, flr~>lr, B=>lr) => unify-top left-color gc2 f mediator (\lam i => (joined-mediators i).1) B med~>B (\lam index => ((joined-mediators index).2, (twist-colors (joined-mediators index).3 (choosing=>med' index).2), (joined-mediators index).6))
+      \in (leftmost-reduct,
+           nothing,
+           inr idp,
+           just left-color,
+           inl idp,
+           B=>lr,
+           rewriteI p (parallelization-f (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).4, (twist-colors' (joined-mediators i).5 (choosing=>med i).2), (joined-mediators i).7)) (cr-rewrite flr~>lr gc1=left-color)))
     | just left-color, just right-color, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' choosing=>med' (cr-rewrite med~>C gc2=right-color)
     => \let
         | hcl-f-left => TopLevelColoredReduction.extract-root-coloring med~>B
@@ -474,7 +492,11 @@
                      (modular-commutation {env} (\lam j => LinearMetasignatureT {env} (choosing j)) index (SubList.extend-right-single-left sublist-trivial) (LinearTerm.convert-to-term {env} (choosing index)) (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2))
                      (rewrite (invariant-through-empty-subst {env} ) (inductive-result index).2)))),
              \lam {s1} m => (inductive-result (m.1)).3 m.2)
-      | lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite t p) => {?}
+      | lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr p) =>
+        \let | inner-witnesses => (inject-linear-term.extract-from-witness gc f choosing witness).2
+             | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring tlcr)
+             | extracted => Color.flip-contradiction (inv (inner-witnesses) *> coloring-from-tlcr *> extract-from-or some-color-diff)
+        \in contradiction
       | lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
       | lt-metavar params choosing, someColor, rd => {?}
       | lt-full-metavar, someColor, rd =>
