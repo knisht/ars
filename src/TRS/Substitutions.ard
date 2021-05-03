@@ -1,4 +1,4 @@
-\import Data.List (!!, ++, ::, List, length, nil)
+\import Data.List (!!, ++, ++_nil, ::, List, length, nil)
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -66,3 +66,7 @@
       | :: x xs, :: y ys, sublist-match p sublist, suc j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
       | l, :: y ys, sublist-skip sublist, j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
   }
+
+\func apply-subst-with-extended-identity {env : Environment} {context : List Sort} {s : Sort} {msig : MetaSignature Sort}
+  (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transport (Term env __ s msig) (inv ++_nil) T) (extend-substitution-right sublist-trivial subst)
+  => {?}

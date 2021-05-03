@@ -24,3 +24,6 @@
   | suc n, suc a => a
 
 \func FinDec {n : Nat} (x y : Fin n) : Dec (x = y) => {?}
+
+\func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
+  | idp => idp
