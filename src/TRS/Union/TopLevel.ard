@@ -1,4 +1,4 @@
-\import Data.List (++, ++-assoc, ++_nil, List, nil)
+\import Data.List (++, ++-assoc, ++_nil, List, length, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -177,7 +177,39 @@
                             (l : LinearPattern (colored-env color) context s) : LinearPattern env context s => {?}
 
 \func inject-linear-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
-                         (l : LinearTerm (colored-env color) context s) : LinearTerm env context s => {?}
+                         (l : LinearTerm (colored-env color) context s) : LinearTerm env context s \elim color, l
+  | red, lt-func f choosing => lt-func (inl f) (\lam i => inject-linear-term red (choosing i))
+  | blue, lt-func f choosing => lt-func (inr f) (\lam i => inject-linear-term blue (choosing i))
+  | color, lt-metavar params choosing => lt-metavar params (\lam i => inject-linear-term color (choosing i))
+  | color, lt-full-metavar => lt-full-metavar {env}
+  | color, lt-var index p => lt-var index p
+  \where {
+    \data InjectionWitness {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (l : LinearTerm env context s) \elim l
+      | lt-func f choosing =>
+      lt-witness-f (color-of-root {tc} f = color)
+                   (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i))
+      | lt-metavar params choosing =>
+      lt-witness-m (\Pi (i : Fin (length params)) -> InjectionWitness {tc} color (choosing i))
+      | lt-var _ _ => lt-witness-v
+      | lt-full-metavar => lt-witness-fm
+
+    \func generate-injection-witness {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
+                                     (l : LinearTerm (colored-env color) context s) : InjectionWitness color (inject-linear-term color l) \elim color, l
+      | red, lt-func f choosing => lt-witness-f idp (\lam i => generate-injection-witness red (choosing i))
+      | blue, lt-func f choosing => lt-witness-f idp (\lam i => generate-injection-witness blue (choosing i))
+      | red, lt-metavar params choosing => lt-witness-m (\lam i => generate-injection-witness red (choosing i))
+      | blue, lt-metavar params choosing => lt-witness-m (\lam i => generate-injection-witness blue (choosing i))
+      | red, lt-full-metavar => lt-witness-fm
+      | blue, lt-full-metavar => lt-witness-fm
+      | red, lt-var index p => lt-witness-v
+      | blue, lt-var index p => lt-witness-v
+
+    \func extract-from-witness {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f : env.FunctionalSymbol.symbol s)
+                               (choosing :  \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> LinearTerm env (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                               (witness : InjectionWitness color (lt-func {env} f choosing))
+                               : \Sigma (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i)) (color-of-root f = color) \elim color, witness
+      | color, lt-witness-f p _x => (_x, p)
+  }
 
 \func uninject-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color : Color)
                     (t : Term env context s meta-signature)
