@@ -1,8 +1,12 @@
-\import Data.List (!!, ++, List, length, nil)
+\import Data.List (!!, ++, ::, List, length, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
+\import Paths
+\import Paths.Meta
 \import TRS.HRS
+\import TRS.List
+\import TRS.Substitutions
 
 \func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
   | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
@@ -106,3 +110,36 @@
     | metaname s' => s = s'
     | m-domain m => context
   }
+
+\func modular-commutation {env : Environment} {subcontext context : List Sort} {s : Sort} {msig : MetaSignature Sort}
+                          {n : Nat}
+                          (sigs : \Pi (i : Fin n) -> MetaSignature Sort)
+                          (i : Fin n)
+                          (sublist : SubList subcontext context)
+                          (term : Term env context s (sigs i))
+                          (rho : MetaSubstitution env subcontext (ModularMetaSignature sigs) msig)
+  : MetaSubstitution.apply term sublist (\lam m => rho (i, m)) = MetaSubstitution.apply (LinearTerm.upgrade-metavariables-t sigs term) sublist rho
+\elim term
+  | var index p => idp
+  | metavar m choosing => pmap (\lam f => Substitution.apply (rho (i, m)) (extend-substitution-right sublist f)) (ext (\lam index => modular-commutation sigs i sublist (choosing index) rho))
+  | func f choosing => pmap (func f) (ext (\lam index => modular-commutation sigs i (SubList.extend-right-single-left sublist) (choosing index) rho))
+
+\func invariant-through-empty-subst
+  {env : Environment} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+  (rho : MetaSubstitution env nil old-msig new-msig)
+  (sublist sublist' : SubList nil (context ++ context'))
+  (term : Term env (context ++ context') s old-msig)
+  : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho \elim term
+  | var index p => idp
+  | metavar m choosing => \let | inner-applications i => invariant-through-empty-subst rho sublist sublist' (choosing i)
+                               | inner-applications-ext : (\lam i => MetaSubstitution.apply (choosing i) sublist rho) = (\lam i => MetaSubstitution.apply (choosing i) sublist' rho) => ext inner-applications
+                          \in pmap (Substitution.apply (rho m)) (transport (\lam f => extend-substitution-right sublist (\lam i => MetaSubstitution.apply (choosing i) sublist rho) = extend-substitution-right sublist' f) inner-applications-ext (ext (extension-over-nil-sublist (\lam i => MetaSubstitution.apply (choosing i) sublist rho) sublist sublist')))
+  | func f choosing => pmap (func f) (ext (\lam index => invariant-through-empty-subst rho (SubList.extend-right-single-left sublist) (SubList.extend-right-single-left sublist') (choosing index)))
+
+\func extension-over-nil-sublist {env : Environment} {context context' : List Sort} {msig : MetaSignature Sort}
+                                 (subst : Substitution context context' msig)
+                                 (sublist sublist' : SubList nil context')
+                                 (i : Fin (length (context ++ nil)))
+                                 : extend-substitution-right sublist subst i = extend-substitution-right sublist' subst i \elim context, i
+  | :: a context, 0 => idp
+  | :: a context, suc i => extension-over-nil-sublist (\lam i => subst (suc i)) sublist sublist' i

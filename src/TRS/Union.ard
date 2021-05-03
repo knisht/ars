@@ -305,11 +305,11 @@
         | (common-reduct, lr~>cr, rr~>cr) => join-different-tlcrs left-color right-color flr~>lr flr~>rr left-confluence right-confluence
        \in (common-reduct,
             just gc2,
-            {?}, -- as all colors are equal
-            {?},
-            {?},
+            rewrite gc2=right-color (inr idp),
+            just gc1,
+            rewrite gc1=left-color (inl idp),
             gather-reduction gc2 (rewriteI (lcolor=rcolor *> inv gc2=right-color) B=>lr) (rewrite gc2=right-color lr~>cr),
-            {?})
+            gather-reduction gc1 (rewriteI (inv lcolor=rcolor *> inv gc1=left-color) C=>rr) (rewrite gc1=left-color rr~>cr))
     \where {
       \func join-different-tlcrs {tc : TheoremContext} (color1 color2 : Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  {A B C : Term env context s meta-signature}
                                  (A~>B : TopLevelColoredReduction color1 A B)
@@ -417,20 +417,42 @@
       | lt-func f choosing, nothing, parallelization-f mediator inner-reductions (cr-skip p) =>
         \let
           | inner-witnesses => inject-linear-term.extract-from-witness gc f choosing witness
-          | inductive-result i => alternate-subst gc (mediator i) (choosing i) (inner-witnesses.1 i) (\lam m => rho (i, m)) (inner-reductions i).1 (rewriteI inner-witnesses.2 (inner-reductions i).2) {?}
-        \in (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2, inv p *> {?}, \lam {s1} m => (inductive-result (m.1)).3 m.2)
+          | inductive-result i => alternate-subst gc
+              (mediator i) (choosing i)
+              (inner-witnesses.1 i)
+              (\lam m => rho (i, m))
+              (inner-reductions i).1 (rewriteI inner-witnesses.2 (inner-reductions i).2)
+              (rewrite (modular-commutation {env} (\lam j => LinearMetasignatureT {env} (choosing j)) i sublist-trivial (LinearTerm.convert-to-term {env} (choosing i)) rho)
+                  (rewrite (invariant-through-empty-subst {env} rho sublist-trivial (SubList.extend-right-single-left sublist-trivial) (LinearTerm.upgrade-metavariables-t {env}
+                      (\lam j => LinearMetasignatureT {env} (choosing j)) (LinearTerm.convert-to-term {env} (choosing i)))) (inner-reductions i).3))
+        \in (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2,
+             inv p *> (pmap (func {env} f)
+                 (ext (\lam index => rewriteI
+                     (modular-commutation {env} (\lam j => LinearMetasignatureT {env} (choosing j)) index (SubList.extend-right-single-left sublist-trivial) (LinearTerm.convert-to-term {env} (choosing index)) (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2))
+                     (rewrite (invariant-through-empty-subst {env} ) (inductive-result index).2)))),
+             \lam {s1} m => (inductive-result (m.1)).3 m.2)
       | lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite t p) => \let x => Color.flip-contradiction (p *> extract-from-or some-color-diff) \in contradiction
       | lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
       | lt-metavar params choosing, someColor, rd => {?}
       | lt-full-metavar, someColor, rd =>
         (\lam {s1} mvar => transport2 (\lam ctx srt => Term env ctx srt meta-signature) (inv ++_nil) (inv mvar) C,
          rewrite (transport2-to-transport) (inv (plain-identity-effect {env} C) *> (apply-subst-with-extended-identity {env} C (\lam i => var i idp))),
-         {?})
+         \lam {s1} m => (someColor, unify-reduction rho C rd m))
       | lt-var index p, someColor, equal-trees p1 => (\lam {s1} mvar => contradiction, inv p1, \lam {s1} m => contradiction)
     \where {
       \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
         | inl a1 => contradiction
         | inr b1 => Maybe.unjust-eq b1
+
+      \func unify-reduction {tc : TheoremContext} {gc : Color} {someColor : Maybe Color} {context : List Sort'} {s s' : Sort'} {meta-signature : MetaSignature Sort'}
+                            (rho :  MetaSubstitution env nil (SingularMetaSignature {env} s context) meta-signature)
+                            (C : Term env context s meta-signature)
+                            (bpr : BorderedParallelReduction gc someColor (Substitution.apply {env}
+                                (rho idp) (extend-substitution-right {env} sublist-trivial (\lam i => var i idp))) C)
+                            (m : s' = s)
+        : BorderedParallelReduction gc someColor (rho m)
+          (transport2 (\lam (ctx : List Sort') (srt : Sort') => Term env ctx srt meta-signature) (inv ++_nil) (inv m) C) \elim m
+        | idp => rewrite transport2-to-transport {?}
 
       \func pattern-can't-be-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                                  (T : Term env nil s meta-signature)
