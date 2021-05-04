@@ -1,4 +1,5 @@
 \import Data.List (length)
+\import Data.Or
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -27,3 +28,12 @@
 
 \func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
   | idp => idp
+
+\func flip-or {A B : \Type} (x : Or A B) : Or B A \elim x
+  | inl a => inr a
+  | inr b => inl b
+
+\data TripleOr (A B C : \Type)
+  | in1 A
+  | in2 B
+  | in3 C

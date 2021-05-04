@@ -17,10 +17,10 @@
 \func join-tlcrs {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                  (color : Color)
                  (A B C : Term env context s meta-signature)
-                 (A~>B : TopLevelColoredReduction color A B)
-                 (A~>C : TopLevelColoredReduction color A C)
+                 (A~>B : TClosure (TopLevelColoredReduction color) A B)
+                 (A~>C : TClosure (TopLevelColoredReduction color) A C)
                  (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
-  : \Sigma (X : Term env context s meta-signature) (TopLevelColoredReduction color B X) (TopLevelColoredReduction color C X) =>
+  : \Sigma (X : Term env context s meta-signature) (TClosure (TopLevelColoredReduction color) B X) (TClosure (TopLevelColoredReduction color) C X) =>
   \let | (a, subst, eq-a, _) => decompose-term color A
        | inner-ms => LinearMetasignatureT {colored-env color} a
        | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {meta-signature} color (a) B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
