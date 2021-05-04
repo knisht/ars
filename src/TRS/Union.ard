@@ -289,7 +289,7 @@
                        (right-confluence : ConfluentialSystem envR R-rules)
     : \Sigma (D : Term env context s meta-signature)
              (color3 : Maybe Color)
-             ((color3 = nothing) `Or` (color3 = color2) )
+             ((color3 = nothing) `Or` (color3 = color2))
              (color4 : Maybe Color)
              ((color4 = color1) `Or` (color4 = nothing))
              (BorderedParallelReduction gc2 color3 B D)
@@ -309,21 +309,21 @@
     | nothing, just right-color, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-skip p), parallelization-f mediator' choosing=>med' (cr-rewrite med'~>C gc2=right-color) =>
       \let | joined-mediators i => bpr-confluence (choosing=>med i).1 (choosing=>med' i).1 (choosing=>med i).3 (choosing=>med' i).3 left-confluence right-confluence
            | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
-           | (rightmost-reduct, flr~>rr, C=>rr) => unify-top right-color gc1 f mediator' (\lam i => (joined-mediators i).1) C med'~>C (\lam index => ((joined-mediators index).4, (twist-colors' (joined-mediators index).5 (choosing=>med index).2), (joined-mediators index).7))
+           | (rightmost-reduct, flr~>rr, mcl, C=>rr) => unify-top right-color gc1 f mediator' (\lam i => (joined-mediators i).1) C med'~>C (\lam index => ((joined-mediators index).4, (twist-colors' (joined-mediators index).5 (choosing=>med index).2), (joined-mediators index).7))
       \in (rightmost-reduct,
            just right-color,
            inr idp,
-           nothing,
-           inl idp,
+           mcl,
+           {?},
            rewriteI p (parallelization-f (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (twist-colors (joined-mediators i).3 (choosing=>med' i).2), (joined-mediators i).6)) (cr-rewrite flr~>rr gc2=right-color)),
            C=>rr)
     | just left-color, nothing, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' choosing=>med' (cr-skip p) =>
       \let | joined-mediators i => bpr-confluence (choosing=>med i).1 (choosing=>med' i).1 (choosing=>med i).3 (choosing=>med' i).3 left-confluence right-confluence
            | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
-           | (leftmost-reduct, flr~>lr, B=>lr) => unify-top left-color gc2 f mediator (\lam i => (joined-mediators i).1) B med~>B (\lam index => ((joined-mediators index).2, (twist-colors (joined-mediators index).3 (choosing=>med' index).2), (joined-mediators index).6))
+           | (leftmost-reduct, flr~>lr, mcl, B=>lr) => unify-top left-color gc2 f mediator (\lam i => (joined-mediators i).1) B med~>B (\lam index => ((joined-mediators index).2, (twist-colors (joined-mediators index).3 (choosing=>med' index).2), (joined-mediators index).6))
       \in (leftmost-reduct,
-           nothing,
-           inr idp,
+           mcl,
+           {?},
            just left-color,
            inl idp,
            B=>lr,
@@ -404,7 +404,7 @@
              (BorderedParallelReduction color' mcolor B X) =>
     \let
       | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f choosing-A)
-      | (u, lu[rho]=B, t~>*u) => iterate-decomposition (LinearTerm.convert-to-term {colored-env color} t) rho B (rewrite t[rho]=A A~>B)
+      | (u, lu[rho]=B, t~>*u) => iterate-decomposition (LinearTerm.convert-to-term {colored-env color} t) rho B t[rho]=A A~>B
       | eqs : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) => linear-metasignature-equator
       | eqs2 : (LinearTerm.convert-to-term {env} (inject-linear-term color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))) => equate-transported-terms color t -- technical
       | injected-u : Term env context s (LinearMetasignatureT {env} (inject-linear-term color t)) => rewriteI eqs (inject-monochrome-term color u)
@@ -429,17 +429,19 @@
         {color : Color}
         (t : Term (colored-env {tc} color) context s inner-msig)
         (rho : MetaSubstitution env nil inner-msig meta-signature)
+        {A : Term env context s meta-signature}
         (B : Term env context s meta-signature)
-        (A~>*B : TClosure (TopLevelColoredReduction color) (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial rho) B)
+        (teq : (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial rho) = A)
+        (A~>*B : TClosure (TopLevelColoredReduction color) A B)
         : \Sigma (u : Term (colored-env {tc} color) context s inner-msig)
                  (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial rho = B)
                  (TClosure (monochrome-reduction color) (t) u) \elim A~>*B
         | tc-basic A~>B =>
-          \let | (u, lu[rho]=B, t~>u) => decompose-along-reduction color t B rho (A~>B)
+          \let | (u, lu[rho]=B, t~>u) => decompose-along-reduction color t B rho (rewrite teq A~>B)
           \in (u, lu[rho]=B, tc-basic t~>u)
         | tc-connect C A->C C~>*B =>
-          \let | (c, meq, rd) => decompose-along-reduction color t C rho A->C -- induction on length of closure
-          | (u, mu, tcl) => iterate-decomposition c rho B (rewrite meq C~>*B) \in (u, mu, tc-connect c rd tcl)
+          \let | (c, meq, rd) => decompose-along-reduction color t C rho (rewrite teq A->C) -- induction on length of closure
+          | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) \in (u, mu, tc-connect c rd tcl)
 
       \func linear-metasignature-equator {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {t : LinearTerm (colored-env color) context s} : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) \elim color, t
         | red, lt-func f choosing => \let ext-lemma : (\lam i => LinearMetasignatureT {envL} (choosing i)) = (\lam i => LinearMetasignatureT {env} (inject-linear-term red (choosing i))) => ext (\lam i => linear-metasignature-equator) \in rewrite ext-lemma idp
