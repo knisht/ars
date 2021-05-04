@@ -59,7 +59,7 @@
   \Sigma (t : LinearTerm (colored-env {tc} color) context s)
          (subst : MetaSubstitution env nil (LinearMetasignatureT {colored-env color} t) meta-signature)
          (MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t)) sublist-trivial subst = A)
-         (\Pi {s : Sort'} (m : metaname {LinearMetasignatureT {colored-env color} t} s) -> ColoringPredicate (Color.flip color) {colored-env color} m (subst m)) \elim color, A
+         (\Pi {s : Sort'} (m : metaname {LinearMetasignatureT {colored-env color} t} s) -> HasColoredRoot (Color.flip color) (subst m)) \elim color, A
   | color, var index p => (lt-var index p, \lam {s1} mvar => contradiction, \case \elim color \with {
     | red => idp
     | blue => idp
@@ -87,10 +87,10 @@
     \in (lt-func f (\lam i => (inner-results i).1),
          unified-substitution,
          {?},
-         \lam {s1} m => c-in-func ((inner-results m.1).4 m.2))
+         \lam {s1} m => ((inner-results m.1).4 m.2))
   | red, func (inr f) choosing => (lt-full-metavar {colored-env red}, \lam {s1} mvar => rewrite ++_nil (\case \elim s1, \elim mvar \with {
     | s1, idp => (func {env} (inr f) choosing)
-  }), {?}, \lam {s1} m => result-term-has-other-color {?})
+  }), {?}, \lam {s1} m => {?})
   | blue, func (inl f) choosing => {?}
   | blue, func (inr b) choosing => {?}
 
@@ -103,38 +103,38 @@
   | red => conf a b c a~>b a~>c
   | blue => conf a b c a~>b a~>c
 
-\func decompose-along-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func decompose-along-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
                                 (color : Color)
-                                (t : LinearTerm (colored-env {tc} color) context s)
+                                (t : Term (colored-env {tc} color) context s inner-meta-signature)
                                 (B : Term env context s meta-signature)
-                                (subst : MetaSubstitution env nil (LinearMetasignatureT {colored-env color} t) meta-signature)
-                                (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t)) sublist-trivial subst) B)
-  : \Sigma (u : Term (colored-env color) context s (LinearMetasignatureT {colored-env color} t))
+                                (subst : MetaSubstitution env nil (inner-meta-signature) meta-signature)
+                                (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst) B)
+  : \Sigma (u : Term (colored-env color) context s (inner-meta-signature))
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst = B)
-           (monochrome-reduction color (LinearTerm.convert-to-term {colored-env color} t) u)
-\elim color, t, B, A~>B
-  | red, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
-  | blue, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
-  | red, lt-var index p, B, rewrite-with-rule-colored h step => {?} -- top level symbol must be func
-  | blue, lt-var index p, B, rewrite-with-rule-colored h step => {?} -- same as above
-  | red, lt-metavar params choosing, B, A~>B => {?} -- show that substitute is a param, then go down
-  | blue, lt-metavar params choosing, B, A~>B => {?}
-  | red, lt-full-metavar, B, A~>B => {?} -- deep diving in colors
-  | blue, lt-full-metavar, B, A~>B => {?}
-  | color, lt-func f choosing, B, rewrite-with-rule-colored h (((rule : LinearRewriteRule),large-metasubst,l[inner-ms]=injt,r[inner-ms]=B)) =>
-    \let | pattern => uninject-linear-pattern color rule.linear-pattern
-         | linear-ms-eq : LinearMetasignature {colored-env color} pattern = LinearMetasignature {env} (rule.linear-pattern) => {?} -- univalencee
-         | unlarge-metasubst => transport (\lam (x : MetaSignature (Sort {env})) => MetaSubstitution env context x meta-signature) (inv linear-ms-eq) large-metasubst
-         | modified-eq : MetaSubstitution.apply {env}
-             (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} pattern)) sublist-trivial) SubList.identity unlarge-metasubst
-           = MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing))) sublist-trivial subst
-         => {?} *> l[inner-ms]=injt -- a bit technical
-         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution color sublist-trivial SubList.identity idp pattern (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) unlarge-metasubst subst modified-eq
-         | monochrome-r => transport (Term (colored-env color) nil s) (inv linear-ms-eq) (uninject-term color rule.r)
-         | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} monochrome-r sublist-trivial) SubList.identity middle-subst
-         | coh => coherent-application {env} (inv linear-ms-eq) large-metasubst rule.r
-         | colored-coherence => colored-metacomposition color middle-subst subst unlarge-metasubst substitution-equality SubList.identity (weakening {colored-env color} monochrome-r sublist-trivial)
-    \in (term-u, (inv colored-coherence) *> (pmap (MetaSubstitution.apply {env} __ SubList.identity unlarge-metasubst) {?}) *> (inv coh) *> r[inner-ms]=B, produce-monochrome-reduction color pattern monochrome-r middle-subst (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) term-u l-eq idp)
+           (monochrome-reduction color t u) => {?}
+--\elim color, t, B, A~>B
+--  | red, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
+--  | blue, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
+--  | red, lt-var index p, B, rewrite-with-rule-colored h step => {?} -- top level symbol must be func
+--  | blue, lt-var index p, B, rewrite-with-rule-colored h step => {?} -- same as above
+--  | red, lt-metavar params choosing, B, A~>B => {?} -- show that substitute is a param, then go down
+--  | blue, lt-metavar params choosing, B, A~>B => {?}
+--  | red, lt-full-metavar, B, A~>B => {?} -- deep diving in colors
+--  | blue, lt-full-metavar, B, A~>B => {?}
+--  | color, lt-func f choosing, B, rewrite-with-rule-colored h (((rule : LinearRewriteRule),large-metasubst,l[inner-ms]=injt,r[inner-ms]=B)) =>
+--    \let | pattern => uninject-linear-pattern color rule.linear-pattern
+--         | linear-ms-eq : LinearMetasignature {colored-env color} pattern = LinearMetasignature {env} (rule.linear-pattern) => {?} -- univalencee
+--         | unlarge-metasubst => transport (\lam (x : MetaSignature (Sort {env})) => MetaSubstitution env context x meta-signature) (inv linear-ms-eq) large-metasubst
+--         | modified-eq : MetaSubstitution.apply {env}
+--             (weakening {env} (inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} pattern)) sublist-trivial) SubList.identity unlarge-metasubst
+--           = MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing))) sublist-trivial subst
+--         => {?} *> l[inner-ms]=injt -- a bit technical
+--         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution color sublist-trivial SubList.identity idp pattern (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) unlarge-metasubst subst modified-eq
+--         | monochrome-r => transport (Term (colored-env color) nil s) (inv linear-ms-eq) (uninject-term color rule.r)
+--         | term-u => MetaSubstitution.apply {colored-env color} (weakening {colored-env color} monochrome-r sublist-trivial) SubList.identity middle-subst
+--         | coh => coherent-application {env} (inv linear-ms-eq) large-metasubst rule.r
+--         | colored-coherence => colored-metacomposition color middle-subst subst unlarge-metasubst substitution-equality SubList.identity (weakening {colored-env color} monochrome-r sublist-trivial)
+--    \in (term-u, (inv colored-coherence) *> (pmap (MetaSubstitution.apply {env} __ SubList.identity unlarge-metasubst) {?}) *> (inv coh) *> r[inner-ms]=B, produce-monochrome-reduction color pattern monochrome-r middle-subst (LinearTerm.convert-to-term {colored-env color} (lt-func f choosing)) term-u l-eq idp)
 
 \func coherent-application {env : Environment} {context  : List Sort} {inner-meta-signature meta-signature inner-meta-signature' : MetaSignature Sort}
                            (metasig-eq : inner-meta-signature = inner-meta-signature')
