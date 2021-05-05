@@ -126,12 +126,6 @@
                                   (R-confluence : isConfluent R)
   : isConfluent (JointHRS {_} {envL} {envR} L R) => {?}
 
-\func TransitivelyClosedRewriteRelation  {env : Environment}
-                                         (set-of-rules : IndexedSet (RewriteRule env))
-                                         {s : env.Sort} {meta-signature : MetaSignature Sort}
-                                         {context : List Sort} (A B : Term env context s meta-signature) : \Prop =>
-  transitive-closure (RewriteRelation {env} set-of-rules {context} {s}) A B
-
 \module Confluence \where {
   \data Color | red | blue \where {
     \func flip (c : Color) : Color \elim c
@@ -151,21 +145,18 @@
     | Sort' : \Set
     | envL : Environment Sort'
     | envR : Environment Sort'
-    | L-rules : IndexedSet (RewriteRule envL)
-    | R-rules : IndexedSet (RewriteRule envR)
+    | L-rules : IndexedSet (LinearRewriteRule envL)
+    | R-rules : IndexedSet (LinearRewriteRule envR)
   } \where {
     \func colored-env {_ : TheoremContext} (color : Color) : Environment Sort' \elim color
       | red => envL
       | blue => envR
 
-    \func colored-set-of-rules {_ : TheoremContext} (color : Color) : IndexedSet (RewriteRule (colored-env color)) \elim color
+    \func colored-set-of-rules {_ : TheoremContext} (color : Color) : IndexedSet (LinearRewriteRule (colored-env color)) \elim color
       | red => L-rules
       | blue => R-rules
 
-    \func monochrome-reduction {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (A B : Term (colored-env {tc} color) context s meta-signature): \Prop
-    \elim color
-      | red => RewriteRelation {envL} L-rules A B
-      | blue => RewriteRelation {envR} R-rules A B
+    \func monochrome-reduction {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (A B : Term (colored-env {tc} color) context s meta-signature): \Type => RewriteRelation {colored-env color} (colored-set-of-rules color) A B
 
     \func inject-monochrome-term {_ : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                  (t : Term (colored-env color) context s meta-signature) : Term env context s meta-signature \elim color
@@ -594,6 +585,10 @@
         | :: a left-context, r, suc ind => {?}
         | :: a left-context, :: a1 right-context, zero => {?}
         \where {
+          \func outer-equality-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
+                                   (sublist : SubList right-context (left-context ++ right-context))
+                                   (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-right {_} {_} {_} {_} {meta-signature} sublist (wide-identity sublist') = plain-identity => ext (outer-equality-to-identity sublist sublist')
+
           \func outer-equality-to-identity {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
                                            (sublist : SubList right-context (left-context ++ right-context))
                                            (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context))) : extend-substitution-right sublist (wide-identity sublist') i = plain-identity {_} {_} {meta-signature} i =>

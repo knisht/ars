@@ -148,11 +148,11 @@
   : \Pi (index : Fin (length (meta-signature.m-domain m-A))) -> Term env context ((meta-signature.m-domain m-A) !! index) meta-signature =>
   transport (\lam (m : meta-signature.metaname s) => \Pi (index : Fin (length (meta-signature.m-domain m))) -> Term env context ((meta-signature.m-domain m) !! index) meta-signature) (inv p) choosing-B
 
-\truncated \data RewriteRelation {env : Environment}
+\data RewriteRelation {env : Environment}
                                  {meta-signature : MetaSignature Sort}
                                  (set-of-rules : IndexedSet (RewriteRule env))
                                  {context : List Sort} {s : env.Sort}
-                                 (A B : Term env context s meta-signature) : \Prop \elim A, B
+                                 (A B : Term env context s meta-signature) \elim A, B
   | A, B =>
   rewrite-with-rule (step : RewriteStep {env} A B) (step.rule IndexedSet.in set-of-rules)
 

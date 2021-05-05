@@ -1,4 +1,4 @@
-\import Data.List (++, ++-assoc, ++_nil, List, length, nil)
+\import Data.List (++, ++-assoc, ++_nil, ::, List, length, nil)
 \import Data.Or
 \import Function.Meta
 \import Logic
@@ -39,20 +39,10 @@
                     (t~>u : monochrome-reduction color t u)
   : TopLevelColoredReduction color
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst)
-    (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst) => {?}
-
-\data ColoringPredicate {tc : TheoremContext} {context context' : List Sort'} {s s'' : Sort'}
-                        (color : Color)
-                        {env' : Environment tc.Sort'}
-                        {term : LinearTerm env' context s}
-                        {meta-signature : MetaSignature Sort'}
-                        {s' : Sort'}
-                        (m : metaname {LinearMetasignatureT {env'} term} s')
-                        (result-term : Term env context' s'' meta-signature) \elim term, m
-  | lt-func f choosing, m => c-in-func (ColoringPredicate {tc} color {env'} m.2 result-term)
-  | lt-metavar params choosing, inl eq => result-term-is-meta (HasMetaRoot {env {tc}} result-term)
-  | lt-metavar params choosing, inr m => c-in-metavar (ColoringPredicate {tc} color {env'} m.2 result-term)
-  | lt-full-metavar, m => result-term-has-other-color (HasColoredRoot {tc} color result-term)
+    (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst) \elim t, u, t~>u
+  | t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?}
+  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p r => {?}
+  | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p r => {?}
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                      (color : Color)
@@ -188,7 +178,10 @@
   | blue, lp-func (inl a) choosing => {?}
 
 \func inject-linear-pattern {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
-                            (l : LinearPattern (colored-env color) context s) : LinearPattern env context s => {?}
+                            (l : LinearPattern (colored-env color) context s) : LinearPattern env context s \elim color, l
+  | red, lp-func f choosing => lp-func (inl f) (\lam i => inject-linear-pattern red (choosing i))
+  | color, lp-metavar => lp-metavar {env}
+  | blue, lp-func f choosing => lp-func (inr f) (\lam i => inject-linear-pattern blue (choosing i))
 
 \func inject-linear-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
                          (l : LinearTerm (colored-env color) context s) : LinearTerm env context s \elim color, l
@@ -317,9 +310,34 @@
                  (\lam m => big-substitution (i, m)) middle-substitution ({?} *> (pmap (__ i) args-eq) *> {?})
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2, \lam {s1} m => (inductive m.1).2 m.2, pmap (func {envL} f1) (ext (\lam index => {?}))) -- technical lemma about wrapping linear signature
     }
-  | red, lp-metavar, t, eq => (\lam {s1} mvar => transport2 (\lam sort ctx => Term envL ctx sort inner-meta-signature) mvar (inv context-eqs) t, {?}, {?})
+  | red, lp-metavar, t, eq =>
+    (\lam {s1} mvar => transport2 (\lam ctx sort => Term envL ctx sort inner-meta-signature) (inv context-eqs) mvar t,
+     \lam {s1} m => \case \elim s, \elim context, \elim context-eqs, \elim sublist, \elim sublist-core, \elim t, \elim big-substitution, \elim eq, \elim m \with {
+       | s, context, idp, sublist, sublist-core, t, big-substitution, eq, idp => run {
+         rewriteI (plain-identity-effect {env}),
+         rewriteI (weakening-extension-ext {env} sublist-core sublist),
+         eq
+       }
+     },
+     \case \elim context, \elim context-eqs, \elim sublist, \elim sublist-core, \elim t \with {
+       | context, idp, sublist, sublist-core, t => rewrite (weakening-extension-ext {colored-env red} sublist-core sublist) (plain-identity-effect {envL} _)
+     } )
   -- symmetrical
-  | blue, lp-func f choosing, metavar m choosing1, eq => {?}
-  | blue, lp-func f choosing, func f1 choosing1, eq => {?}
-  | blue, lp-metavar, t, eq => {?}
+  | blue, _, _, _ => {?}
+
+\func weakening-extension-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
+                          (sublist : SubList right-context (left-context ++ right-context))
+                          (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-right {_} {_} {_} {_} {meta-signature} sublist (\lam i => weakening (var i idp) sublist') = plain-identity =>
+  ext (weakening-extension sublist sublist')
+
+\func weakening-extension {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
+                          (sublist : SubList right-context (left-context ++ right-context))
+                          (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context)))
+  : extend-substitution-right sublist (\lam i => weakening (var i idp) sublist') i = plain-identity {_} {_} {meta-signature} i \elim left-context, i
+  | nil, i => {?} -- sublist is identity
+  | :: a left-context, 0 => \case \elim sublist' \with {
+    | sublist-match p sublist' => rewrite (Path.inProp p idp) idp
+    | sublist-skip sublist' => {?} -- maybe smth about exclusive sublists?
+  }
+  | :: a left-context, suc i => \let inductive => weakening-extension {_} {_} {_} {meta-signature} sublist sublist' i \in {?}
 

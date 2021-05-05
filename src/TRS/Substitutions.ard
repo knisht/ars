@@ -35,7 +35,7 @@
                 (t : Term env narrow-context s' meta-signature)
                 (sublist : SubList narrow-context wide-context)
   : Term env wide-context s' meta-signature \elim t
-  | var index p => \let (index', p') => recalculate-index sublist index p \in var index' p'
+  | var index p => to-var (recalculate-index sublist index p)
   | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
   | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-left sublist))
   \where {
@@ -56,7 +56,7 @@
                                 (j : Fin (length (left-context ++ right-context)))
   : Term env some-context ((left-context ++ right-context) !! j) meta-signature
 \elim left-context, j
-  | nil, j => \let (index, q) => produce-inner-term sublist j \in var index q
+  | nil, j => to-var (produce-inner-term sublist j)
   | :: a narrow-context, zero => chooser zero
   | :: a narrow-context, suc j => extend-substitution-right sublist (\lam i => chooser (suc i)) j
   \where {
@@ -66,6 +66,10 @@
       | :: x xs, :: y ys, sublist-match p sublist, suc j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
       | l, :: y ys, sublist-skip sublist, j => \let (ind, q) => produce-inner-term sublist j \in (suc ind, q)
   }
+
+\func to-var {env : Environment} {some-context : List Sort} {s : Sort} {msig : MetaSignature Sort} (sig : \Sigma (ind : Fin (length some-context)) (s = some-context !! ind))
+  : Term env some-context s msig => var sig.1 sig.2
+
 
 \func apply-subst-with-extended-identity {env : Environment} {context : List Sort} {s : Sort} {msig : MetaSignature Sort}
   (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transport (Term env __ s msig) (inv ++_nil) T) (extend-substitution-right sublist-trivial subst)
