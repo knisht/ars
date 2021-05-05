@@ -283,8 +283,8 @@
   \func ConfluentialSystem (env : Environment) (rules : IndexedSet (RewriteRule env)) : \Type =>
     \Pi {meta-signature : MetaSignature Sort} {context : List Sort} {s : Sort}
         (A B C : Term env context s meta-signature)
-        (RewriteRelation rules A B)
-        (RewriteRelation rules A C) -> StraightJoin B C ((RewriteRelation rules))
+        (TClosure (RewriteRelation rules) A B)
+        (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (RewriteRelation rules))
 
   \func bpr-confluence {tc : TheoremContext} {gc1 gc2 : Color} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  {A B C : Term env context s meta-signature}
                        (A~>B : BorderedParallelReduction gc1 color1 A B)
