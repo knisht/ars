@@ -1,5 +1,6 @@
 \import Data.List (++, ++-assoc, ++_nil, List, length, nil)
 \import Data.Or
+\import Function.Meta
 \import Logic
 \import Logic.Meta
 \import Meta
@@ -23,7 +24,7 @@
   : \Sigma (X : Term env context s meta-signature) (TClosure (TopLevelColoredReduction color) B X) (TClosure (TopLevelColoredReduction color) C X) =>
   \let | (a, subst, eq-a, _) => decompose-term color A
        | inner-ms => LinearMetasignatureT {colored-env color} a
-       | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {meta-signature} color (a) B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
+       | (b, eq-b, a~>b) => (decompose-along-reduction {_} {_} {_} {meta-signature} color (LinearTerm.convert-to-term {colored-env color} a) B subst (transport (TopLevelColoredReduction color __ B) (inv eq-a) A~>B))
        | (c, eq-c, a~>c) => (decompose-along-reduction {_} {_} {_} {meta-signature} color (a) C subst (transport (TopLevelColoredReduction color __ C) (inv eq-a) A~>C))
        | join-b-c : StraightJoin b c (monochrome-reduction color {_} {_} {inner-ms}) => join-monochrome-terms color {_} {_} {inner-ms} (LinearTerm.convert-to-term {colored-env color} a) b c a~>b a~>c monochrome-confluence
        | injected-reduct => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} join-b-c.common-reduct) sublist-trivial subst
@@ -86,11 +87,11 @@
          | unified-substitution : MetaSubstitution env nil unified-metasignature meta-signature => \lam m => (inner-results m.1).2 m.2
     \in (lt-func f (\lam i => (inner-results i).1),
          unified-substitution,
-         {?},
+         pmap (func {env} (inl f)) (ext (\lam index => ({?}) *> (inner-results index).3)),
          \lam {s1} m => ((inner-results m.1).4 m.2))
   | red, func (inr f) choosing => (lt-full-metavar {colored-env red}, \lam {s1} mvar => rewrite ++_nil (\case \elim s1, \elim mvar \with {
     | s1, idp => (func {env} (inr f) choosing)
-  }), {?}, \lam {s1} m => {?})
+  }), inv (apply-subst-with-extended-identity-inv {env} (func (inr f) choosing) (plain-identity {env})) *> (pmap (func {env} (inr f)) (ext (\lam index => {?}))), \lam {s1} m => {?})
   | blue, func (inl f) choosing => {?}
   | blue, func (inr b) choosing => {?}
 
@@ -108,11 +109,31 @@
                                 (t : Term (colored-env {tc} color) context s inner-meta-signature)
                                 (B : Term env context s meta-signature)
                                 (subst : MetaSubstitution env nil (inner-meta-signature) meta-signature)
+                                (root-colors : \Pi {s : Sort'} (m : inner-meta-signature.metaname s) -> HasColoredRoot (Color.flip color) (subst m))
                                 (A~>B : TopLevelColoredReduction color (MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist-trivial subst) B)
   : \Sigma (u : Term (colored-env color) context s (inner-meta-signature))
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst = B)
-           (monochrome-reduction color t u) => {?}
---\elim color, t, B, A~>B
+           (monochrome-reduction color t u) \elim color, t, B, A~>B
+  | red, func f choosing, func f' choosing', rewrite-with-parameter-f-colored p h step => {?}
+  | red, func f choosing, B, rewrite-with-rule-colored h step => {?}
+  | red, metavar m choosing, B, A~>B =>
+    \let
+      | other-root-color => root-colors m
+      | root-color => TopLevelColoredReduction.extract-root-coloring A~>B
+      | empty : Empty => eliminate-colors {tc} (blue) other-root-color root-color
+    \in contradiction
+  | red, var index p, B, A~>B => {?}
+  | blue, t, B, A~>B => {?}
+  \where {
+    \func eliminate-colors {tc : TheoremContext} (color : Color) {context context' : List Sort'} {s : Sort'} {msig : MetaSignature Sort'}
+      {T : Term env context s msig} {subst : Substitution {env} context context' msig} (hcr : HasColoredRoot color T) (hcr' : HasColoredRoot (Color.flip color) (Substitution.apply {env} T subst))
+      : Empty \elim color, T, hcr, hcr'
+      | red, func (inl s1) choosing, red-func-root, ()
+      | blue, var index p, (), hcr'
+      | blue, metavar m choosing, (), hcr'
+      | blue, func f choosing1, hcr, hcr' => \let | eq => (inv (HasColoredRoot.reorganize red hcr')) *> HasColoredRoot.reorganize blue hcr
+                                             \in contradiction
+  }
 --  | red, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
 --  | blue, lt-func f choosing, func f1 choosing1, rewrite-with-parameter-f-colored p h step => {?}
 --  | red, lt-var index p, B, rewrite-with-rule-colored h step => {?} -- top level symbol must be func
