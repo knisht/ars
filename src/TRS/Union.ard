@@ -556,7 +556,7 @@
              | extracted => Color.flip-contradiction (inv (inner-witnesses) *> coloring-from-tlcr *> extract-from-or some-color-diff)
         \in contradiction
       | lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
-      | lt-metavar params choosing, someColor, rd => {?}
+      | lt-metavar params choosing, someColor, rd => {?} -- impossible, use patterns
       | lt-full-metavar, someColor, rd =>
         (\lam {s1} mvar => transport2 (\lam ctx srt => Term env ctx srt meta-signature) (inv ++_nil) (inv mvar) C,
          rewrite (transport2-to-transport) (inv (plain-identity-effect {env} C) *> (apply-subst-with-extended-identity {env} C (\lam i => var i idp))),
@@ -766,7 +766,14 @@
                                {color : Color}
                                (subst : Substitution {env} context new-context meta-signature)
                                (A~>B : TopLevelColoredReduction color A B)
-    : TopLevelColoredReduction color (Substitution.apply {env} A subst) (Substitution.apply {env} B subst) => {?}
+    : TopLevelColoredReduction color (Substitution.apply {env} A subst) (Substitution.apply {env} B subst) \elim A, B, A~>B
+    | A, B, rewrite-with-rule-colored h ((rule, msubst, msubst[l]=A, msubst[r]=B)) => rewrite-with-rule-colored {?} (\new LinearRewriteStep {
+      | rule => rule
+      | substitution m => Substitution.apply {env} (msubst m) (append-context-left {env} subst)
+      | left-coherence => rewriteI msubst[l]=A {?}
+      | right-coherence => rewriteI msubst[r]=B {?}
+    })
+    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
 
   \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                                (A : Term env context s meta-signature)
