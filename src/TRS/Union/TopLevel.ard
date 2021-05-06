@@ -55,21 +55,7 @@
     | red => idp
     | blue => idp
   }, \lam {s1} m => contradiction)
-  | color, metavar m choosing =>
-    \let | inner-results i => decompose-term color (choosing i)
-         | signature-producer i => LinearMetasignatureT {colored-env color} (inner-results i).1
-         | unified-metasignature => PointedModularMetaSignature {colored-env color} s (m-domain m) signature-producer
-         | unified-substitution : MetaSubstitution env nil unified-metasignature meta-signature =>
-           \lam {s'} m => \case \elim m \with {
-             | inl s'=s => \case \elim s', \elim s'=s \with {
-               | s', idp => rewrite ++_nil (metavar m (\lam i => var i idp))
-             }
-             | inr m => (inner-results m.1).2 m.2
-           }
-    \in (lt-metavar (m-domain m) (\lam i => (inner-results i).1),
-         unified-substitution,
-         {?},
-         \lam {s1} m1 => {?}) -- provable, technical
+  | color, metavar m choosing => {?} -- impossible in current task
   | red, func (inl f) choosing =>
     \let | inner-results i => decompose-term red (choosing i)
          | signature-producer i => LinearMetasignatureT {colored-env red} (inner-results i).1
@@ -333,7 +319,6 @@
      \case \elim context, \elim context-eqs, \elim sublist, \elim sublist-core, \elim t \with {
        | context, idp, sublist, sublist-core, t => rewrite (weakening-extension-ext {colored-env red} sublist-core sublist) (plain-identity-effect {envL} _)
      } )
-  -- symmetrical
   | blue, _, _, _ => {?}
 
 \func weakening-extension-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
