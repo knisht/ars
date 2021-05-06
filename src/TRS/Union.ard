@@ -259,16 +259,17 @@
         {global-color : Color}
         {color : Maybe Color}
         {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
-        (f : env.FunctionalSymbol.symbol s)
-        (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-        (B : Term env context s meta-signature)
-        (bpr : BorderedParallelReduction global-color color (func f choosing-A) B)
+        (A B : Term env context s meta-signature)
+        (bpr : BorderedParallelReduction global-color color A B)
         (C : Term env context s meta-signature)
         (B~>*C : TClosure (TopLevelColoredReduction global-color) B C)
-        : \Sigma (someColor : Maybe Color) (BorderedParallelReduction global-color someColor (func f choosing-A) C) \elim color, bpr
-        | color, equal-trees p => (just global-color, parallelization-f (choosing-A) (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite (rewrite p B~>*C) idp))
-        | nothing, parallelization-f mediator _x (cr-skip p) => (just global-color, parallelization-f mediator _x (cr-rewrite (rewrite p B~>*C) idp))
-        | just a, parallelization-f mediator _x (cr-rewrite t p) => (just global-color, parallelization-f mediator _x (cr-rewrite (TClosure.compose (rewrite p t) B~>*C) idp))
+        : \Sigma (someColor : Maybe Color) (BorderedParallelReduction global-color someColor A C) \elim color, A, bpr
+        | color, A, equal-trees p => \let hcr => TopLevelColoredReduction.extract-root-coloring (TClosure.extract B~>*C).2 \in \case \elim A, \elim B, \elim global-color, \elim B~>*C, \elim hcr, \elim p \with {
+          | A, func (inl s1) choosing, red, B~>*C, red-func-root, idp => (just red, parallelization-f choosing (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite B~>*C idp))
+          | A, func (inr s1) choosing, blue, B~>*C, blue-func-root, idp => (just blue, parallelization-f choosing (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite B~>*C idp))
+        }
+        | nothing, func f choosing, parallelization-f mediator _x (cr-skip p) => (just global-color, parallelization-f mediator _x (cr-rewrite (rewrite p B~>*C) idp))
+        | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => (just global-color, parallelization-f mediator _x (cr-rewrite (TClosure.compose (rewrite p t) B~>*C) idp))
     }
 
   \data ColorwiseReduction {tc : TheoremContext}
@@ -316,25 +317,27 @@
            | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
            | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
            | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
-           | (rightmost-reduct, flr~>rr, mcl, C=>rr) => unify-top right-color gc1 f mediator' _ C med'~>C inrd-2
-           | (true-color-1, rd'') => (BorderedParallelReduction.append-tlcr f _ (func f mediator-1) (parallelization-f mediator-1 inrd-1 cwr-1) rightmost-reduct (rewrite gc2=right-color flr~>rr))
-      \in (rightmost-reduct,
-           true-color-1,
-           mcl,
-           rewriteI p rd'',
-           C=>rr)
+           | rd : BorderedParallelReduction gc2 color-1 (func f mediator) (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-1 inrd-1 cwr-1
+           | (rightmost-reduct, flr~>rr, mcl, C=>rr) => unify-top right-color gc1 f mediator' mediator-2 C med'~>C inrd-2
+           | (X, c1, B=>X, c2, C=>X) => unwrap-cwr (func f mediator) C (func f mediator-2) (first-level-reduct) (rightmost-reduct) cwr-2 (rewrite (gc2=right-color) flr~>rr) rd C=>rr left-confluence right-confluence
+      \in (X,
+           c1,
+           c2,
+           rewriteI p B=>X,
+           C=>X)
     | just left-color, nothing, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' choosing=>med' (cr-skip p) =>
       \let | joined-mediators i => bpr-confluence (choosing=>med i).1 (choosing=>med' i).1 (choosing=>med i).3 (choosing=>med' i).3 left-confluence right-confluence
            | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
            | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
            | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
-           | (leftmost-reduct, flr~>lr, mcl, B=>lr) => unify-top left-color gc2 f mediator _ B med~>B inrd-1
-           | (true-color-1, rd'') => (BorderedParallelReduction.append-tlcr f _ (func f mediator-1) (parallelization-f mediator-2 inrd-2 cwr-2) leftmost-reduct (rewrite gc1=left-color flr~>lr))
-      \in (leftmost-reduct,
-           mcl,
-           true-color-1,
-           B=>lr,
-           rewriteI p rd'')
+           | (leftmost-reduct, flr~>lr, mcl, B=>lr) => unify-top left-color gc2 f mediator mediator-1 B med~>B inrd-1
+           | rd : BorderedParallelReduction gc1 color-2 (func f mediator') (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-2 inrd-2 cwr-2
+           | (X, c1, C=>X, c2, B=>X) => unwrap-cwr (func f mediator') B (func f mediator-1) (first-level-reduct) (leftmost-reduct) cwr-1 (rewrite (gc1=left-color) flr~>lr) rd B=>lr left-confluence right-confluence
+      \in (X,
+           c2,
+           c1,
+           B=>X,
+           rewriteI p C=>X)
     | just left-color, just right-color, func f choosing, B, C, parallelization-f mediator choosing=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' choosing=>med' (cr-rewrite med~>C gc2=right-color)
     => \let
         | hcl-f-left : HasColoredRoot left-color (func f mediator) => TopLevelColoredReduction.extract-root-coloring (TClosure.extract med~>B).2
@@ -344,17 +347,65 @@
         | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
         | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
         | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
+        | rd : BorderedParallelReduction gc2 color-1 (func f mediator) (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-1 inrd-1 cwr-1
+        | rd' : BorderedParallelReduction gc1 color-2 (func f mediator') (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-2 inrd-2 cwr-2
         | (leftmost-reduct, flr~>lr, clr-b, B=>lr) => unify-top left-color left-color f mediator mediator-1 B med~>B (rewrite (lcolor=rcolor *> inv gc2=right-color) inrd-1)
         | (rightmost-reduct, flr~>rr, clr-c, C=>rr) => unify-top right-color right-color f mediator' mediator-2 C med~>C (rewrite (inv lcolor=rcolor *> inv gc1=left-color) inrd-2)
-        | (common-reduct, lr~>cr, rr~>cr) => join-different-tlcrs left-color right-color flr~>lr flr~>rr left-confluence right-confluence
-        | reorganized-colors-l => reorganize-colors-here B=>lr
-        | reorganized-colors-r => reorganize-colors-here C=>rr
-       \in (common-reduct,
-            just gc2,
-            just gc1,
-            gather-reduction gc2 (reorganized-colors-l.1) (rewrite (gc2=right-color *> inv lcolor=rcolor) reorganized-colors-l.2) (rewriteI (lcolor=rcolor *> inv gc2=right-color) (reorganized-colors-l.3)) (rewrite gc2=right-color lr~>cr),
-            gather-reduction gc1 (reorganized-colors-r.1) (rewrite (gc1=left-color *> lcolor=rcolor) reorganized-colors-r.2) (rewriteI (inv lcolor=rcolor *> inv gc1=left-color) (reorganized-colors-r.3)) (rewrite gc1=left-color rr~>cr))
+        | (X, c1, B=>X, c2, C=>X) => unwrap-double-cwr B C (func f mediator-1) (func f mediator-2) first-level-reduct leftmost-reduct rightmost-reduct (rewrite (inv gc2=right-color) cwr-1) (rewrite (inv lcolor=rcolor *> inv gc1=left-color) cwr-2) (rewriteI lcolor=rcolor flr~>lr) flr~>rr (rewriteI lcolor=rcolor B=>lr) C=>rr left-confluence right-confluence
+       \in (X, c1, c2, (rewrite gc2=right-color B=>X), rewrite (gc1=left-color *> lcolor=rcolor) C=>X)
     \where {
+      \func unwrap-cwr
+        {tc : TheoremContext} {gc1 gc2 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+        (T1 T2 A B C : Term env context s meta-signature) {color-2 : Maybe Color}
+        (cwr : ColorwiseReduction gc1 color-2 A B) (A~>*C : TClosure (TopLevelColoredReduction gc2) A C)
+        (T1=>B : BorderedParallelReduction gc2 color3 T1 B) (T2=>C : BorderedParallelReduction gc1 color4 T2 C)
+        (left-confluence : ConfluentialSystem envL L-rules)
+        (right-confluence : ConfluentialSystem envR R-rules)
+        :
+        \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction gc2 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, cwr
+        | nothing, cr-skip p => \let (cl-1, t1=>X) => BorderedParallelReduction.append-tlcr T1 B T1=>B C (rewriteI p A~>*C) \in (C, cl-1, t1=>X, color4, T2=>C)
+        | just color, cr-rewrite A~>*B p =>
+          \let | (X, B~>*X, C~>*X) => join-different-tlcrs color gc2 A~>*B A~>*C left-confluence right-confluence
+               | (cl-1, t1=>X) => BorderedParallelReduction.append-tlcr T1 B T1=>B X B~>*X
+               | (cl-2, t2=>X) => BorderedParallelReduction.append-tlcr T2 C T2=>C X (rewrite p C~>*X)
+          \in (X, cl-1, t1=>X, cl-2, t2=>X)
+
+      \func unwrap-double-cwr
+        {tc : TheoremContext} {gc1 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+        (T1 T2 A A' E B C : Term env context s meta-signature) {color-2 color-1 : Maybe Color}
+        (cwr-1 : ColorwiseReduction gc1 color-2 A E)
+        (cwr-2 : ColorwiseReduction gc1 color-1 A' E)
+        (A~>*B : TClosure (TopLevelColoredReduction gc1) A B)
+        (A'~>*C : TClosure (TopLevelColoredReduction gc1) A' C)
+        (T1=>B : BorderedParallelReduction gc1 color3 T1 B)
+        (T2=>C : BorderedParallelReduction gc1 color4 T2 C)
+        (left-confluence : ConfluentialSystem envL L-rules)
+        (right-confluence : ConfluentialSystem envR R-rules)
+        :
+        \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction gc1 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, color-1, cwr-1, cwr-2
+        | nothing, nothing, cr-skip p, cr-skip p1 =>
+          \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 A~>*B (rewrite {1} (p *> inv p1) A'~>*C) left-confluence right-confluence
+               | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
+               | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
+          \in (X, c1, T1=>X, c2, T2=>X)
+        | nothing, just color, cr-skip p, cr-rewrite A'~>*E p1 =>
+          \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 (TClosure.compose (transport (\lam cl => TClosure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) (rewrite {1} (inv p) A~>*B)) A'~>*C left-confluence right-confluence
+               | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
+               | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
+          \in (X, c1, T1=>X, c2, T2=>X)
+        | just color, nothing, cr-rewrite A~>*E p, cr-skip p1 =>
+          \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 A~>*B (TClosure.compose ((transport (\lam cl => TClosure (TopLevelColoredReduction cl) A E) (inv p) A~>*E)) (rewrite {1} (inv p1) A'~>*C)) left-confluence right-confluence
+               | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
+               | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
+          \in (X, c1, T1=>X, c2, T2=>X)
+        | just color, just color1, cr-rewrite A~>*E p, cr-rewrite A'~>*E p1 =>
+          \let | (M1, B~>*M1, E~>*M1) => join-different-tlcrs gc1 gc1 (A~>*B) (rewrite p A~>*E) left-confluence right-confluence
+               | (M2, E~>*M2, C~>*M2) => join-different-tlcrs gc1 gc1 (transport (\lam cl => TClosure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) A'~>*C left-confluence right-confluence
+               | (X, M1~>*X, M2~>*X) => join-different-tlcrs gc1 gc1 E~>*M1 E~>*M2 left-confluence right-confluence
+               | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X (TClosure.compose B~>*M1 M1~>*X)
+               | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X (TClosure.compose C~>*M2 M2~>*X)
+          \in (X, c1, T1=>X, c2, T2=>X)
+
       \func reorganize-colors-here {tc : TheoremContext} {gc : Color} {someColor : Maybe Color} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                    {A B : Term env context s meta-signature} (A~>B : BorderedParallelReduction gc someColor A B)
         : \Sigma (someColor' : Maybe Color) (Or (someColor' = nothing) (someColor' = just gc)) (BorderedParallelReduction gc someColor' A B) \elim someColor, A, A~>B
@@ -817,9 +868,7 @@
       (someColor : Maybe Color)
       ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
       (BorderedParallelReduction {tc} gc someColor (choosing-A i) (mediator i)))
-    (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) =>
-    {?}
-
+    (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) => ({?}, choosing-A, {?}, {?})
 
 
 
