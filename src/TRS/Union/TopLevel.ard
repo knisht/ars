@@ -113,7 +113,7 @@
              (weakening {env} (inject-monochrome-term red (LinearPattern.convert-to-term {envL} pattern)) sublist-trivial) SubList.identity unlarge-metasubst
            = MetaSubstitution.apply {env} (inject-monochrome-term red (func f choosing)) sublist-trivial subst
          => {?} *> l[bs]=injt -- a bit technical
-         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution red sublist-trivial SubList.identity idp pattern (func f choosing) unlarge-metasubst subst modified-eq
+         | (middle-subst, substitution-equality, l-eq) => decompose-metasubstitution red sublist-trivial SubList.identity idp pattern (func f choosing) unlarge-metasubst subst modified-eq root-colors
          | monochrome-r => transport (Term envL nil s) (inv linear-ms-eq) (uninject-term red rule.r)
          | term-u => MetaSubstitution.apply {envL} (weakening {envL} monochrome-r sublist-trivial) SubList.identity middle-subst
          | coh => coherent-application {env} (inv linear-ms-eq) big-subst rule.r
@@ -287,11 +287,21 @@
       (inject-monochrome-term color t)
       sublist-trivial
       middle-substitution)
+  (root-colors : \Pi {s : Sort'} (m : inner-meta-signature.metaname s) -> HasColoredRoot (Color.flip color) (middle-substitution m))
   : \Sigma (inner-substitution : MetaSubstitution (colored-env color) core-context (LinearMetasignature {colored-env color} l) inner-meta-signature)
            (\Pi {s : Sort'} (m : metaname {LinearMetasignature {colored-env color} l} s) ->
                big-substitution m = MetaSubstitution.apply {env} (inject-monochrome-term color (inner-substitution m)) sublist-trivial middle-substitution)
            (MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} l) sublist) sublist-core inner-substitution = t) \elim color, l, t, eq
-  | red, lp-func f choosing, metavar m choosing1, eq => {?} -- impossible by some outer lemma
+  | red, lp-func f choosing, metavar m choosing1, eq =>
+    \let | opposite-color-for-m => root-colors m
+         | colored-root-for-f : HasColoredRoot red (func (inl f)
+             (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left tc.envL tc.envR (LinearPattern.upgrade-metavariables-p {envL}
+                 (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
+                 (SubList.extend-left sublist)) (SubList.extend-right-single-left sublist-core) big-substitution)) => red-func-root
+         | colored-root-for-m : HasColoredRoot red (Substitution.apply {env} (middle-substitution m) (extend-substitution-right {env} sublist-trivial
+             (\lam i => MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR (choosing1 i)) sublist-trivial middle-substitution))) => rewriteI eq colored-root-for-f
+         | empty => decompose-along-reduction.eliminate-colors blue opposite-color-for-m colored-root-for-m
+    \in contradiction
   | red, lp-func f choosing, func f1 choosing1, eq =>
     \let | f-eq : f = f1 => {?}
     \in \case \elim f, \elim f-eq, \elim choosing, \elim big-substitution, \elim eq \with {
@@ -300,7 +310,7 @@
             (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
             (SubList.extend-left sublist)) (SubList.extend-right-single-left sublist-core) big-substitution) = (\lam i => MetaSubstitution.apply {env}
             (Injections.inject-term-left envL envR (choosing1 i)) (SubList.extend-right-single-left sublist-trivial)
-            middle-substitution) => {?}
+            middle-substitution) => ext (\lam i => {?})
              | inductive i => decompose-metasubstitution red
                  (SubList.extend-left sublist)
                  (SubList.extend-right-single-left sublist-core)
@@ -308,6 +318,7 @@
                  (choosing i)
                  (choosing1 i)
                  (\lam m => big-substitution (i, m)) middle-substitution ({?} *> (pmap (__ i) args-eq) *> {?})
+                 root-colors
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2, \lam {s1} m => (inductive m.1).2 m.2, pmap (func {envL} f1) (ext (\lam index => {?}))) -- technical lemma about wrapping linear signature
     }
   | red, lp-metavar, t, eq =>
