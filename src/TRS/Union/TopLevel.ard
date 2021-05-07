@@ -286,8 +286,35 @@
         | s, idp => idp
       }
       | metavar m choosing => pmap (metavar {env} m) (ext (\lam index => twist-application (choosing index) subst))
-      | func f choosing => pmap (func {env} (inl f)) (ext (\lam index => {?})) -- push append-context-left further
+      | func f choosing => pmap (func {env} (inl f)) (ext (\lam index => rewrite (push-append-context-left subst) (twist-application (choosing index) (append-context-left {envL} subst)))) -- push append-context-left further
+      \where {
+        \func push-append-context-left {tc : TheoremContext} {context context' additional-context : List Sort'} {ms : MetaSignature Sort'}
+                                       (subst : Substitution {envL} context context' ms)
+          : (append-context-left {env} {_} {_} {_} {additional-context} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i))) =
+        (\lam i => Injections.inject-term-left tc.envL tc.envR (append-context-left {envL} subst i)) =>
+          ext (push-append-context-left-ext subst)
+
+        \func push-append-context-left-ext {tc : TheoremContext} {context context' additional-context : List Sort'} {ms : MetaSignature Sort'}
+                                           (subst : Substitution {envL} context context' ms) (index : Fin (length (additional-context ++ context)))
+          : (append-context-left {env} {_} {_} {_} {additional-context} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i))) index =
+        (Injections.inject-term-left tc.envL tc.envR (append-context-left {envL} subst index)) \elim additional-context, index
+          | nil, index => idp
+          | :: a additional-context, 0 => idp
+          | :: a additional-context, suc index => rewrite (push-append-context-left-ext subst index) (injection-weakening-commutation red (sublist-skip SubList.identity) (append-context-left {envL} subst index))
+      }
   }
+
+  \func injection-weakening-commutation
+    {tc : TheoremContext} (color : Color) {context context' : List Sort'} {ms : MetaSignature Sort'} {s : Sort'}
+    (sublist : SubList context context')
+    (t : Term (colored-env color) context s ms)
+    : weakening {env} (inject-monochrome-term color t) sublist = inject-monochrome-term color (weakening {colored-env color} t sublist) \elim color, t
+    | red, var index p => idp
+    | red, metavar m choosing => pmap (metavar {env} m) (ext (\lam index => injection-weakening-commutation red sublist (choosing index)))
+    | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => injection-weakening-commutation red (SubList.extend-left sublist) (choosing index)))
+    | blue, var index p => idp
+    | blue, metavar m choosing => pmap (metavar {env} m) (ext (\lam index => injection-weakening-commutation blue sublist (choosing index)))
+    | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => injection-weakening-commutation blue (SubList.extend-left sublist) (choosing index)))
 
 \func decompose-metasubstitution
   {tc : TheoremContext} {pattern-context context core-context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
