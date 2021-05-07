@@ -480,7 +480,7 @@
       | witnesses => inject-linear-term.generate-injection-witness color t
       | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) (inject-linear-term {_} color t) witnesses modified-rho ({?}) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
       | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma))) (lift-relation color (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma)) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
-      | (mcl, uni-left) => unify-left color' color injected-u {?} sublist-trivial modified-rho sigma reds
+      | (mcl, uni-left) => unify-left color' color injected-u {?easy} sublist-trivial modified-rho sigma reds
     \in metasignature-unificator eqs color color' B (func f choosing-C)
         (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))
         (inject-monochrome-term color u)

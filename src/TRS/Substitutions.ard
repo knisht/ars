@@ -18,7 +18,7 @@
     | s, idp => idp
   }
   | metavar m choosing => pmap (metavar m) (ext (\lam index => plain-identity-effect (choosing index)))
-  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+  | func f choosing => pmap (func f) (ext (\lam index => rewrite append-context-left-to-identity.ext' (plain-identity-effect (choosing index))))
 
 \func append-context-left
   {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
@@ -48,6 +48,10 @@
     \func recalculate-index-over-identity {A : \Set} {a : List A} (ind : Fin (length a)) : recalculate-index SubList.identity ind idp = (ind, idp) \elim a, ind
       | :: a a1, zero => idp
       | :: a a1, suc ind => rewrite (recalculate-index-over-identity ind) idp
+
+    \func weakening-over-skip {A : \Set} {x : A} {a : List A} (ind : Fin (length a)) : recalculate-index (sublist-skip {_} {_} {x} SubList.identity) ind idp = (suc ind, idp) \elim a
+      | nil => contradiction
+      | :: a a1 => rewrite recalculate-index-over-identity idp
   }
 
 \func extend-substitution-right {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
@@ -70,11 +74,25 @@
 \func to-var {env : Environment} {some-context : List Sort} {s : Sort} {msig : MetaSignature Sort} (sig : \Sigma (ind : Fin (length some-context)) (s = some-context !! ind))
   : Term env some-context s msig => var sig.1 sig.2
 
-
 \func apply-subst-with-extended-identity {env : Environment} {context : List Sort} {s : Sort} {msig : MetaSignature Sort}
-  (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transport (Term env __ s msig) (inv ++_nil) T) (extend-substitution-right sublist-trivial subst)
-  => {?}
+                                         (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transport (Term env __ s msig) (inv ++_nil) T) (extend-substitution-right sublist-trivial subst) =>
+  {?}
 
-\func apply-subst-with-extended-identity-inv {env : Environment} {context : List Sort} {s : Sort} {msig : MetaSignature Sort}
-                                         (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transportInv (Term env __ s msig) (++_nil) T) (extend-substitution-right sublist-trivial subst)
-  => {?}
+\func apply-subst-with-extended-identity-inv {env : Environment} {context context' : List Sort} {s : Sort} {msig : MetaSignature Sort}
+                                             (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transportInv (Term env __ s msig) (++_nil) T) (extend-substitution-right sublist-trivial subst) =>
+ {?}
+
+\func append-context-left-to-identity
+  {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
+  {additional-context : List Sort} (i : Fin (length (additional-context ++ old-context)))
+  : append-context-left {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i = plain-identity i \elim additional-context, i
+  | nil, i => idp
+  | :: a additional-context, 0 => idp
+  | :: a additional-context, suc i =>
+    \let inductive => append-context-left-to-identity {env} {old-context} {meta-signature} {additional-context} i
+    \in transport (weakening __ (sublist-skip SubList.identity) = var (suc i) idp) (inv inductive) (pmap (to-var {env} {a :: additional-context ++ old-context} {_} {meta-signature}) (weakening.weakening-over-skip i))
+  \where {
+    \func ext' {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
+               {additional-context : List Sort} : (\lam (i : Fin (length (additional-context ++ old-context))) => append-context-left {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i) = plain-identity =>
+      ext append-context-left-to-identity
+  }

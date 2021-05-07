@@ -329,11 +329,5 @@
 \func weakening-extension {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
                           (sublist : SubList right-context (left-context ++ right-context))
                           (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context)))
-  : extend-substitution-right sublist (\lam i => weakening (var i idp) sublist') i = plain-identity {_} {_} {meta-signature} i \elim left-context, i
-  | nil, i => {?} -- sublist is identity
-  | :: a left-context, 0 => \case \elim sublist' \with {
-    | sublist-match p sublist' => rewrite (Path.inProp p idp) idp
-    | sublist-skip sublist' => {?} -- maybe smth about exclusive sublists?
-  }
-  | :: a left-context, suc i => \let inductive => weakening-extension {_} {_} {_} {meta-signature} sublist sublist' i \in {?}
+  : extend-substitution-right sublist (\lam i => weakening (var i idp) sublist') i = plain-identity {_} {_} {meta-signature} i => {?}
 
