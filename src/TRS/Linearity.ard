@@ -29,6 +29,8 @@
   | metaname m => Empty
   | m-domain e => contradiction
 
+\func PureTerm (env : Environment) (context : List Sort) (s : Sort) : \Type => Term env context s EmptyMetasignature
+
 -- | Linear term, designed specifically for decomposition
 \data LinearTerm (env : Environment)
                  (context : List Sort)

@@ -15,13 +15,13 @@
 \open Confluence
 \open Confluence.TheoremContext
 
-\func join-tlcrs {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func join-tlcrs {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                  (color : Color)
-                 (A B C : Term env context s meta-signature)
+                 (A B C : PureTerm env context s)
                  (A~>B : TClosure (TopLevelColoredReduction color) A B)
                  (A~>C : TClosure (TopLevelColoredReduction color) A C)
                  (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
-  : \Sigma (X : Term env context s meta-signature) (TClosure (TopLevelColoredReduction color) B X) (TClosure (TopLevelColoredReduction color) C X) =>
+  : \Sigma (X : PureTerm env context s) (TClosure (TopLevelColoredReduction color) B X) (TClosure (TopLevelColoredReduction color) C X) =>
   \let | (a, subst, eq-a, root-colors) => decompose-term color A
        | inner-ms => LinearMetasignatureT {colored-env color} a
        | (b, eq-b, a~>b) => unify-top.iterate-decomposition (LinearTerm.convert-to-term {colored-env color} a) subst B eq-a A~>B root-colors
@@ -44,23 +44,23 @@
   | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p r => {?}
   | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p r => {?}
 
-\func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                      (color : Color)
-                     (A : Term env context s meta-signature) :
+                     (A : PureTerm env context s) :
   \Sigma (t : LinearTerm (colored-env {tc} color) context s)
-         (subst : MetaSubstitution env nil (LinearMetasignatureT {colored-env color} t) meta-signature)
+         (subst : MetaSubstitution env nil (LinearMetasignatureT {colored-env color} t) (EmptyMetasignature {env}))
          (MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t)) sublist-trivial subst = A)
          (\Pi {s : Sort'} (m : metaname {LinearMetasignatureT {colored-env color} t} s) -> HasColoredRoot (Color.flip color) (subst m)) \elim color, A
   | color, var index p => (lt-var index p, \lam {s1} mvar => contradiction, \case \elim color \with {
     | red => idp
     | blue => idp
   }, \lam {s1} m => contradiction)
-  | color, metavar m choosing => {?} -- impossible in current task
+  | color, metavar m choosing => contradiction
   | red, func (inl f) choosing =>
     \let | inner-results i => decompose-term red (choosing i)
          | signature-producer i => LinearMetasignatureT {colored-env red} (inner-results i).1
          | unified-metasignature => ModularMetaSignature {env} signature-producer
-         | unified-substitution : MetaSubstitution env nil unified-metasignature meta-signature => \lam m => (inner-results m.1).2 m.2
+         | unified-substitution : MetaSubstitution env nil unified-metasignature (EmptyMetasignature {env}) => \lam m => (inner-results m.1).2 m.2
     \in (lt-func f (\lam i => (inner-results i).1),
          unified-substitution,
          pmap (func {env} (inl f)) (ext (\lam index => (invariant-through-empty-subst {env} unified-substitution (SubList.extend-right-single-left sublist-trivial) sublist-trivial _) *>

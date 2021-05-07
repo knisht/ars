@@ -290,12 +290,13 @@
         (TClosure (RewriteRelation rules) A B)
         (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (RewriteRelation rules))
 
-  \func bpr-confluence {tc : TheoremContext} {gc1 gc2 : Color} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  {A B C : Term env context s meta-signature}
+  \func bpr-confluence {tc : TheoremContext} {gc1 gc2 : Color} (color1 color2 : Maybe Color) {context : List tc.Sort'} {s : Sort'}
+                       {A B C : PureTerm env context s}
                        (A~>B : BorderedParallelReduction gc1 color1 A B)
                        (A~>C : BorderedParallelReduction gc2 color2 A C)
                        (left-confluence : ConfluentialSystem envL L-rules)
                        (right-confluence : ConfluentialSystem envR R-rules)
-    : \Sigma (D : Term env context s meta-signature)
+    : \Sigma (D : PureTerm env context s)
              (color3 : Maybe Color)
              (color4 : Maybe Color)
              (BorderedParallelReduction gc2 color3 B D)
@@ -355,14 +356,14 @@
        \in (X, c1, c2, (rewrite gc2=right-color B=>X), rewrite (gc1=left-color *> lcolor=rcolor) C=>X)
     \where {
       \func unwrap-cwr
-        {tc : TheoremContext} {gc1 gc2 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-        (T1 T2 A B C : Term env context s meta-signature) {color-2 : Maybe Color}
+        {tc : TheoremContext} {gc1 gc2 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'}
+        (T1 T2 A B C : PureTerm env context s) {color-2 : Maybe Color}
         (cwr : ColorwiseReduction gc1 color-2 A B) (A~>*C : TClosure (TopLevelColoredReduction gc2) A C)
         (T1=>B : BorderedParallelReduction gc2 color3 T1 B) (T2=>C : BorderedParallelReduction gc1 color4 T2 C)
         (left-confluence : ConfluentialSystem envL L-rules)
         (right-confluence : ConfluentialSystem envR R-rules)
         :
-        \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction gc2 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, cwr
+        \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc2 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, cwr
         | nothing, cr-skip p => \let (cl-1, t1=>X) => BorderedParallelReduction.append-tlcr T1 B T1=>B C (rewriteI p A~>*C) \in (C, cl-1, t1=>X, color4, T2=>C)
         | just color, cr-rewrite A~>*B p =>
           \let | (X, B~>*X, C~>*X) => join-different-tlcrs color gc2 A~>*B A~>*C left-confluence right-confluence
@@ -371,8 +372,8 @@
           \in (X, cl-1, t1=>X, cl-2, t2=>X)
 
       \func unwrap-double-cwr
-        {tc : TheoremContext} {gc1 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-        (T1 T2 A A' E B C : Term env context s meta-signature) {color-2 color-1 : Maybe Color}
+        {tc : TheoremContext} {gc1 : Color} {color3 color4 : Maybe Color} {context : List tc.Sort'} {s : Sort'}
+        (T1 T2 A A' E B C : PureTerm env context s ) {color-2 color-1 : Maybe Color}
         (cwr-1 : ColorwiseReduction gc1 color-2 A E)
         (cwr-2 : ColorwiseReduction gc1 color-1 A' E)
         (A~>*B : TClosure (TopLevelColoredReduction gc1) A B)
@@ -382,7 +383,7 @@
         (left-confluence : ConfluentialSystem envL L-rules)
         (right-confluence : ConfluentialSystem envR R-rules)
         :
-        \Sigma (X : Term env context s meta-signature) (c1 : Maybe Color) (BorderedParallelReduction gc1 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, color-1, cwr-1, cwr-2
+        \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc1 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, color-1, cwr-1, cwr-2
         | nothing, nothing, cr-skip p, cr-skip p1 =>
           \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 A~>*B (rewrite {1} (p *> inv p1) A'~>*C) left-confluence right-confluence
                | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
@@ -413,12 +414,13 @@
         | nothing, func f choosing, rd => (nothing, inl idp, rd)
         | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => (just a, rewrite p (inr idp), parallelization-f mediator _x (cr-rewrite t p))
 
-      \func join-different-tlcrs {tc : TheoremContext} (color1 color2 : Color) {context : List tc.Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  {A B C : Term env context s meta-signature}
+      \func join-different-tlcrs {tc : TheoremContext} (color1 color2 : Color) {context : List tc.Sort'} {s : Sort'}
+                                 {A B C : PureTerm env context s}
                                  (A~>B : TClosure (TopLevelColoredReduction color1) A B)
                                  (A~>C : TClosure (TopLevelColoredReduction color2) A C)
                                  (left-confluence : ConfluentialSystem envL L-rules)
                                  (right-confluence : ConfluentialSystem envR R-rules)
-        : \Sigma (X : Term env context s meta-signature) (TClosure (TopLevelColoredReduction color2) B X) (TClosure (TopLevelColoredReduction color1) C X)
+        : \Sigma (X : PureTerm env context s) (TClosure (TopLevelColoredReduction color2) B X) (TClosure (TopLevelColoredReduction color1) C X)
       \elim color1, color2
         | red, red => join-tlcrs red A B C A~>B A~>C left-confluence
         | red, blue => \let | a => TopLevelColoredReduction.extract-root-coloring (TClosure.extract A~>B).2
@@ -456,16 +458,16 @@
         | inr b => inl b
     }
 
-  \func unify-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} (color color' : Color)
+  \func unify-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color color' : Color)
                   (f : env.FunctionalSymbol.symbol s)
-                  (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-                  (B : Term env context s meta-signature)
+                  (choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> PureTerm env ((f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
+                  (B : PureTerm env context s)
                   (A~>B : TClosure (TopLevelColoredReduction color) (func {env} f choosing-A) B)
                   (inner-reductions : \Pi (i : F-param-index {_} {env.FunctionalSymbol} f) ->
                       \Sigma (someColor : Maybe Color)
                              ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
                              (BorderedParallelReduction {tc} color' someColor (choosing-A i) (transport-chooser-f {env {tc}} idp choosing-C i)))
-    : \Sigma (X : Term env context s meta-signature)
+    : \Sigma (X : PureTerm env context s)
              (TClosure (TopLevelColoredReduction color) (func {env} f choosing-C) X)
              (mcolor : Maybe Color)
              (BorderedParallelReduction color' mcolor B X) =>
@@ -475,11 +477,11 @@
       | eqs : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) => linear-metasignature-equator
       | eqs2 : (LinearTerm.convert-to-term {env} (inject-linear-term color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))) => equate-transported-terms color t -- technical
       | injected-u : Term env context s (LinearMetasignatureT {env} (inject-linear-term color t)) => rewriteI eqs (inject-monochrome-term color u)
-      | modified-rho => transport (MetaSubstitution env nil __ meta-signature) eqs rho
+      | modified-rho => transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) eqs rho
       | eqs3 : (func {env} f choosing-A) = (MetaSubstitution.apply {env} (LinearTerm.convert-to-term {env} (inject-linear-term color t)) sublist-trivial modified-rho) => inv t[rho]=A *> {?}
       | witnesses => inject-linear-term.generate-injection-witness color t
       | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) (inject-linear-term {_} color t) witnesses modified-rho ({?}) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
-      | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma))) (lift-relation color (transport (MetaSubstitution env nil __ meta-signature) (inv eqs) sigma)) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
+      | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial (transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) (inv eqs) sigma))) (lift-relation color (transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) (inv eqs) sigma)) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
       | (mcl, uni-left) => unify-left color' color injected-u {?easy} sublist-trivial modified-rho sigma reds
     \in metasignature-unificator eqs color color' B (func f choosing-C)
         (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))
@@ -508,7 +510,7 @@
           \let | (u, lu[rho]=B, t~>u) => decompose-along-reduction color t B rho root-colors (rewrite teq A~>B)
           \in (u, lu[rho]=B, tc-basic t~>u)
         | tc-connect C A->C C~>*B =>
-          \let | (c, meq, rd) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C) -- induction on length of closure
+          \let | (c, meq, rd) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
           | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, tc-connect c rd tcl)
 
       \func linear-metasignature-equator {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {t : LinearTerm (colored-env color) context s} : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) \elim color, t
@@ -774,12 +776,12 @@
         | c-trivial idp => c-trivial idp
     }
 
-  \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature inner-metasignature : MetaSignature Sort'}
+  \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {inner-metasignature : MetaSignature Sort'}
                    (gc anti-color : Color)
                    (s : Term env context' s inner-metasignature)
                    (witness : inject-monochrome-term.InjectionWitness anti-color s)
                    (sublist : SubList context context')
-                   (rho sigma : MetaSubstitution env context inner-metasignature meta-signature)
+                   (rho sigma : MetaSubstitution env context inner-metasignature (EmptyMetasignature {env}))
                    (rho~>sigma : \Pi {s : Sort'} (m : inner-metasignature.metaname s) ->
                        \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) :
     \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (MetaSubstitution.apply {env} s sublist rho) (MetaSubstitution.apply {env} s sublist sigma))
@@ -795,12 +797,12 @@
       \let | in-indices i => unify-left gc (color-of-root f) (choosing i) (rewrite p (_x i)) (SubList.extend-right-single-left sublist) rho sigma rho~>sigma
       \in (nothing, parallelization-f (\lam i => (MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single-left sublist) sigma)) (\lam i => ((in-indices i).1, {?}, (in-indices i).2)) (cr-skip idp))
 
-  \func reduction-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+  \func reduction-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
                                     {gc : Color}
                                     (color : Maybe Color)
-                                    (A B : Term env context s meta-signature)
+                                    (A B : PureTerm env context s)
                                     (A=>B : BorderedParallelReduction gc color A B)
-                                    (subst subst' : Substitution {env} context new-context meta-signature)
+                                    (subst subst' : Substitution {env} context new-context (EmptyMetasignature {env}))
                                     (subst=>subst' : \Pi (i : Fin (length context)) -> \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
     : \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (Substitution.apply {env} A subst) (Substitution.apply {env} B subst')) \elim color, A, A=>B
     | color, A, equal-trees p => rewrite p (distributed-reduction-for-substitution B color _ _ subst=>subst')
@@ -826,17 +828,17 @@
     })
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
 
-  \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-                                               (A : Term env context s meta-signature)
+  \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
+                                               (A : PureTerm env context s)
                                                {gc : Color}
                                                (color : Maybe Color)
-                                               (subst subst' : Substitution {env} context new-context meta-signature)
+                                               (subst subst' : Substitution {env} context new-context (EmptyMetasignature {env}))
                                                (subst=>subst' : \Pi (i : Fin (length context)) -> \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
     : \Sigma (color' : Maybe Color) (BorderedParallelReduction gc color' (Substitution.apply {env} A subst) (Substitution.apply {env} A subst')) \elim A
     | var index p => \case \elim s, \elim p \with {
       | s, idp => (subst=>subst' index)
     }
-    | metavar m choosing => {?} -- impossible
+    | metavar m choosing => contradiction
     | func f choosing =>
       \let | inner-reductions i => distributed-reduction-for-substitution (choosing i) {gc} color (append-context-left {env} subst) (append-context-left {env} subst') {?}
            | (sc, med, inrd, cwr) => collect-reductions-together-raw f
