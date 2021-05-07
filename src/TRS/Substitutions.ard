@@ -78,7 +78,7 @@
                                          (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transport (Term env __ s msig) (inv ++_nil) T) (extend-substitution-right sublist-trivial subst) =>
   {?}
 
-\func apply-subst-with-extended-identity-inv {env : Environment} {context context' : List Sort} {s : Sort} {msig : MetaSignature Sort}
+\func apply-subst-with-extended-identity-inv {env : Environment} {context : List Sort} {s : Sort} {msig : MetaSignature Sort}
                                              (T : Term env context s msig) (subst : Substitution context context msig) : Substitution.apply T subst = Substitution.apply (transportInv (Term env __ s msig) (++_nil) T) (extend-substitution-right sublist-trivial subst) =>
  {?}
 

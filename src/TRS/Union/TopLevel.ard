@@ -63,13 +63,47 @@
          | unified-substitution : MetaSubstitution env nil unified-metasignature meta-signature => \lam m => (inner-results m.1).2 m.2
     \in (lt-func f (\lam i => (inner-results i).1),
          unified-substitution,
-         pmap (func {env} (inl f)) (ext (\lam index => ({?}) *> (inner-results index).3)),
+         pmap (func {env} (inl f)) (ext (\lam index => (invariant-through-empty-subst {env} unified-substitution (SubList.extend-right-single-left sublist-trivial) sublist-trivial _) *>
+         (inv (modular-commutation-colored red (\lam i => LinearMetasignatureT {envL} (inner-results i).1) index sublist-trivial (LinearTerm.convert-to-term {envL} (inner-results index).1) unified-substitution)) *>
+         (inner-results index).3)),
          \lam {s1} m => ((inner-results m.1).4 m.2))
-  | red, func (inr f) choosing => (lt-full-metavar {colored-env red}, \lam {s1} mvar => rewrite ++_nil (\case \elim s1, \elim mvar \with {
-    | s1, idp => (func {env} (inr f) choosing)
-  }), inv (apply-subst-with-extended-identity-inv {env} (func (inr f) choosing) (plain-identity {env})) *> (pmap (func {env} (inr f)) (ext (\lam index => {?}))), \lam {s1} m => {?})
+  | red, func (inr f) choosing =>
+    (lt-full-metavar {colored-env red},
+     \lam {s1} mvar => rewrite ++_nil (\case \elim s1, \elim mvar \with {
+       | s1, idp => (func {env} (inr f) choosing)
+     }),
+     inv (apply-subst-with-extended-identity-inv {env} (func (inr f) choosing) (plain-identity {env})) *> (pmap (func {env} (inr f)) (ext (\lam index => rewrite (append-context-left-to-identity.ext' {env}) (plain-identity-effect {env} _)))),
+     \lam {s1} m => \case \elim s1, \elim m \with {
+       | s1, idp => transported-root-color ++_nil (func (inr f) choosing) blue blue-func-root
+     })
   | blue, func (inl f) choosing => {?}
   | blue, func (inr b) choosing => {?}
+  \where {
+    \func transported-root-color {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {msig : MetaSignature Sort'}
+                                 (eq : context' = context)
+                                 (t : Term env context s msig)
+                                 (color : Color)
+                                 (HCR : HasColoredRoot color t)
+                                 : HasColoredRoot color (transportInv (Term env __ s msig) eq t) \elim context, eq
+      | context, idp => HCR
+  }
+
+\func modular-commutation-colored {tc : TheoremContext} {subcontext context : List Sort'} {s : Sort'} {msig : MetaSignature Sort'}
+                                  (color : Color)
+                                  {n : Nat}
+                                  (sigs : \Pi (i : Fin n) -> MetaSignature Sort')
+                                  (i : Fin n)
+                                  (sublist : SubList subcontext context)
+                                  (term : Term (colored-env color) context s (sigs i))
+                                  (rho : MetaSubstitution env subcontext (ModularMetaSignature {env} sigs) msig)
+  : MetaSubstitution.apply {env} (inject-monochrome-term color term) sublist (\lam m => rho (i, m)) = MetaSubstitution.apply {env} (inject-monochrome-term color (LinearTerm.upgrade-metavariables-t {colored-env color} sigs term)) sublist rho
+\elim color, term
+  | red, var index p => idp
+  | blue, var index p => idp
+  | red, metavar m choosing => pmap (\lam f => Substitution.apply {env} (rho (i, m)) (extend-substitution-right {env} sublist f)) (ext (\lam index => modular-commutation-colored red sigs i sublist (choosing index) rho))
+  | blue, metavar m choosing => pmap (\lam f => Substitution.apply {env} (rho (i, m)) (extend-substitution-right {env} sublist f)) (ext (\lam index => modular-commutation-colored blue sigs i sublist (choosing index) rho))
+  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => modular-commutation-colored red sigs i (SubList.extend-right-single-left sublist) (choosing index) rho))
+  | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => modular-commutation-colored blue sigs i (SubList.extend-right-single-left sublist) (choosing index) rho))
 
 \func join-monochrome-terms {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                             (a b c : Term (colored-env color) context s meta-signature)
@@ -117,7 +151,7 @@
   | blue, t, B, A~>B => {?}
   \where {
     \func eliminate-colors {tc : TheoremContext} (color : Color) {context context' : List Sort'} {s : Sort'} {msig : MetaSignature Sort'}
-      {T : Term env context s msig} {subst : Substitution {env} context context' msig} (hcr : HasColoredRoot color T) (hcr' : HasColoredRoot (Color.flip color) (Substitution.apply {env} T subst))
+                           {T : Term env context s msig} {subst : Substitution {env} context context' msig} (hcr : HasColoredRoot color T) (hcr' : HasColoredRoot (Color.flip color) (Substitution.apply {env} T subst))
       : Empty \elim color, T, hcr, hcr'
       | red, func (inl s1) choosing, red-func-root, ()
       | blue, var index p, (), hcr'
@@ -200,7 +234,7 @@
     \func extract-from-witness {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color) (f : env.FunctionalSymbol.symbol s)
                                (choosing :  \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> LinearTerm env (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index ++ context) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index))
                                (witness : InjectionWitness color (lt-func {env} f choosing))
-                               : \Sigma (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i)) (color-of-root f = color) \elim color, witness
+      : \Sigma (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i)) (color-of-root f = color) \elim color, witness
       | color, lt-witness-f p _x => (_x, p)
   }
 
@@ -322,12 +356,16 @@
   | blue, _, _, _ => {?}
 
 \func weakening-extension-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                          (sublist : SubList right-context (left-context ++ right-context))
-                          (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-right {_} {_} {_} {_} {meta-signature} sublist (\lam i => weakening (var i idp) sublist') = plain-identity =>
+                              (sublist : SubList right-context (left-context ++ right-context))
+                              (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-right {_} {_} {_} {_} {meta-signature} sublist (\lam i => weakening (var i idp) sublist') = plain-identity =>
   ext (weakening-extension sublist sublist')
 
 \func weakening-extension {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
                           (sublist : SubList right-context (left-context ++ right-context))
                           (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context)))
-  : extend-substitution-right sublist (\lam i => weakening (var i idp) sublist') i = plain-identity {_} {_} {meta-signature} i => {?}
+  : extend-substitution-right sublist (\lam i => weakening (var i idp) sublist') i = plain-identity {_} {_} {meta-signature} i \elim left-context, right-context, sublist, sublist', i
+  | nil, r, sublist, sublist', i => {?}
+  | left-context, nil, sublist, sublist', i => {?}
+  | :: a left-context, :: a1 right-context, sublist, sublist-match p sublist', i => {?}
+  | :: a left-context, right-context, sublist, sublist-skip sublist', i => {?}
 

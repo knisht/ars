@@ -102,10 +102,10 @@
 \func MetaSubstitution (env : Environment) (new-context : List Sort) (meta-signature new-meta-signature : MetaSignature Sort): \Set =>
   \Pi {s : Sort} (mvar : meta-signature.metaname s) -> Term env ((meta-signature.m-domain mvar) ++ new-context) s new-meta-signature
   \where {
-    \func apply {env : Environment} {context new-context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
+    \func apply {env : Environment} {context core-context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                 (t : Term env context s meta-signature)
-                (sublist : SubList new-context context)
-                (subst : MetaSubstitution env new-context meta-signature new-meta-signature) : Term env context s new-meta-signature \elim t
+                (sublist : SubList core-context context)
+                (subst : MetaSubstitution env core-context meta-signature new-meta-signature) : Term env context s new-meta-signature \elim t
       | var index p => var index p
       | metavar m choosing => Substitution.apply (subst m) (extend-substitution-right sublist (\lam i => apply (choosing i) sublist subst))
       | func f choosing => func f (\lam i => apply (choosing i) (SubList.extend-right-single-left sublist) subst)
