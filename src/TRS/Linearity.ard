@@ -90,6 +90,15 @@
     \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetasignature pattern) \elim pattern
       | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-term (choosing i)))
       | lp-metavar => metavar idp (\lam index => var index idp)
+
+    \open Confluence
+
+    \func convert-to-injected-term {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (pattern : LinearPattern (TheoremContext.colored-env color) context s) :
+      Term TheoremContext.env context s (LinearMetasignature {TheoremContext.colored-env color} pattern) \elim color, pattern
+      | red, lp-func f choosing => func (inl f) (\lam index => upgrade-metavariables-p {TheoremContext.env} (\lam i => LinearMetasignature {TheoremContext.colored-env red} (choosing i)) (convert-to-injected-term red (choosing index)))
+      | red, lp-metavar => metavar idp (\lam index => var index idp)
+      | blue, lp-func f choosing => func (inr f) (\lam index => upgrade-metavariables-p {TheoremContext.env} (\lam i => LinearMetasignature {TheoremContext.colored-env blue} (choosing i)) (convert-to-injected-term blue (choosing index)))
+      | blue, lp-metavar => metavar idp (\lam index => var index idp)
   }
 
 \record LinearRewriteRule \extends RewriteRule {
@@ -99,7 +108,7 @@
 }
 
 \record LinearRewriteStep \extends RewriteStep {
-  \override  rule : LinearRewriteRule env {s}
+  \override rule : LinearRewriteRule env {s}
 }
 
 \func LinearMetasignature {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaSignature Sort \elim pattern
