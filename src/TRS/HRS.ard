@@ -46,24 +46,24 @@
   | metavar (m : meta-signature.metaname termSort) -- | Metavariable
             (choosing : \Pi (index : Fin (length (meta-signature.m-domain m))) -> Term env context (meta-signature.m-domain m !! index) meta-signature)
   | func (f : FunctionalSymbol.symbol termSort) -- | Functional symbol
-         (choosing : \Pi (index : Fin (length (domain f))) -> Term env ((f !!param index) ++ context) (f !!sort index) meta-signature)
+         (choosing : \Pi (index : Fin (length (domain f))) -> Term env (context ++ (f !!param index)) (f !!sort index) meta-signature)
 
-\data PatternTerm (env : Environment)
-                  (context : List Sort)
-                  (termSort : Sort)
-                  (meta-signature : MetaSignature Sort) : \Set
-  | pattern-var (index : Fin (length context)) (termSort = context !! index)
-  | pattern-metavar (m : meta-signature.metaname termSort)
-                    (arguments : DescendingVector (length (meta-signature.m-domain m)) (length context))
-                    (arguments-coherence : \Pi (index : Fin (length (meta-signature.m-domain m))) -> (meta-signature.m-domain m) !! index = context !! (arguments dv!! index))
-  | pattern-func (f : FunctionalSymbol.symbol termSort)
-                 (choosing : \Pi (index : Fin (length (domain f))) -> PatternTerm env ((f !!param index) ++ context) (f !!sort index) meta-signature)
-  \where {
-    \func convertToTerm {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (pattern : PatternTerm env context s meta-signature) : Term env context s meta-signature \elim pattern
-      | pattern-var index p => var index p
-      | pattern-metavar m arguments arguments-coherence => metavar m (\lam index => var (arguments dv!! index) (arguments-coherence index))
-      | pattern-func f choosing => func f (\lam index => convertToTerm (choosing index))
-  }
+--\data PatternTerm (env : Environment)
+--                  (context : List Sort)
+--                  (termSort : Sort)
+--                  (meta-signature : MetaSignature Sort) : \Set
+--  | pattern-var (index : Fin (length context)) (termSort = context !! index)
+--  | pattern-metavar (m : meta-signature.metaname termSort)
+--                    (arguments : DescendingVector (length (meta-signature.m-domain m)) (length context))
+--                    (arguments-coherence : \Pi (index : Fin (length (meta-signature.m-domain m))) -> (meta-signature.m-domain m) !! index = context !! (arguments dv!! index))
+--  | pattern-func (f : FunctionalSymbol.symbol termSort)
+--                 (choosing : \Pi (index : Fin (length (domain f))) -> PatternTerm env ((f !!param index) ++ context) (f !!sort index) meta-signature)
+--  \where {
+--    \func convertToTerm {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (pattern : PatternTerm env context s meta-signature) : Term env context s meta-signature \elim pattern
+--      | pattern-var index p => var index p
+--      | pattern-metavar m arguments arguments-coherence => metavar m (\lam index => var (arguments dv!! index) (arguments-coherence index))
+--      | pattern-func f choosing => func f (\lam index => convertToTerm (choosing index))
+--  }
 
 \open Term
 
@@ -78,7 +78,7 @@
       : Term env new-context s meta-signature \elim t
       | var index p => transport (Term env new-context __ meta-signature) (inv p) (map index)
       | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
-      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (append-context-left map))
+      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (append-context-right map))
 
     \func adjustContext {env : Environment} {s : Sort} {meta-signature : MetaSignature Sort} (t : Term env nil s meta-signature) {new-context : List Sort} : Term env new-context s meta-signature =>
       apply t (\lam i => contradiction)
@@ -93,22 +93,22 @@
                      (T : Term env context s meta-signature) \elim T
   | func _ _ => T-has-functional-root
 
-\record PatternRewriteRule \extends RewriteRule {
-  | pattern : PatternTerm env nil s meta-signature
-  | l => PatternTerm.convertToTerm pattern
-}
+--\record PatternRewriteRule \extends RewriteRule {
+--  | pattern : PatternTerm env nil s meta-signature
+--  | l => PatternTerm.convertToTerm pattern
+--}
 
 -- | Substitution of metavariables
 \func MetaSubstitution (env : Environment) (new-context : List Sort) (meta-signature new-meta-signature : MetaSignature Sort): \Set =>
-  \Pi {s : Sort} (mvar : meta-signature.metaname s) -> Term env ((meta-signature.m-domain mvar) ++ new-context) s new-meta-signature
+  \Pi {s : Sort} (mvar : meta-signature.metaname s) -> Term env (new-context ++ (meta-signature.m-domain mvar)) s new-meta-signature
   \where {
     \func apply {env : Environment} {context core-context : List Sort} {s : Sort} {meta-signature new-meta-signature : MetaSignature Sort}
                 (t : Term env context s meta-signature)
                 (sublist : SubList core-context context)
                 (subst : MetaSubstitution env core-context meta-signature new-meta-signature) : Term env context s new-meta-signature \elim t
       | var index p => var index p
-      | metavar m choosing => Substitution.apply (subst m) (extend-substitution-right sublist (\lam i => apply (choosing i) sublist subst))
-      | func f choosing => func f (\lam i => apply (choosing i) (SubList.extend-right-single-left sublist) subst)
+      | metavar m choosing => Substitution.apply (subst m) (extend-substitution-left sublist (\lam i => apply (choosing i) sublist subst))
+      | func f choosing => func f (\lam i => apply (choosing i) (SubList.extend-right-single sublist) subst)
   }
 
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (L R : Term env context s meta-signature)
@@ -139,9 +139,9 @@
                                 (\lam i => B (suc i)))
 
 \func transport-chooser-f {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort} {f-A f-B : FunctionalSymbol.symbol s} (p : f-A = f-B)
-                          (choosing-B : \Pi (index : F-param-index f-B) -> Term env ((f-B !!param index) ++ context) (f-B !!sort index) meta-signature)
-  :  \Pi (index : Fin (length (domain f-A))) -> Term env ((f-A !!param index) ++ context) (f-A !!sort index) meta-signature =>
-  transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (f !!param index ++ context) (f !!sort index) meta-signature) (inv p) choosing-B
+                          (choosing-B : \Pi (index : F-param-index f-B) -> Term env (context ++ (f-B !!param index)) (f-B !!sort index) meta-signature)
+  :  \Pi (index : Fin (length (domain f-A))) -> Term env (context ++ (f-A !!param index)) (f-A !!sort index) meta-signature =>
+  transport (\lam f => \Pi (index : Fin (length (domain f))) -> Term env (context ++ f !!param index) (f !!sort index) meta-signature) (inv p) choosing-B
 
 \func transport-chooser-m {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort} {m-A m-B : meta-signature.metaname s} (p : m-A = m-B)
                           (choosing-B : \Pi (index : Fin (length (meta-signature.m-domain m-B))) -> Term env context ((meta-signature.m-domain m-B) !! index) meta-signature)
@@ -159,7 +159,7 @@
   | func f-A choosing-A, func f-B choosing-B =>
   rewrite-with-parameter-f (p : f-A = f-B)
                            (ReductionAtIndex {env} (RewriteRelation {env} set-of-rules)
-                               (f-A !!param __ ++ context)
+                               (context ++ f-A !!param __)
                                (f-A !!sort __)
                                choosing-A
                                (transport-chooser-f {env} p choosing-B))

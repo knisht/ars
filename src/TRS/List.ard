@@ -26,6 +26,11 @@
       | nil => sublist
       | :: a add => sublist-match idp (extend-left sublist)
 
+    \func extend-right {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (l ++ add) (r ++ add) \elim l, r, sublist
+      | nil, r, sublist-trivial => SubList.extend-right-single-left SubList.identity
+      | :: x l, :: y r, sublist-match p sublist => sublist-match p (extend-right sublist)
+      | l, :: y r, sublist-skip sublist => sublist-skip (extend-right sublist)
+
     \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (r ++ add) \elim l, r, sublist
       | nil, r, sublist-trivial => sublist-trivial
       | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist)
@@ -54,6 +59,11 @@
       | :: a l, :: y ys, zero, sublist-skip sublist => shift-index-preserves-equality zero sublist
       | :: x xs, :: y ys, suc index, sublist-skip sublist => shift-index-preserves-equality (suc index) sublist
       | nil, :: y ys, (), _
+
+
+    \func shrink {A : \Type} {a : A} {list list' : List A} (sublist : SubList (a :: list) list') : SubList list list' \elim list', sublist
+      | :: y list', sublist-match p sublist => sublist-skip sublist
+      | :: y list', sublist-skip sublist => sublist-skip (shrink sublist)
   }
 
 \data DescendingVector (n limit : Nat) \elim n
