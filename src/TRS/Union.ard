@@ -508,7 +508,6 @@
 
       \func convert-to-injected-term {tc : Confluence.TheoremContext} (color : Confluence.Color) {context : List Confluence.Sort'} {s : Confluence.Sort'} (term : LinearTerm (colored-env color) context s) : Term env context s (LinearMetasignatureT {colored-env color} (term)) \elim color, term
         | red, lt-func f choosing => func (inl f) (\lam i => LinearTerm.upgrade-metavariables-t {env} (\lam i => LinearMetasignatureT {envL} (choosing i)) (convert-to-injected-term red (choosing i)))
-        | color, lt-metavar params choosing => metavar (inl idp) (\lam i => LinearTerm.upgrade-metavariables-mt {env} s params (\lam i => LinearMetasignatureT {TheoremContext.colored-env color} (choosing i)) (convert-to-injected-term color (choosing i)))
         | red, lt-full-metavar => metavar idp (\lam i => var i idp)
         | red, lt-var index p => var index p
         | blue, lt-func f choosing => func (inr f) (\lam i => LinearTerm.upgrade-metavariables-t {env} (\lam i => LinearMetasignatureT {envR} (choosing i)) (convert-to-injected-term blue (choosing i)))
@@ -519,7 +518,6 @@
         inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t) = convert-to-injected-term color {context} {s} t \elim color, t
         | red, lt-func f choosing => pmap (func {env} (inl f))
             (ext (\lam index => rewriteI (unwrap-injection {_} {red} (choosing index)) (swap red (\lam i => LinearMetasignatureT {envL} (choosing i)) (LinearTerm.convert-to-term {envL} (choosing index)))))
-        | color, lt-metavar params choosing => {?}
         | red, lt-full-metavar => idp
         | red, lt-var index p => idp
         | blue, lt-func f choosing => pmap (func {env} (inr f))
@@ -588,7 +586,6 @@
         | extracted => coloring-from-tlcr *> extract-from-or some-color-diff
       \in contradiction
     | gc, lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
-    | gc, lt-metavar params choosing, someColor, rd => {?} -- impossible, use patterns
     | red, lt-full-metavar, someColor, rd =>
       ( \lam {s1} mvar => transport (Term env context __ meta-signature) (inv mvar) C,
         (inv (plain-identity-effect {env} C)),

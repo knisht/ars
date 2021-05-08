@@ -205,7 +205,6 @@
                          (l : LinearTerm (colored-env color) context s) : LinearTerm env context s \elim color, l
   | red, lt-func f choosing => lt-func (inl f) (\lam i => inject-linear-term red (choosing i))
   | blue, lt-func f choosing => lt-func (inr f) (\lam i => inject-linear-term blue (choosing i))
-  | color, lt-metavar params choosing => lt-metavar params (\lam i => inject-linear-term color (choosing i))
   | color, lt-full-metavar => lt-full-metavar {env}
   | color, lt-var index p => lt-var index p
   \where {
@@ -213,8 +212,6 @@
       | lt-func f choosing =>
       lt-witness-f (color-of-root {tc} f = color)
                    (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i))
-      | lt-metavar params choosing =>
-      lt-witness-m (\Pi (i : Fin (length params)) -> InjectionWitness {tc} color (choosing i))
       | lt-var _ _ => lt-witness-v
       | lt-full-metavar => lt-witness-fm
 
@@ -222,8 +219,6 @@
                                      (l : LinearTerm (colored-env color) context s) : InjectionWitness color (inject-linear-term color l) \elim color, l
       | red, lt-func f choosing => lt-witness-f idp (\lam i => generate-injection-witness red (choosing i))
       | blue, lt-func f choosing => lt-witness-f idp (\lam i => generate-injection-witness blue (choosing i))
-      | red, lt-metavar params choosing => lt-witness-m (\lam i => generate-injection-witness red (choosing i))
-      | blue, lt-metavar params choosing => lt-witness-m (\lam i => generate-injection-witness blue (choosing i))
       | red, lt-full-metavar => lt-witness-fm
       | blue, lt-full-metavar => lt-witness-fm
       | red, lt-var index p => lt-witness-v
