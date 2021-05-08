@@ -10,7 +10,6 @@
 \import Paths.Meta
 \import Relation
 \import Set
-\import TRS.Definitions
 \import TRS.HRS
 \import TRS.Linearity
 \import TRS.List
@@ -86,12 +85,12 @@
     | l-is-func => promote-injection-right {_} {envL} {envR} rule.l rule.l-is-func
     \where {
       \func promote-injection-right {Sort : \Set}
-                                   {envL envR : Environment Sort}
-                                   {context : List Sort}
-                                   {s : Sort}
-                                   {meta-signature : MetaSignature Sort}
-                                   (t : Term envR context s meta-signature)
-                                   (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointEnvironment envL envR} (inject-term-right envL envR t) \elim t, t-is-func
+                                    {envL envR : Environment Sort}
+                                    {context : List Sort}
+                                    {s : Sort}
+                                    {meta-signature : MetaSignature Sort}
+                                    (t : Term envR context s meta-signature)
+                                    (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointEnvironment envL envR} (inject-term-right envL envR t) \elim t, t-is-func
         | func f choosing, T-has-functional-root => T-has-functional-root {JointEnvironment envL envR}
     }
 
@@ -221,6 +220,91 @@
   }
 
   \open TheoremContext
+
+  \record LinearRewriteRuleColored {tc : TheoremContext} (color : Color) (s : env.Sort) {
+    | linear-pattern : LinearPattern (colored-env color) nil s
+    | r : Term (colored-env color) nil s (LinearMetasignature {colored-env color} linear-pattern)
+    | l-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} linear-pattern)
+  }
+
+  \data TopLevelColoredReduction {tc : TheoremContext} (color : Color) {meta-signature : MetaSignature env.Sort} {context : List env.Sort} {s : env.Sort} (A B : Term env context s meta-signature) \elim A, B
+    | A, B =>
+    rewrite-with-rule-colored (HasColoredRoot {tc} color A)
+                              (rule : LinearRewriteRuleColored {tc} color s)
+                              (substitution : MetaSubstitution (env {tc}) context (LinearMetasignature {colored-env {tc} color} rule.linear-pattern) meta-signature)
+                              (left-coherence : MetaSubstitution.apply {env {tc}} (weakening {env {tc}} (LinearPattern.convert-to-injected-term {tc} rule.color {nil} {s} rule.linear-pattern) SubList.sublist-trivial) SubList.identity substitution = A)
+                              (right-coherence : MetaSubstitution.apply {env {tc}} (weakening {env {tc}} (TheoremContext.inject-monochrome-term {tc} color rule.r) SubList.sublist-trivial) SubList.identity substitution = B)
+    --(step.rule IndexedSet.in {LinearRewriteRule step.env} (colored-rules coor)) todo
+    | func (f-A : symbol {FunctionalSymbol {env {tc}}} s) choosing-A, func (f-B : symbol {FunctionalSymbol {env {tc}}} s) choosing-B =>
+    rewrite-with-parameter-f-colored (p : f-A = f-B)
+                                     (color-of-root {tc} f-A = color)
+                                     (ReductionAtIndex {env {tc}}
+                                         (TopLevelColoredReduction {tc} color {meta-signature})
+                                         (\lam i => (context ++ {Sort {env {tc}}} f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i))
+                                         (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} __)
+                                         choosing-A
+                                         (transport-chooser-f {env {tc}} p choosing-B))
+    \where {
+      \func extract-root-coloring {tc : TheoremContext} {color : Color} {meta-signature : MetaSignature Sort'} {context : List env.Sort} {s : env.Sort} {A B : Term env context s meta-signature} (tlcr : TopLevelColoredReduction color A B) : HasColoredRoot color A
+      \elim color, A, B, tlcr
+        | color, A, B, rewrite-with-rule-colored h _ _ _ _ => h
+        | color, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => \case \elim color, \elim f-A, \elim choosing-A, \elim p1 \with {
+          | red, inl a, choosing-A, p1 => red-func-root
+          | blue, inr b, choosing-A, p1 => blue-func-root
+        }
+    }
+
+  \data BorderedParallelReduction {tc : TheoremContext}
+                                  (global-color : Color)
+                                  (color : Maybe Color)
+                                  {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
+                                  (A B : Term (env {tc}) context s meta-signature) \elim A
+    | A => equal-trees (A = B)
+    | func f choosing =>
+    parallelization-f
+      (mediator : \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) ->
+          Term (env {tc}) (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+      (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f) -> \Sigma
+        (someColor : Maybe Color)
+        ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
+        (BorderedParallelReduction {tc} global-color someColor (choosing i) (mediator i)))
+      (ColorwiseReduction {tc} global-color color (func f mediator) B)
+    \where {
+      \func append-tlcr
+        {tc : TheoremContext}
+        {global-color : Color}
+        {color : Maybe Color}
+        {context : List tc.Sort'} {s : tc.Sort'} {meta-signature : MetaSignature Sort'}
+        (A B : Term env context s meta-signature)
+        (bpr : BorderedParallelReduction global-color color A B)
+        (C : Term env context s meta-signature)
+        (B~>*C : TClosure (TopLevelColoredReduction global-color) B C)
+        : \Sigma (someColor : Maybe Color) (BorderedParallelReduction global-color someColor A C) \elim color, A, bpr
+        | color, A, equal-trees p => \let hcr => TopLevelColoredReduction.extract-root-coloring (TClosure.extract B~>*C).2 \in \case \elim A, \elim B, \elim global-color, \elim B~>*C, \elim hcr, \elim p \with {
+          | A, func (inl s1) choosing, red, B~>*C, red-func-root, idp => (just red, parallelization-f choosing (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite B~>*C idp))
+          | A, func (inr s1) choosing, blue, B~>*C, blue-func-root, idp => (just blue, parallelization-f choosing (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite B~>*C idp))
+        }
+        | nothing, func f choosing, parallelization-f mediator _x (cr-skip p) => (just global-color, parallelization-f mediator _x (cr-rewrite (rewrite p B~>*C) idp))
+        | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => (just global-color, parallelization-f mediator _x (cr-rewrite (TClosure.compose (rewrite p t) B~>*C) idp))
+    }
+
+  \data ColorwiseReduction {tc : TheoremContext}
+                           {context : List Sort'}
+                           {s : Sort'}
+                           {meta-signature : MetaSignature Sort'}
+                           (global-color : Color)
+                           (color : Maybe Color) (A B : Term env context s meta-signature) \elim color
+    | nothing => cr-skip (A = B)
+    | just color => cr-rewrite (TClosure (TopLevelColoredReduction {tc} color) A B) (global-color = color)
+
+  \func TrichromaticParallelReduction {tc : TheoremContext} {meta-signature : MetaSignature Sort'} {context : List tc.Sort'} {s : Sort'} (A B : Term env context s meta-signature) : \Type =>
+    \Sigma (global-color : Color) (color : Maybe Color) (BorderedParallelReduction global-color color A B)
+
+  \func ConfluentialSystem (env : Environment) (rules : IndexedSet (RewriteRule env)) : \Type =>
+    \Pi {meta-signature : MetaSignature Sort} {context : List Sort} {s : Sort}
+        (A B C : Term env context s meta-signature)
+        (TClosure (RewriteRelation rules) A B)
+        (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (RewriteRelation rules))
 
   \record StraightJoin {A : \Type} (a b : A) (rel : A -> A -> \Type)
     | common-reduct : A
