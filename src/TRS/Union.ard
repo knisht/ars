@@ -169,6 +169,15 @@
                                        (\Pi (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) -> InjectionWitness {tc} color (choosing i))
           | metavar m choosing => iw-mvar (\Pi (i : Fin (length (msig.m-domain m))) -> InjectionWitness {tc} color (choosing i))
           | var _ _ => iw-var
+
+        \func generate-injection-witness {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                                         (t : Term (colored-env color) context s meta-signature) : InjectionWitness color (inject-monochrome-term color t) \elim color, t
+          | red, func f choosing => iw-func idp (\lam i => generate-injection-witness red (choosing i))
+          | red, var index p => iw-var
+          | red, metavar m choosing => iw-mvar (\lam i => generate-injection-witness red (choosing i))
+          | blue, var index p => iw-var
+          | blue, metavar m choosing => iw-mvar (\lam i => generate-injection-witness blue (choosing i))
+          | blue, func f choosing => iw-func idp (\lam i => generate-injection-witness blue (choosing i))
       }
 
     \data HasColoredRoot {_ : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}  (term : Term env context s meta-signature) \elim color, term
@@ -480,7 +489,7 @@
       | witnesses => inject-linear-term.generate-injection-witness color t
       | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) t rho (root-colors) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
       | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial sigma)) (lift-relation color sigma) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
-      | (mcl, uni-left) => unify-left color' color injected-u {?easy} sublist-trivial rho sigma reds
+      | (mcl, uni-left) => unify-left color' color injected-u (inject-monochrome-term.generate-injection-witness color u) sublist-trivial rho sigma reds
     \in ((MetaSubstitution.apply {env} injected-u sublist-trivial sigma),
          (rewrite C=t[sigma] (rewriteI unwrap-injection uni-right)),
          mcl,
