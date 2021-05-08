@@ -654,12 +654,24 @@
     : \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (Substitution.apply {env} A subst) (Substitution.apply {env} B subst')) \elim color, A, A=>B
     | color, A, equal-trees p => rewrite p (distributed-reduction-for-substitution B color _ _ subst=>subst')
     | nothing, func f choosing, parallelization-f mediator _x (cr-skip p) =>
-      \let | medium-reductions i => reduction-over-substitution  (_x i).1 (choosing i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') {?}
+      \let | medium-reductions i => reduction-over-substitution  (_x i).1 (choosing i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') (expand-reduction-right subst subst' subst=>subst')
            | (sc, med, inrd, cwr) => (collect-reductions-together-raw f (\lam i => Substitution.apply {env} (choosing i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions)
       \in rewriteI p (sc, (parallelization-f med inrd cwr))
     | just a, func f choosing, parallelization-f mediator _x (cr-rewrite tlcr p) =>
-      \let | medium-reductions i => reduction-over-substitution (_x i).1 (choosing i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') {?}
+      \let | medium-reductions i => reduction-over-substitution (_x i).1 (choosing i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') (expand-reduction-right subst subst' subst=>subst')
       \in (collect-reductions-together-tlcr f (\lam i => Substitution.apply {env} (choosing i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions (Substitution.apply {env} B subst') (rewrite p (TClosure.lift (\lam t => Substitution.apply {env} t subst') (\lam rel => tlcr-over-substitution subst' rel) (func {env} f mediator) B tlcr)))
+
+  \func expand-reduction-right
+    {tc : TheoremContext} {context new-context additional-context : List Sort'}
+    {gc : Color}
+    (subst subst' : Substitution {env} context new-context (EmptyMetasignature {env}))
+    (rd' : \Pi (i : Fin (length context)) ->
+        \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
+    (index : Fin (length (context ++ additional-context)))
+    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (append-context-right {env} subst index) (append-context-right {env} subst' index)) \elim context, index
+    | nil, index => (nothing, equal-trees idp)
+    | :: a context, 0 => {?}
+    | :: a context, suc index => expand-reduction-right (\lam i => subst (suc i)) (\lam i => subst' (suc i)) (\lam i => rd' (suc i)) index
 
   \func tlcr-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                {A B : Term env context s meta-signature}
@@ -694,7 +706,7 @@
     }
     | metavar m choosing => contradiction
     | func f choosing =>
-      \let | inner-reductions i => distributed-reduction-for-substitution (choosing i) {gc} color (append-context-right {env} subst) (append-context-right {env} subst') {?}
+      \let | inner-reductions i => distributed-reduction-for-substitution (choosing i) {gc} color (append-context-right {env} subst) (append-context-right {env} subst') (expand-reduction-right subst subst' subst=>subst')
            | (sc, med, inrd, cwr) => collect-reductions-together-raw f
                (\lam index => (Substitution.apply {env} (choosing index) (append-context-right {env} subst)))
                (\lam index => (Substitution.apply {env} (choosing index) (append-context-right {env} subst')))
@@ -726,10 +738,4 @@
       (BorderedParallelReduction {tc} gc someColor (choosing-A i) (mediator i)))
     (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) => ({?}, choosing-A, {?}, {?})
 
-
-  \func reduction-over-weakening {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-                                 (T S : Term env context s meta-signature)
-                                 (T~>S : Closure TrichromaticParallelReduction T S)
-                                 (sublist : SubList context new-context)
-    : Closure TrichromaticParallelReduction (weakening {env} T sublist) (weakening {env} S sublist) => {?}
 }

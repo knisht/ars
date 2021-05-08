@@ -98,7 +98,7 @@
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) sublist-trivial subst = B)
            (monochrome-reduction color t u) \elim color, t, B, A~>B
   | red, func f choosing, func (inl f') choosing', rewrite-with-parameter-f-colored p _ step => {?}
-  | red, func f choosing, B, rewrite-with-rule-colored _ (rule : LinearRewriteRuleColored {tc} red s) big-subst l[bs]=injt r[bs]=B =>
+  | red, func f choosing, B, rewrite-with-rule-colored hcr (rule : LinearRewriteRuleColored {tc} red s) big-subst l[bs]=injt r[bs]=B =>
     \let | pattern : LinearPattern envL nil s => rule.linear-pattern
          | (middle-subst, substitution-equality, l-eq) =>
            decompose-metasubstitution
@@ -108,7 +108,7 @@
          | colored-coherence => colored-metacomposition red middle-subst subst big-subst substitution-equality SubList.identity (weakening {envL} rule.r sublist-trivial)
     \in (term-u,
          inv (colored-coherence) *> (pmap (MetaSubstitution.apply {env} __ SubList.identity big-subst) (inv (injection-weakening-commutation red _ _))) *> r[bs]=B,
-         produce-monochrome-reduction red pattern rule.r middle-subst (func f choosing) term-u l-eq idp)
+         produce-monochrome-reduction red pattern rule.r middle-subst (func f choosing) term-u l-eq idp rule.l-is-func)
   | red, metavar m choosing, B, A~>B =>
     \let
       | other-root-color => root-colors m
@@ -162,12 +162,13 @@
                                    (l r : Term (colored-env color) context s meta-signature)
                                    (l-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern) sublist-trivial) SubList.identity subst = l)
                                    (r-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} rule-r sublist-trivial) SubList.identity subst = r)
+                                   (l-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern))
   : monochrome-reduction color l r \elim color
   | red => rewrite-with-rule (\new RewriteStep {
     | rule => \new LinearRewriteRule {
       | linear-pattern => pattern
       | r => rule-r
-      | l-is-func => {?} -- easy
+      | l-is-func => l-is-func
     }
     | substitution => subst
     | left-coherence => l-eq
