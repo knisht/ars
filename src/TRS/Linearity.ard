@@ -7,6 +7,8 @@
 \import TRS.HRS
 \import TRS.List
 \import TRS.Substitutions
+\import TRS.Union
+\import TRS.Union.TopLevel
 
 \func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
   | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)

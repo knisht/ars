@@ -474,25 +474,17 @@
              (BorderedParallelReduction color' mcolor B X) =>
     \let
       | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f choosing-A)
-      | (u, lu[rho]=B, t~>*u) => iterate-decomposition (LinearTerm.convert-to-term {colored-env color} t) rho B t[rho]=A A~>B root-colors
-      | eqs : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) => linear-metasignature-equator
-      | eqs2 : (LinearTerm.convert-to-term {env} (inject-linear-term color t)) =  (transport (Term env context s) eqs (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))) => equate-transported-terms color t -- technical
-      | injected-u : Term env context s (LinearMetasignatureT {env} (inject-linear-term color t)) => rewriteI eqs (inject-monochrome-term color u)
-      | modified-rho => transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) eqs rho
-      | eqs3 : (func {env} f choosing-A) = (MetaSubstitution.apply {env} (LinearTerm.convert-to-term {env} (inject-linear-term color t)) sublist-trivial modified-rho) => inv t[rho]=A *> {?}
+      | (u, lu[rho]=B, t~>*u) => iterate-decomposition (LinearTerm.convert-to-term {colored-env color} t) rho B (rewrite unwrap-injection t[rho]=A) A~>B root-colors
+      | injected-u : Term env context s (LinearMetasignatureT {colored-env color} (t)) => inject-monochrome-term color u
+      | eqs3 : (func {env} f choosing-A) = (MetaSubstitution.apply {env} (convert-to-injected-term color t) sublist-trivial rho) => inv t[rho]=A
       | witnesses => inject-linear-term.generate-injection-witness color t
-      | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) (inject-linear-term {_} color t) witnesses modified-rho ({?}) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
-      | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial (transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) (inv eqs) sigma))) (lift-relation color (transport (MetaSubstitution env nil __ (EmptyMetasignature {env})) (inv eqs) sigma)) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
-      | (mcl, uni-left) => unify-left color' color injected-u {?easy} sublist-trivial modified-rho sigma reds
-    \in metasignature-unificator eqs color color' B (func f choosing-C)
-        (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t))
-        (inject-monochrome-term color u)
-        rho
-        sigma
-        lu[rho]=B
-        (rewriteI eqs2 C=t[sigma])
-        uni-right
-        uni-left
+      | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) t rho (root-colors) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
+      | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) sublist-trivial sigma)) (lift-relation color sigma) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
+      | (mcl, uni-left) => unify-left color' color injected-u {?easy} sublist-trivial rho sigma reds
+    \in ((MetaSubstitution.apply {env} injected-u sublist-trivial sigma),
+         (rewrite C=t[sigma] (rewriteI unwrap-injection uni-right)),
+         mcl,
+         (rewriteI lu[rho]=B uni-left))
     \where {
       \func iterate-decomposition
         {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-msig meta-signature : MetaSignature Sort'}
@@ -514,55 +506,43 @@
           \let | (c, meq, rd) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
                | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, tc-connect c rd tcl)
 
-      \func linear-metasignature-equator {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {t : LinearTerm (colored-env color) context s} : LinearMetasignatureT {colored-env color} t = LinearMetasignatureT {env} (inject-linear-term color t) \elim color, t
-        | red, lt-func f choosing => \let ext-lemma : (\lam i => LinearMetasignatureT {envL} (choosing i)) = (\lam i => LinearMetasignatureT {env} (inject-linear-term red (choosing i))) => ext (\lam i => linear-metasignature-equator) \in rewrite ext-lemma idp
-        | red, lt-metavar params choosing => \let ext-lemma : (\lam i => LinearMetasignatureT {envL} (choosing i)) = (\lam i => LinearMetasignatureT {env} (inject-linear-term red (choosing i))) => ext (\lam i => linear-metasignature-equator) \in rewrite ext-lemma idp
+      \func convert-to-injected-term {tc : Confluence.TheoremContext} (color : Confluence.Color) {context : List Confluence.Sort'} {s : Confluence.Sort'} (term : LinearTerm (colored-env color) context s) : Term env context s (LinearMetasignatureT {colored-env color} (term)) \elim color, term
+        | red, lt-func f choosing => func (inl f) (\lam i => LinearTerm.upgrade-metavariables-t {env} (\lam i => LinearMetasignatureT {envL} (choosing i)) (convert-to-injected-term red (choosing i)))
+        | color, lt-metavar params choosing => metavar (inl idp) (\lam i => LinearTerm.upgrade-metavariables-mt {env} s params (\lam i => LinearMetasignatureT {TheoremContext.colored-env color} (choosing i)) (convert-to-injected-term color (choosing i)))
+        | red, lt-full-metavar => metavar idp (\lam i => var i idp)
+        | red, lt-var index p => var index p
+        | blue, lt-func f choosing => func (inr f) (\lam i => LinearTerm.upgrade-metavariables-t {env} (\lam i => LinearMetasignatureT {envR} (choosing i)) (convert-to-injected-term blue (choosing i)))
+        | blue, lt-full-metavar => metavar idp (\lam i => var i idp)
+        | blue, lt-var index p => var index p
+
+      \func unwrap-injection {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} (t : LinearTerm (colored-env color) context s) :
+        inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t) = convert-to-injected-term color {context} {s} t \elim color, t
+        | red, lt-func f choosing => pmap (func {env} (inl f))
+            (ext (\lam index => rewriteI (unwrap-injection {_} {red} (choosing index)) (swap red (\lam i => LinearMetasignatureT {envL} (choosing i)) (LinearTerm.convert-to-term {envL} (choosing index)))))
+        | color, lt-metavar params choosing => {?}
         | red, lt-full-metavar => idp
         | red, lt-var index p => idp
-        | blue, lt-func f choosing => \let ext-lemma : (\lam i => LinearMetasignatureT {envR} (choosing i)) = (\lam i => LinearMetasignatureT {env} (inject-linear-term blue (choosing i))) => ext (\lam i => linear-metasignature-equator) \in rewrite ext-lemma idp
-        | blue, lt-metavar params choosing => \let ext-lemma : (\lam i => LinearMetasignatureT {envR} (choosing i)) = (\lam i => LinearMetasignatureT {env} (inject-linear-term blue (choosing i))) => ext (\lam i => linear-metasignature-equator) \in rewrite ext-lemma idp
+        | blue, lt-func f choosing => pmap (func {env} (inr f))
+            (ext (\lam index => rewriteI (unwrap-injection {_} {blue} (choosing index)) (swap blue (\lam i => LinearMetasignatureT {envR} (choosing i)) (LinearTerm.convert-to-term {envR} (choosing index)))))
         | blue, lt-full-metavar => idp
         | blue, lt-var index p => idp
-
-      \func equate-transported-terms {tc : TheoremContext}
-                                     (color : Color) {context : List Sort'} {s : Sort'}
-                                     (t : LinearTerm (colored-env color) context s)
-        : LinearTerm.convert-to-term {env} (inject-linear-term color t) = transport (Term env context s) (linear-metasignature-equator) (inject-monochrome-term color (LinearTerm.convert-to-term {colored-env color} t)) \elim color, t
-        | red, lt-func f choosing =>
-          \let | inner : (\lam i => LinearTerm.convert-to-term {env} (inject-linear-term red (choosing i))) = (\lam i => transport (Term env (context ++ f FunctionalSignature.!!param i) (f FunctionalSignature.!!sort i)) (linear-metasignature-equator) (Injections.inject-term-left envL envR (LinearTerm.convert-to-term {envL} (choosing i)))) => ext (\lam i => equate-transported-terms red (choosing i))
-          \in {?}
-        | red, lt-metavar params choosing => {?}
-        | red, lt-full-metavar => idp
-        | red, lt-var index p => idp
-        | blue, lt-func f choosing => {?}
-        | blue, lt-metavar params choosing => {?}
-        | blue, lt-full-metavar => idp
-        | blue, lt-var index p => idp
-
-      \func metasignature-unificator {tc : TheoremContext} {context : List Sort'} {s : Sort'} {left-meta-signature right-meta-signature outer-meta-signature : MetaSignature Sort'}
-                                     (meta-signature-equality : left-meta-signature = right-meta-signature)
-                                     (color color' : Color)
-                                     {mcolor : Maybe Color}
-                                     (B C : Term env context s outer-meta-signature)
-                                     (inj-t inj-u : Term env context s left-meta-signature)
-                                     (rho : MetaSubstitution env nil left-meta-signature outer-meta-signature)
-                                     (sigma : MetaSubstitution env nil right-meta-signature outer-meta-signature)
-                                     (lu[rho]=b : MetaSubstitution.apply {env} inj-u sublist-trivial rho = B)
-                                     (C=t[sigma] : C = MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-t) sublist-trivial sigma)
-                                     (uni-right : TClosure (TopLevelColoredReduction color)
-                                         (MetaSubstitution.apply {env} (inj-t) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) (inv meta-signature-equality) sigma))
-                                         (MetaSubstitution.apply {env} (inj-u) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) (inv meta-signature-equality) sigma)))
-                                     (uni-left : BorderedParallelReduction color' mcolor
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) sublist-trivial (transport (MetaSubstitution env nil __ outer-meta-signature) meta-signature-equality rho))
-                                         (MetaSubstitution.apply {env} (transport (Term env context s) meta-signature-equality inj-u) sublist-trivial sigma))
-        : \Sigma (X : Term env context s outer-meta-signature)
-                 (TClosure (TopLevelColoredReduction color) C X)
-                 (mcolor : Maybe Color)
-                 (BorderedParallelReduction color' mcolor B X) \elim meta-signature-equality
-        | idp => (MetaSubstitution.apply {env} inj-u sublist-trivial sigma,
-                  rewrite C=t[sigma] uni-right,
-                  mcolor,
-                  rewriteI lu[rho]=b uni-left)
+        \where {
+          \func swap
+            {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {n : Nat} {i : Fin n} (msigs : \Pi (i : Fin n) -> MetaSignature Sort')
+            (t : Term (colored-env color) context s (msigs i)) :
+            inject-monochrome-term color (LinearTerm.upgrade-metavariables-t {colored-env color} msigs t) =
+            LinearTerm.upgrade-metavariables-t {env} msigs (inject-monochrome-term color t) \elim color, t
+            | red, var index p => idp
+            | red, metavar m choosing =>
+              \let extt : (\lam i1 => Injections.inject-term-left tc.envL tc.envR (LinearTerm.upgrade-metavariables-t {envL} msigs (choosing i1))) = (\lam i1 => (LinearTerm.upgrade-metavariables-t {env} msigs (Injections.inject-term-left tc.envL tc.envR (choosing i1)))) => ext (\lam i => swap red msigs (choosing i))
+              \in rewrite extt idp
+            | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => (swap red msigs (choosing index))))
+            | blue, var index p => idp
+            | blue, metavar m choosing =>
+              \let extt : (\lam i1 => Injections.inject-term-right tc.envL tc.envR (LinearTerm.upgrade-metavariables-t {envR} msigs (choosing i1))) = (\lam i1 => (LinearTerm.upgrade-metavariables-t {env} msigs (Injections.inject-term-right tc.envL tc.envR (choosing i1)))) => ext (\lam i => swap blue msigs (choosing i))
+              \in rewrite extt idp
+            | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => (swap blue msigs (choosing index))))
+        }
 
       \func recreate-coloring-for-root {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} {color : Color} {f : env.FunctionalSymbol.symbol s}
                                        {choosing-A choosing-C : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature}
@@ -574,48 +554,47 @@
   \func alternate-subst {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                         (gc rcolor : Color)
                         (C : Term env context s meta-signature)
-                        (t : LinearTerm env context s)
-                        (witness : inject-linear-term.InjectionWitness gc t)
-                        (rho : MetaSubstitution env nil (LinearMetasignatureT {env} t) meta-signature)
-                        (root-colors : \Pi {s1 : Sort'} -> \Pi (m : metaname {LinearMetasignatureT {env} t} s1) -> HasColoredRoot (Color.flip gc) (rho m))
+                        (t : LinearTerm (colored-env gc) context s)
+                        (rho : MetaSubstitution env nil (LinearMetasignatureT {colored-env gc} t) meta-signature)
+                        (root-colors : \Pi {s1 : Sort'} -> \Pi (m : metaname {LinearMetasignatureT {colored-env gc} t} s1) -> HasColoredRoot (Color.flip gc) (rho m))
                         (someColor : Maybe Color)
                         (some-color-diff : (someColor = nothing) `Or` (someColor = just (Color.flip gc)))
-                        (A=>C : BorderedParallelReduction rcolor someColor (MetaSubstitution.apply {env} ((LinearTerm.convert-to-term {env} t)) sublist-trivial rho) C)
-    : \Sigma (sigma : MetaSubstitution env nil (LinearMetasignatureT {env} t) meta-signature)
-             (C = MetaSubstitution.apply {env} ((LinearTerm.convert-to-term {env} t)) (sublist-trivial) sigma)
-             (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignatureT {env} t} s) ->
+                        (A=>C : BorderedParallelReduction rcolor someColor (MetaSubstitution.apply {env} ((unify-top.convert-to-injected-term gc {context} {s} t)) sublist-trivial rho) C)
+    : \Sigma (sigma : MetaSubstitution env nil (LinearMetasignatureT {colored-env gc} t) meta-signature)
+             (C = MetaSubstitution.apply {env} ((unify-top.convert-to-injected-term gc {context} {s} t)) (sublist-trivial) sigma)
+             (rho~>sigma : \Pi {s : Sort'} (m : metaname {LinearMetasignatureT {colored-env gc} t} s) ->
                  \Sigma (mcolor : Maybe Color) (BorderedParallelReduction rcolor mcolor (rho m) (sigma m)))
-  \elim t, someColor, A=>C
-    | lt-func f choosing, nothing, parallelization-f mediator inner-reductions (cr-skip p) =>
+  \elim gc, t, someColor, A=>C
+    | red, lt-func f choosing, nothing, parallelization-f mediator inner-reductions (cr-skip p) =>
       \let
-        | inner-witnesses => inject-linear-term.extract-from-witness gc f choosing witness
-        | inductive-result i => alternate-subst gc rcolor
+        | inductive-result i => alternate-subst red rcolor
             (mediator i) (choosing i)
-            (inner-witnesses.1 i)
             (\lam m => rho (i, m))
             (\lam {s1} m => root-colors (i, m))
-            (inner-reductions i).1 (rewriteI inner-witnesses.2 (inner-reductions i).2)
-            (rewrite (modular-commutation {env} (\lam j => LinearMetasignatureT {env} (choosing j)) i sublist-trivial (LinearTerm.convert-to-term {env} (choosing i)) rho)
+            (inner-reductions i).1
+            ((inner-reductions i).2)
+            (rewrite (modular-commutation {env} (\lam j => LinearMetasignatureT {envL} (choosing j)) i sublist-trivial (unify-top.convert-to-injected-term red (choosing i)) rho)
                 (rewrite (invariant-through-empty-subst {env} rho sublist-trivial (SubList.extend-right-single sublist-trivial) (LinearTerm.upgrade-metavariables-t {env}
-                    (\lam j => LinearMetasignatureT {env} (choosing j)) (LinearTerm.convert-to-term {env} (choosing i)))) (inner-reductions i).3))
+                    (\lam j => LinearMetasignatureT {colored-env red} (choosing j)) (unify-top.convert-to-injected-term red (choosing i)))) (inner-reductions i).3))
       \in (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2,
-           inv p *> (pmap (func {env} f)
+           inv p *> (pmap (func {env} (inl f))
                (ext (\lam index => rewriteI
-                   (modular-commutation {env} (\lam j => LinearMetasignatureT {env} (choosing j)) index (SubList.extend-right-single sublist-trivial) (LinearTerm.convert-to-term {env} (choosing index)) (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2))
+                   (modular-commutation {env} (\lam j => LinearMetasignatureT {envL} (choosing j)) index (SubList.extend-right-single sublist-trivial) (unify-top.convert-to-injected-term red (choosing index)) (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2))
                    (rewrite (invariant-through-empty-subst {env} ) (inductive-result index).2)))),
            \lam {s1} m => (inductive-result (m.1)).3 m.2)
-    | lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr p) =>
-      \let | inner-witnesses => (inject-linear-term.extract-from-witness gc f choosing witness).2
-           | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring (TClosure.extract tlcr).2)
-           | extracted => Color.flip-contradiction (inv (inner-witnesses) *> coloring-from-tlcr *> extract-from-or some-color-diff)
+    | red, lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr p) =>
+      \let
+        | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring (TClosure.extract tlcr).2)
+        | extracted => coloring-from-tlcr *> extract-from-or some-color-diff
       \in contradiction
-    | lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
-    | lt-metavar params choosing, someColor, rd => {?} -- impossible, use patterns
-    | lt-full-metavar, someColor, rd =>
+    | gc, lt-func f choosing, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
+    | gc, lt-metavar params choosing, someColor, rd => {?} -- impossible, use patterns
+    | red, lt-full-metavar, someColor, rd =>
       ( \lam {s1} mvar => transport (Term env context __ meta-signature) (inv mvar) C,
         (inv (plain-identity-effect {env} C)),
         \lam {s1} m => \let | unified => unify-reduction rho C rd m  \in (someColor, unified))
-    | lt-var index p, someColor, equal-trees p1 => (\lam {s1} mvar => contradiction, inv p1, \lam {s1} m => contradiction)
+    | red, lt-var index p, someColor, equal-trees p1 => (\lam {s1} mvar => contradiction, inv p1, \lam {s1} m => contradiction)
+    | blue, _, _, _ => {?}
     \where {
       \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
         | inl a1 => contradiction
@@ -637,52 +616,6 @@
         | _, A, equal-trees p => (nothing, inl idp, equal-trees p)
         | nothing, func f choosing, rd => (nothing, inl idp, rd)
         | just a, func f choosing, rd => (just a, or, rd)
-
-      \func identify-context-mapping {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                                     (sublist : SubList right-context (left-context ++ right-context))
-                                     (sublist' : SubList left-context (left-context ++ right-context))
-                                     (ind : Fin (length (left-context ++ right-context))) :
-        (extend-substitution-right {env} {_} {_} {_} {meta-signature} sublist (wide-identity sublist')) ind = var ind idp
-      \elim left-context, right-context, ind
-        | nil, :: a right-context, zero => {?}
-        | nil, :: a right-context, suc ind => {?} -- rewrite (extension-over-identity-is-identity ind) idp
-        | :: a left-context, nil, zero => {?}
-        | :: a left-context, r, suc ind => {?}
-        | :: a left-context, :: a1 right-context, zero => {?}
-        \where {
-          \func outer-equality-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                                   (sublist : SubList right-context (left-context ++ right-context))
-                                   (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-right {_} {_} {_} {_} {meta-signature} sublist (wide-identity sublist') = plain-identity =>
-            ext (outer-equality-to-identity sublist sublist')
-
-          \func outer-equality-to-identity {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                                           (sublist : SubList right-context (left-context ++ right-context))
-                                           (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context))) : extend-substitution-right sublist (wide-identity sublist') i = plain-identity {_} {_} {meta-signature} i =>
-            {?}
-
-          \func extension-over-identity-is-identity {A : \Type} {some-context : List A} (j : Fin (length some-context)) : extend-substitution-right.produce-inner-term SubList.identity j = (j, idp) \elim some-context, j
-            | :: a some-context, zero => idp
-            | :: a some-context, suc j => rewrite (extension-over-identity-is-identity j) idp
-
-
-          \func sigma-to-var {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (sig : \Sigma (i : Fin (length context)) (s = context !! i)) : Term env context s meta-signature =>
-            var sig.1 sig.2
-
-          \func recalculate-over-skipping {A : \Set} {point' : A} {a : List A} (ind : Fin (length a)) : weakening.recalculate-index {_} {a} {point' :: a} (sublist-skip SubList.identity) ind idp = (suc ind, idp) \elim a, ind
-            | :: a a1, zero => idp
-            | :: a a1, suc ind => rewrite (weakening.recalculate-index-over-identity ind) idp
-
-          \func weakining-extension-comms {env : Environment} {left-context right-context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
-                                          (index-calculator : \Pi (i : Fin (length left-context)) -> \Sigma (j' : Fin (length (left-context ++ right-context))) (left-context !! i = (left-context ++ right-context) !! j'))
-                                          (j : Fin (length (left-context ++ right-context)))
-            : weakening {_} {_} {_} {_} {meta-signature}
-              (extend-substitution-right (SubList.extend-right-single-left SubList.identity) (\lam i => sigma-to-var (index-calculator i)) j)
-              (sublist-skip SubList.identity) =
-          extend-substitution-right {_} {_} {_} {s :: left-context ++ right-context}
-              (sublist-skip (SubList.extend-right-single-left SubList.identity))
-              (\lam i => \let (index, p) => index-calculator i \in var (suc index) p)
-              j => {?}
-        }
 
       \func unwrap-func {env : Environment} {s : Sort} {context : List Sort} {meta-signature : MetaSignature Sort}
                         (T : Term env context s meta-signature) : Or Nat
@@ -861,40 +794,6 @@
       (BorderedParallelReduction {tc} gc someColor (choosing-A i) (mediator i)))
     (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) => ({?}, choosing-A, {?}, {?})
 
-
-
-  --  \func reduction-over-extension {tc : TheoremContext} {basic-context extended-context additional-context : List Sort'} {meta-signature : MetaSignature Sort'}
-  --                                 (substA substB : Substitution {env} basic-context extended-context meta-signature)
-  --                                 (sublist : SubList additional-context extended-context)
-  --                                 (A=>B : \Pi (i : Fin (length basic-context)) -> Closure TrichromaticParallelReduction (substA i) (substB i))
-  --                                 (j : Fin (length (basic-context ++ additional-context))) : Closure TrichromaticParallelReduction (extend-substitution-right {env} sublist substA j) (extend-substitution-right {env} sublist substB j) \elim basic-context, j
-  --    | nil, j => c-basic (nothing, equal-trees idp)
-  --    | :: a basic-context, zero => A=>B zero
-  --    | :: a basic-context, suc j => reduction-over-extension (\lam i => substA (suc i)) (\lam i => substB (suc i)) sublist (\lam i => A=>B (suc i)) j
-
-  --  \func apply-reducible-substitution {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-  --                                     (s : Term env context s meta-signature)
-  --                                     (a-subst b-subst : Substitution {env} context context' meta-signature)
-  --                                     (a~>b : \Pi (index : Fin (length context)) -> Closure TrichromaticParallelReduction (a-subst index) (b-subst index))
-  --    : Closure TrichromaticParallelReduction (Substitution.apply {env} s a-subst) (Substitution.apply {env} s b-subst)
-  --  \elim s
-  --    | var index p => \case \elim s, \elim p \with {
-  --      | s, idp => a~>b index
-  --    }
-  --    | metavar m choosing => {?} -- like the bottom one
-  --    | func f choosing =>
-  --      \let | choosing-a i => (Substitution.apply {env} (choosing i) (append-context-left {env} a-subst))
-  --           | choosing-b i => (Substitution.apply {env} (choosing i) (append-context-left {env} b-subst))
-  --           | q i => apply-reducible-substitution (choosing i) (append-context-left {env} a-subst) (append-context-left {env} b-subst) (reduction-over-left-append a-subst b-subst a~>b)
-  --      \in gather-closure f choosing-a choosing-b q
-
-  --  \func reduction-over-left-append {tc : TheoremContext} {context add-context context' : List Sort'} {meta-signature : MetaSignature Sort'}
-  --                                   (a-subst b-subst : Substitution {env} context context' meta-signature)
-  --                                   (a~>b : \Pi (index : Fin (length context)) -> Closure TrichromaticParallelReduction (a-subst index) (b-subst index))
-  --                                   (i : Fin (length (add-context ++ context))) : Closure TrichromaticParallelReduction (append-context-left {env} a-subst i) (append-context-left {env} b-subst i) \elim add-context, i
-  --    | nil, i => a~>b i
-  --    | :: a add-context, zero => c-basic (nothing, equal-trees idp)
-  --    | :: a add-context, suc i => \let x => reduction-over-left-append a-subst b-subst a~>b i \in reduction-over-weakening (append-context-left {env} a-subst i) (append-context-left {env} b-subst i) x (sublist-skip SubList.identity)
 
   \func reduction-over-weakening {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                  (T S : Term env context s meta-signature)
