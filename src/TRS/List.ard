@@ -45,6 +45,12 @@
       | nil, :: a add => sublist-skip (extend-middle nil r add)
       | :: a l, add => sublist-match idp (extend-middle l r add)
 
+    \func extend-different-left {A : \Type} {l r : List A} (sublist : SubList l r) {add add' : List A} : SubList (add ++ l) (add' ++ r) \elim add, add'
+      | nil, nil => sublist
+      | nil, r' => SubList.extend-right-single-left sublist
+      | :: a add, nil => {?}
+      | :: a add, :: a1 add' => {?}
+
     \func shift-index {A : \Type} {list list' : List A} (index : Fin (length list)) (sublist : SubList list list') : Fin (length list') \elim list, list', index, sublist
       | :: x xs, :: y ys, zero, sublist-match p sublist => zero
       | :: x xs, :: y ys, suc index, sublist-match p sublist => suc (shift-index index sublist)

@@ -763,20 +763,49 @@
                                (subst : Substitution {env} context new-context meta-signature)
                                (A~>B : TopLevelColoredReduction color A B)
     : TopLevelColoredReduction color (Substitution.apply {env} A subst) (Substitution.apply {env} B subst) \elim A, B, A~>B
-    | A, B, rewrite-with-rule-colored h (rule) msubst msubst[l]=A msubst[r]=B => rewrite-with-rule-colored {?} rule (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) {?} {?}
+    | A, B, rewrite-with-rule-colored h (rule) msubst msubst[l]=A msubst[r]=B => rewrite-with-rule-colored {?} rule (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) (rewrite (inv msubst[l]=A) {?}) {?}
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
 
-  --  \func commutation {env : Environment} {context new-context : List Sort} {s : Sort} {inner-ms outer-ms : MetaSignature Sort}
-  --                    (metasubst : MetaSubstitution env context inner-ms outer-ms)
-  --                    (subst : Substitution context new-context outer-ms)
-  --                    (t : Term env nil s inner-ms) :
-  --    MetaSubstitution.apply (weakening t sublist-trivial) SubList.identity (\lam m => Substitution.apply (metasubst m) (append-context-left subst)) =
-  --    Substitution.apply (MetaSubstitution.apply (weakening t sublist-trivial) SubList.identity metasubst) subst \elim t
-  --    | var index p => \case \elim s, \elim p \with {
-  --      | s, idp => {?}
-  --    }
-  --    | metavar m choosing => {?}
-  --    | func f choosing => {?}
+  \func expand-reduction-over-weakening
+    {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
+    {gc : Color}
+    (someColor : Maybe Color)
+    (A B : Term env context s (EmptyMetasignature {env}))
+    (bpr : BorderedParallelReduction gc someColor A B)
+    (sublist : SubList context new-context)
+    : BorderedParallelReduction gc someColor (weakening {env} A sublist) (weakening {env} B sublist) \elim someColor, A, B, bpr
+    | _, func f choosing, func f1 choosing1, _ => {?}
+    | _, var index p, var index1 p1, _ => {?}
+    | _, var index p, metavar m choosing, _ => contradiction
+    | _, var index p, func f choosing, _ => {?}
+    | _, metavar m choosing, _, _ => contradiction
+    | cl , func f choosing, var index p, equal-trees p1 => contradiction
+    | nothing, func f choosing, var index p, parallelization-f mediator _x (cr-skip p1) => contradiction
+    | just a, func f choosing, var index p, parallelization-f mediator _x (cr-rewrite t p1) =>
+      \let inductive i => expand-reduction-over-weakening (_x i).1 (choosing i) (mediator i) (_x i).3 (SubList.extend-right sublist)
+      \in parallelization-f (\lam i => weakening {env} (mediator i) (SubList.extend-right sublist)) (\lam i => ((_x i).1, (_x i).2, inductive i)) (cr-rewrite ({?}) p1)
+    | _, func f choosing, metavar m choosing1, _ => contradiction
+
+  \func tlcr-over-weakening
+    {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
+    {color : Color}
+    (A B : Term env context s (EmptyMetasignature {env}))
+    (tlcr : TopLevelColoredReduction color A B)
+    (sublist : SubList context new-context)
+    : TopLevelColoredReduction color (weakening {env} A sublist) (weakening {env} B sublist) \elim A, B, tlcr
+    | A, B, rewrite-with-rule-colored h rule substitution left-coherence right-coherence => rewrite-with-rule-colored {?} rule (\lam m => weakening {env} (substitution m) (SubList.extend-right sublist)) (rewriteI left-coherence {?}) {?}
+    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
+    \where {
+      \func application-weakening-lemma
+        {env : Environment} {core-context context new-context general-context : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+        (A : Term env core-context s old-msig)
+        (msubst : MetaSubstitution env context old-msig new-msig)
+        (sublist : SubList context new-context)
+        : MetaSubstitution.apply (weakening A (SubList.extend-right-single-left SubList.identity)) (SubList.extend-right-single SubList.identity) (\lam m => weakening (msubst m) (SubList.extend-right sublist)) = weakening (MetaSubstitution.apply (weakening A (SubList.extend-right-single-left SubList.identity)) (SubList.extend-right-single SubList.identity) msubst) (SubList.extend-right sublist) \elim A
+        | var index p => {?}
+        | metavar m choosing => {?}
+        | func f choosing => pmap (func f) (ext (\lam index => \let inductive => application-weakening-lemma (choosing index) msubst sublist \in {?}))
+    }
 
   \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
                                                (A : PureTerm env context s)

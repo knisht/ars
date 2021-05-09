@@ -264,7 +264,7 @@
         | s, idp => idp
       }
       | metavar m choosing => pmap (metavar {env} m) (ext (\lam index => twist-application (choosing index) subst))
-      | func f choosing => pmap (func {env} (inl f)) (ext (\lam index => rewrite (push-append-context-right subst) (twist-application (choosing index) (append-context-right {envL} subst)))) -- push append-context-left further
+      | func f choosing => pmap (func {env} (inl f)) (ext (\lam index => rewrite (push-append-context-right subst) (twist-application (choosing index) (append-context-right {envL} subst))))
       \where {
         \func push-append-context-right {tc : TheoremContext} {context context' additional-context : List Sort'} {ms : MetaSignature Sort'}
                                         (subst : Substitution {envL} context context' ms)
