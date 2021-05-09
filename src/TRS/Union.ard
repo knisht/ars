@@ -654,7 +654,7 @@
         MetaSubstitution.apply (weakening t pat-sublist) sublist (substitutions index) = MetaSubstitution.apply (weakening (LinearPattern.upgrade-metavariables-p producer t) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim t
         | var index1 p => idp
         | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-left sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (choosing i)))
-        | func f choosing => pmap (func f) (ext (\lam i => apply-modularity producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right pat-sublist) (choosing i)))
+        | func f choosing => pmap (func f) (ext (\lam i => apply-modularity producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right-both pat-sublist) (choosing i)))
     }
 
   \data TClosure {A : \Type} (R : A -> A -> \Type) (a b : A)
@@ -782,8 +782,8 @@
     | cl , func f choosing, var index p, equal-trees p1 => contradiction
     | nothing, func f choosing, var index p, parallelization-f mediator _x (cr-skip p1) => contradiction
     | just a, func f choosing, var index p, parallelization-f mediator _x (cr-rewrite t p1) =>
-      \let inductive i => expand-reduction-over-weakening (_x i).1 (choosing i) (mediator i) (_x i).3 (SubList.extend-right sublist)
-      \in parallelization-f (\lam i => weakening {env} (mediator i) (SubList.extend-right sublist)) (\lam i => ((_x i).1, (_x i).2, inductive i)) (cr-rewrite ({?}) p1)
+      \let inductive i => expand-reduction-over-weakening (_x i).1 (choosing i) (mediator i) (_x i).3 (SubList.extend-right-both sublist)
+      \in parallelization-f (\lam i => weakening {env} (mediator i) (SubList.extend-right-both sublist)) (\lam i => ((_x i).1, (_x i).2, inductive i)) (cr-rewrite ({?}) p1)
     | _, func f choosing, metavar m choosing1, _ => contradiction
 
   \func tlcr-over-weakening
@@ -793,7 +793,7 @@
     (tlcr : TopLevelColoredReduction color A B)
     (sublist : SubList context new-context)
     : TopLevelColoredReduction color (weakening {env} A sublist) (weakening {env} B sublist) \elim A, B, tlcr
-    | A, B, rewrite-with-rule-colored h rule substitution left-coherence right-coherence => rewrite-with-rule-colored {?} rule (\lam m => weakening {env} (substitution m) (SubList.extend-right sublist)) (rewriteI left-coherence {?}) {?}
+    | A, B, rewrite-with-rule-colored h rule substitution left-coherence right-coherence => rewrite-with-rule-colored {?} rule (\lam m => weakening {env} (substitution m) (SubList.extend-right-both sublist)) (rewriteI left-coherence {?}) {?}
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
     \where {
       \func application-weakening-lemma
@@ -801,7 +801,7 @@
         (A : Term env core-context s old-msig)
         (msubst : MetaSubstitution env context old-msig new-msig)
         (sublist : SubList context new-context)
-        : MetaSubstitution.apply (weakening A (SubList.extend-right-single-left SubList.identity)) (SubList.extend-right-single SubList.identity) (\lam m => weakening (msubst m) (SubList.extend-right sublist)) = weakening (MetaSubstitution.apply (weakening A (SubList.extend-right-single-left SubList.identity)) (SubList.extend-right-single SubList.identity) msubst) (SubList.extend-right sublist) \elim A
+        : MetaSubstitution.apply (weakening A (SubList.extend-left-single SubList.identity)) (SubList.extend-right-single SubList.identity) (\lam m => weakening (msubst m) (SubList.extend-right-both sublist)) = weakening (MetaSubstitution.apply (weakening A (SubList.extend-left-single SubList.identity)) (SubList.extend-right-single SubList.identity) msubst) (SubList.extend-right-both sublist) \elim A
         | var index p => {?}
         | metavar m choosing => {?}
         | func f choosing => pmap (func f) (ext (\lam index => \let inductive => application-weakening-lemma (choosing index) msubst sublist \in {?}))

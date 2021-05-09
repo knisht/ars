@@ -22,23 +22,23 @@
       | nil => sublist-trivial
       | :: a list => sublist-match idp identity
   -- todo: create a meta that automatically extends current sublist predicate to the expected type
-    \func extend-left {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (add ++ l) (add ++ r) \elim add
+    \func extend-left-both {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (add ++ l) (add ++ r) \elim add
       | nil => sublist
-      | :: a add => sublist-match idp (extend-left sublist)
+      | :: a add => sublist-match idp (extend-left-both sublist)
 
-    \func extend-right {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (l ++ add) (r ++ add) \elim l, r, sublist
-      | nil, r, sublist-trivial => SubList.extend-right-single-left SubList.identity
-      | :: x l, :: y r, sublist-match p sublist => sublist-match p (extend-right sublist)
-      | l, :: y r, sublist-skip sublist => sublist-skip (extend-right sublist)
+    \func extend-right-both {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (l ++ add) (r ++ add) \elim l, r, sublist
+      | nil, r, sublist-trivial => SubList.extend-left-single SubList.identity
+      | :: x l, :: y r, sublist-match p sublist => sublist-match p (extend-right-both sublist)
+      | l, :: y r, sublist-skip sublist => sublist-skip (extend-right-both sublist)
 
     \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (r ++ add) \elim l, r, sublist
       | nil, r, sublist-trivial => sublist-trivial
       | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist)
       | l, :: y ys, sublist-skip sublist => sublist-skip (extend-right-single sublist)
 
-    \func extend-right-single-left {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (add ++ r) \elim add
+    \func extend-left-single {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (add ++ r) \elim add
       | nil => sublist
-      | :: a add => sublist-skip (extend-right-single-left sublist)
+      | :: a add => sublist-skip (extend-left-single sublist)
 
     \func extend-middle {A : \Type} (l r add : List A) : SubList (l ++ r) (l ++ add ++ r) \elim l, add
       | nil, nil => identity
@@ -47,7 +47,7 @@
 
     \func extend-different-left {A : \Type} {l r : List A} (sublist : SubList l r) {add add' : List A} : SubList (add ++ l) (add' ++ r) \elim add, add'
       | nil, nil => sublist
-      | nil, r' => SubList.extend-right-single-left sublist
+      | nil, r' => SubList.extend-left-single sublist
       | :: a add, nil => {?}
       | :: a add, :: a1 add' => {?}
 

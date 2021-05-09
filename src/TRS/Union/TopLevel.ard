@@ -289,10 +289,12 @@
   : weakening {env} (inject-monochrome-term color t) sublist = inject-monochrome-term color (weakening {colored-env color} t sublist) \elim color, t
   | red, var index p => idp
   | red, metavar m choosing => pmap (metavar {env} m) (ext (\lam index => injection-weakening-commutation red sublist (choosing index)))
-  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => injection-weakening-commutation red (SubList.extend-right sublist) (choosing index)))
+  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => injection-weakening-commutation red (SubList.extend-right-both sublist) (choosing index)))
   | blue, var index p => idp
   | blue, metavar m choosing => pmap (metavar {env} m) (ext (\lam index => injection-weakening-commutation blue sublist (choosing index)))
-  | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => injection-weakening-commutation blue (SubList.extend-right sublist) (choosing index)))
+  | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => injection-weakening-commutation blue (SubList.extend-right-both sublist) (choosing index)))
+
+--\func transport-application {env : Environment}
 
 \func decompose-metasubstitution
   {tc : TheoremContext} {pattern-context context core-context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
@@ -322,7 +324,7 @@
          | colored-root-for-f : HasColoredRoot red (func (inl f)
              (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left tc.envL tc.envR (LinearPattern.upgrade-metavariables-p {envL}
                  (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
-                 (SubList.extend-right sublist)) (SubList.extend-right-single sublist-core) big-substitution)) => red-func-root
+                 (SubList.extend-right-both sublist)) (SubList.extend-right-single sublist-core) big-substitution)) => red-func-root
          | colored-root-for-m : HasColoredRoot red (Substitution.apply {env} (middle-substitution m) (extend-substitution-left {env} sublist-trivial
              (\lam i => MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR (choosing1 i)) sublist-trivial middle-substitution))) => rewriteI eq colored-root-for-f
          | empty => decompose-along-reduction.eliminate-colors blue opposite-color-for-m colored-root-for-m
@@ -333,11 +335,11 @@
       | f, idp, choosing, big-substitution, eq =>
         \let | args-eq : (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (LinearPattern.upgrade-metavariables-p {envL}
             (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
-            (SubList.extend-right sublist)) (SubList.extend-right-single sublist-core) big-substitution) = (\lam i => MetaSubstitution.apply {env}
-            (Injections.inject-term-left envL envR (choosing1 i)) (SubList.extend-right-single-left sublist-trivial)
+            (SubList.extend-right-both sublist)) (SubList.extend-right-single sublist-core) big-substitution) = (\lam i => MetaSubstitution.apply {env}
+            (Injections.inject-term-left envL envR (choosing1 i)) (SubList.extend-left-single sublist-trivial)
             middle-substitution) => ext (\lam i => {?})
              | inductive i => decompose-metasubstitution red
-                 (SubList.extend-right sublist)
+                 (SubList.extend-right-both sublist)
                  (SubList.extend-right-single sublist-core)
                  (rewrite (inv ++-assoc) (pmap (__ ++ (domain f1 Data.List.!! i).1) context-eqs))
                  (choosing i)
@@ -357,16 +359,26 @@
   | blue, _, _, _ => {?}
 
 \func weakening-extension-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                              (sublist : SubList right-context (left-context ++ right-context))
-                              (sublist' : SubList left-context (left-context ++ right-context)) : extend-substitution-left {_} {_} {_} {_} {meta-signature} sublist' (\lam i => weakening (var i idp) sublist) = plain-identity =>
-  ext (weakening-extension sublist sublist')
+                              :
+  extend-substitution-left {_} {left-context} {right-context} {_} {meta-signature} (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) = plain-identity {_} {_} {meta-signature} =>
+  ext (weakening-extension)
 
 \func weakening-extension {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
-                          (sublist : SubList right-context (left-context ++ right-context))
-                          (sublist' : SubList left-context (left-context ++ right-context)) (i : Fin (length (left-context ++ right-context)))
-  : extend-substitution-left sublist' (\lam i => weakening (var i idp) sublist) i = plain-identity {_} {_} {meta-signature} i \elim left-context, right-context, sublist, sublist', i
-  | nil, r, sublist, sublist', i => {?}
-  | left-context, nil, sublist, sublist', i => {?}
-  | :: a left-context, :: a1 right-context, sublist, sublist-match p sublist', i => {?}
-  | :: a left-context, right-context, sublist, sublist-skip sublist', i => {?}
+                          (i : Fin (length (left-context ++ right-context)))
+  : extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i = plain-identity {_} {_} {meta-signature} i =>
+  partial-fin-induction {Sort}
+      {left-context}
+      {right-context}
+      (\lam i =>
+          extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i
+            =
+          plain-identity {_} {_} {meta-signature} i)
+      (\lam i1 => \let | q => extend-substitution-left.for-left-context {env} {left-context} {right-context} {left-context ++ right-context} {meta-signature} (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
+                       | (right-eq, big-eq) => weakening.recalculate-index-over-right-extension' {Sort} {left-context} {right-context} i1
+                       | q' : right-eq = (expand-fin-eq i1) => Path.inProp _ _
+                  \in q *> (rewriteI q' (pmap to-var big-eq)))
+      (\lam i1 => \let | q => extend-substitution-left.for-right-context {env} {left-context} {right-context} {left-context ++ right-context} {meta-signature} (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
+                       | big-eq => weakening.recalculate-index-over-left-extension' {Sort} {left-context} {right-context} i1
+                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right-to-identity.lem2 {env} {left-context ++ right-context} {_} {_} {meta-signature} (expand-fin-late i1) (inv (expand-fin-eq-late i1)) idp (inv (expand-fin-eq-late i1)))))
+      i
 
