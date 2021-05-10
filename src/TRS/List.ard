@@ -14,25 +14,30 @@
 
 -- | `l` is a sublist of `r`
 \data SubList {A : \Type} (l r : List A) \elim l, r
-  | nil, _ => sublist-trivial
+  | nil, nil => sublist-trivial
   | :: x xs, :: y ys => sublist-match (x = y) (SubList xs ys)
   | l, :: y ys => sublist-skip (SubList l ys)
   \where {
     \func identity {A : \Type} {list : List A} : SubList list list \elim list
       | nil => sublist-trivial
       | :: a list => sublist-match idp identity
-  -- todo: create a meta that automatically extends current sublist predicate to the expected type
+
+    \func sublist-trivial-skip {A : \Type} {list : List A} : SubList nil list \elim list
+      | nil => sublist-trivial
+      | :: a list => sublist-skip sublist-trivial-skip
+
+    -- todo: create a meta that automatically extends current sublist predicate to the expected type
     \func extend-left-both {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (add ++ l) (add ++ r) \elim add
       | nil => sublist
       | :: a add => sublist-match idp (extend-left-both sublist)
 
     \func extend-right-both {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList (l ++ add) (r ++ add) \elim l, r, sublist
-      | nil, r, sublist-trivial => SubList.extend-left-single SubList.identity
+      | nil, nil, sublist-trivial => SubList.identity
       | :: x l, :: y r, sublist-match p sublist => sublist-match p (extend-right-both sublist)
       | l, :: y r, sublist-skip sublist => sublist-skip (extend-right-both sublist)
 
     \func extend-right-single {A : \Type} {l r : List A} (sublist : SubList l r) {add : List A} : SubList l (r ++ add) \elim l, r, sublist
-      | nil, r, sublist-trivial => sublist-trivial
+      | nil, nil, sublist-trivial => sublist-trivial-skip
       | :: x xs, :: y ys, sublist-match p sublist => sublist-match p (extend-right-single sublist)
       | l, :: y ys, sublist-skip sublist => sublist-skip (extend-right-single sublist)
 

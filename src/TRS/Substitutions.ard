@@ -17,7 +17,8 @@
   \lam i => weakening (var i idp) sublist
 
 \func plain-identity-effect {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
-                            (t : Term env context s meta-signature) : Substitution.apply t plain-identity = t \elim t
+                            (t : Term env context s meta-signature)
+  : Substitution.apply t plain-identity = t \elim t
   | var index p => \case \elim s, \elim p \with {
     | s, idp => idp
   }
@@ -74,7 +75,6 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-right-both sublist))
   \where {
     \func recalculate-index {A : \Set} {a b : List A} {point : A} (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : \Sigma (ind' : Fin (length b)) (point = b !! ind') \elim a, b, sublist, ind, p
-      | nil, r, sublist-trivial, (), p
       | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
       | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
       | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
@@ -118,7 +118,6 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
 
     \func recalculate-over-skip {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! ind) :
       recalculate-index {A} {a} {point' :: b} {point} (sublist-skip sublist) ind eq = (\let (ind', eq') => recalculate-index sublist ind eq \in (suc ind', eq')) \elim a, b, sublist, ind, eq
-      | nil, b, sublist-trivial, (), eq
       | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
       | :: x a, :: y b, sublist-match p sublist, suc ind, idp => idp
       | nil, :: y b, sublist-skip sublist, ind, idp => idp
@@ -126,7 +125,6 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
 
     \func recalculate-over-match {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! (ind)) :
       recalculate-index {A} {point' :: a} {point' :: b} {point} (sublist-match idp sublist) (suc ind) eq = (\let (ind', eq') => recalculate-index sublist ind eq \in (suc ind', eq')) \elim a, b, sublist, ind, eq
-      | nil, b, sublist-trivial, (), eq
       | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
       | :: x a, :: y b, sublist-match p sublist, suc ind, idp => idp
       | nil, :: y b, sublist-skip sublist, ind, idp => idp

@@ -114,8 +114,8 @@
 \record RewriteStep {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort} (L R : Term env context s meta-signature)
   | rule : RewriteRule env {s}
   | substitution : MetaSubstitution env context rule.meta-signature meta-signature
-  | left-coherence : MetaSubstitution.apply (weakening rule.l SubList.sublist-trivial) SubList.identity substitution = L
-  | right-coherence : MetaSubstitution.apply (weakening rule.r SubList.sublist-trivial) SubList.identity substitution = R
+  | left-coherence : MetaSubstitution.apply (weakening rule.l SubList.sublist-trivial-skip) SubList.identity substitution = L
+  | right-coherence : MetaSubstitution.apply (weakening rule.r SubList.sublist-trivial-skip) SubList.identity substitution = R
 
 \record IndexedSet (A : \Type)
   | J : \Set
