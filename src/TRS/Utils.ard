@@ -77,3 +77,7 @@
   }
 
 \func fsuc {n : Nat} (x : Fin n) : Fin (suc n) => suc x
+
+\func unor {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
+  | inl a => a
+  | inr b => default
