@@ -47,16 +47,16 @@
   | :: a old-context, zero => weakening (subst 0) (SubList.extend-right-single SubList.identity)
   | :: a old-context, suc index => append-context-right (\lam i => subst (suc i)) index
 
-\func extension-over-shift  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+\func append-context-right-begin  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
                             {additional-context : List Sort}
                             (subst : Substitution old-context new-context meta-signature)
                             (index : Fin (length (old-context)))
   : append-context-right subst (expand-fin index) =
 weakening (transport (Term env (new-context) __ meta-signature) (inv (expand-fin-eq {_} {_} {additional-context} index)) (subst index)) (SubList.extend-right-single SubList.identity) \elim old-context, index
   | :: a old-context, 0 => idp
-  | :: a old-context, suc index => extension-over-shift (\lam i => subst (suc i)) index
+  | :: a old-context, suc index => append-context-right-begin (\lam i => subst (suc i)) index
 
-\func extension-over-shift-late
+\func append-context-right-end
   {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
   {additional-context : List Sort}
   (subst : Substitution old-context new-context meta-signature)
@@ -64,7 +64,7 @@ weakening (transport (Term env (new-context) __ meta-signature) (inv (expand-fin
   : append-context-right subst (expand-fin-late {_} {old-context} {additional-context} index) =
 weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single SubList.identity) \elim old-context
   | nil => idp
-  | :: a old-context => extension-over-shift-late (\lam i => subst (suc i)) index
+  | :: a old-context => append-context-right-end (\lam i => subst (suc i)) index
 
 \func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort} {meta-signature : MetaSignature Sort}
                 (t : Term env narrow-context s' meta-signature)
@@ -187,10 +187,10 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   : append-context-right {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i = plain-identity i =>
   partial-fin-induction
       (\lam i => append-context-right {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i = plain-identity i)
-      (\lam i1 => extension-over-shift plain-identity i1 *>
+      (\lam i1 => append-context-right-begin plain-identity i1 *>
       (rewrite lem (\let | some-lemma => weakening.recalculate-index-over-right-extension {_} {_} {additional-context} i1
                     \in rewrite (pmap (to-var) some-lemma.2) (unfold (to-var, plain-identity) (lem2 (expand-fin i1) (some-lemma).1 idp (inv (expand-fin-eq i1)))))))
-      (\lam i1 => extension-over-shift-late plain-identity i1 *> (pmap (to-var {env}) (weakening.recalculate-index-over-left-extension i1)))
+      (\lam i1 => append-context-right-end plain-identity i1 *> (pmap (to-var {env}) (weakening.recalculate-index-over-left-extension i1)))
       i
   \where {
     \func lem {env : Environment} {context context' : List Sort} {s s' : Sort} {meta-signature : MetaSignature Sort}

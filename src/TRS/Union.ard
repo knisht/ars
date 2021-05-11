@@ -777,7 +777,7 @@
     (index : Fin (length (context ++ additional-context)))
     : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (append-context-right {env} subst index) (append-context-right {env} subst' index)) \elim context, index
     | nil, index => (nothing, equal-trees idp)
-    | :: a context, 0 => {?}
+    | :: a context, 0 => \let ind => rd' 0 \in (ind.1, expand-reduction-over-weakening ind.1 (subst 0) (subst' 0) ind.2 (SubList.extend-right-single SubList.identity))
     | :: a context, suc index => expand-reduction-right (\lam i => subst (suc i)) (\lam i => subst' (suc i)) (\lam i => rd' (suc i)) index
 
   \func tlcr-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
