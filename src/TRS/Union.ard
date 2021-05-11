@@ -906,13 +906,14 @@
               (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
               choosing-B midterms (suc delim))) (func {env} f (modular-function
               (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-              choosing-B midterms (delim))) => upgrade-iterated-reduction f choosing-B midterms delim ind1~>ind'
+              choosing-B midterms (delim))) => upgrade-iterated-reduction f {?} choosing-B midterms delim ind1~>ind'
                     \in cr-rewrite (TClosure.compose upgraded-reduction before~>C) idp)
 
       \func upgrade-iterated-reduction
         {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
         {gc : Color}
         (f : env.FunctionalSymbol.symbol s)
+        (eq : color-of-root f = gc)
         (choosing-A choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
         (index : Fin (length (env.FunctionalSymbol.domain f)))
         (rd : TClosure (TopLevelColoredReduction gc) (choosing-B index) (choosing-A index))
@@ -925,6 +926,14 @@
                                                       (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
                                                       choosing-A choosing-B (suc index))
                                                   | some' => insert-term {env} f modular index (choosing-B index)
+                                                  | mapped => TClosure.lift {_} {_}
+                                                      {TopLevelColoredReduction gc {meta-signature} {context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index} {f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index}}
+                                                      {TopLevelColoredReduction gc {meta-signature} {context} {s}}
+                                                      (insert-term {env} f modular index)
+                                                      (\lam rel => rewrite-with-parameter-f-colored idp eq index (rewrite pointed-at-index (rewrite pointed-at-index rel)) (\lam j j-not-index => rewrite (pointed-not-at-index _ _ index _ j (j-not-index)) (rewrite (pointed-not-at-index _ _ index _ j (j-not-index)) idp)))
+                                                      (choosing-B index)
+                                                      (choosing-A index)
+                                                      rd
                                              \in {?}
 
       \func pointed-function {n : Nat} (C : Fin n -> \Type)
@@ -932,10 +941,33 @@
                              (index : Fin n)
                              (point : C index)
                              (j : Fin n)
-        : C j => \case (FinDec index j) \with {
-        | yes e => rewriteI e point
-        | no n1 => f j
-      }
+        : C j \elim n, index, j
+        | suc n, 0, 0 => point
+        | suc n, 0, suc j => f (suc j)
+        | suc n, suc index, 0 => f 0
+        | suc n, suc index, suc j => pointed-function (\lam i => C (suc i)) (\lam i => f (suc i)) index point j
+
+      \func pointed-at-index
+        {n : Nat} (C : Fin n -> \Type)
+        (f : \Pi (i : Fin n) -> C i)
+        (index : Fin n)
+        (point : C index)
+        : pointed-function C f index point index = point \elim n, index
+        | suc n, 0 => idp
+        | suc n, suc index => pointed-at-index (\lam i => C (suc i)) (\lam i => f (suc i)) index point
+
+      \func pointed-not-at-index
+        {n : Nat} (C : Fin n -> \Type)
+        (f : \Pi (i : Fin n) -> C i)
+        (index : Fin n)
+        (point : C index)
+        (j : Fin n)
+        (j-not-index : j = index -> Empty)
+        : pointed-function C f index point j = f j \elim n, index, j
+        | suc n, 0, 0 => \let contra => j-not-index idp \in contradiction
+        | suc n, 0, suc j => idp
+        | suc n, suc index, 0 => idp
+        | suc n, suc index, suc j => pointed-not-at-index (\lam i => C (suc i)) (\lam i => f (suc i)) index point j (\lam p => j-not-index (pmap fsuc p))
 
       \func insert-term {env : Environment} {context : List Sort} {s : Sort} {ms : MetaSignature Sort} (f : FunctionalSymbol.symbol s)
                         (choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index) ms)
