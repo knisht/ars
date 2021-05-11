@@ -5,6 +5,7 @@
 \import Paths
 \import Paths.Meta
 \import Set
+\import Set.Fin
 \import TRS.HRS
 \import TRS.List
 
@@ -25,7 +26,14 @@
   | suc n, zero => zero
   | suc n, suc a => a
 
-\func FinDec {n : Nat} (x y : Fin n) : Dec (x = y) => {?}
+\func FinDec {n : Nat} (x y : Fin n) : Dec (x = y) \elim n, x, y
+  | suc n, 0, 0 => yes idp
+  | suc n, 0, suc y => no contradiction
+  | suc n, suc x, 0 => no contradiction
+  | suc n, suc x, suc y => \case (FinDec x y) \with {
+    | yes e => yes (pmap fsuc e)
+    | no n1 => no (\lam p => n1 (FinSet.suc-isInj x y p))
+  }
 
 \func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
   | idp => idp
@@ -67,6 +75,8 @@
     | inl (i, p) => rewrite p (prefix i)
     | inr (j, p) => rewrite p (suffix j)
   }
+
+--\func partial-fin-in
 
 \func fin-decide {A : \Type} {a b : List A} (index : Fin (length (a ++ b))) : (\Sigma (i : Fin (length a)) (index = expand-fin i)) `Or` (\Sigma (j : Fin (length b)) (index = expand-fin-late j)) \elim a, index
   | nil, index => inr (index, idp)

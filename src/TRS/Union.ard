@@ -238,17 +238,14 @@
     | func (f-A : symbol {FunctionalSymbol {env {tc}}} s) choosing-A, func (f-B : symbol {FunctionalSymbol {env {tc}}} s) choosing-B =>
     rewrite-with-parameter-f-colored (p : f-A = f-B)
                                      (color-of-root {tc} f-A = color)
-                                     (ReductionAtIndex {env {tc}}
-                                         (TopLevelColoredReduction {tc} color {meta-signature})
-                                         (\lam i => (context ++ {Sort {env {tc}}} f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} i))
-                                         (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} __)
-                                         choosing-A
-                                         (transport-chooser-f {env {tc}} p choosing-B))
+                                     (i : Fin (length (domain {FunctionalSymbol {env {tc}}} f-A)))
+                                     (tlcr : TopLevelColoredReduction {tc} color (choosing-A i) (transport-chooser-f {env {tc}} p choosing-B i))
+                                     (eq : \Pi (j : Fin (length (domain {FunctionalSymbol {env {tc}}} f-A))) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-f {env {tc}} p choosing-B j))
     \where {
       \func extract-root-coloring {tc : TheoremContext} {color : Color} {meta-signature : MetaSignature Sort'} {context : List env.Sort} {s : env.Sort} {A B : Term env context s meta-signature} (tlcr : TopLevelColoredReduction color A B) : HasColoredRoot color A
       \elim color, A, B, tlcr
         | color, A, B, rewrite-with-rule-colored h _ _ _ _ => h
-        | color, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => \case \elim color, \elim f-A, \elim choosing-A, \elim p1 \with {
+        | color, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 i tlcr eq => \case \elim color, \elim f-A, \elim choosing-A, \elim p1 \with {
           | red, inl a, choosing-A, p1 => red-func-root
           | blue, inr b, choosing-A, p1 => blue-func-root
         }
@@ -764,7 +761,7 @@
                                (A~>B : TopLevelColoredReduction color A B)
     : TopLevelColoredReduction color (Substitution.apply {env} A subst) (Substitution.apply {env} B subst) \elim A, B, A~>B
     | A, B, rewrite-with-rule-colored h (rule) msubst msubst[l]=A msubst[r]=B => rewrite-with-rule-colored {?} rule (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) (rewrite (inv msubst[l]=A) {?}) {?}
-    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
+    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 i tlcr eq => rewrite-with-parameter-f-colored idp p1 i (tlcr-over-substitution (append-context-right {env} subst) tlcr) (\lam j _x => rewrite (eq j _x) idp)
 
   \func expand-reduction-over-weakening
     {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
@@ -788,13 +785,14 @@
 
   \func tlcr-over-weakening
     {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
-    {color : Color}
+    (color : Color)
     (A B : Term env context s (EmptyMetasignature {env}))
     (tlcr : TopLevelColoredReduction color A B)
     (sublist : SubList context new-context)
     : TopLevelColoredReduction color (weakening {env} A sublist) (weakening {env} B sublist) \elim A, B, tlcr
     | A, B, rewrite-with-rule-colored h rule substitution left-coherence right-coherence => rewrite-with-rule-colored {?} rule (\lam m => weakening {env} (substitution m) (SubList.extend-right-both sublist)) (rewriteI left-coherence {?}) {?}
-    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
+    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 i tlcr eq =>
+      rewrite-with-parameter-f-colored idp p1 i (tlcr-over-weakening color (choosing-A i) (choosing-B i) tlcr (SubList.extend-right-both sublist)) (\lam j _x =>  rewrite (eq j _x) (idp))
     \where {
       \func application-weakening-lemma
         {env : Environment} {core-context context new-context general-context : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}

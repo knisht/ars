@@ -6,6 +6,7 @@
 \import Meta
 \import Paths
 \import Paths.Meta
+\import Set
 \import TRS.HRS
 \import TRS.Linearity \hiding (linear-pattern)
 \import TRS.List
@@ -96,7 +97,10 @@
   : \Sigma (u : Term (colored-env color) context s (inner-meta-signature))
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst = B)
            (monochrome-reduction color t u) \elim color, t, B, A~>B
-  | red, func f choosing, func (inl f') choosing', rewrite-with-parameter-f-colored p _ step => {?}
+  | red, func f choosing, func (inl f') choosing', rewrite-with-parameter-f-colored p p1 i tlcr eq =>
+    \let | unmap => pmap (unor {_} {envR.FunctionalSymbol.symbol s} f) p
+         | eq-p : p = pmap (inl) unmap => Path.inProp _ _
+    \in inductive _ _ unmap choosing choosing' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
   | red, func f choosing, B, rewrite-with-rule-colored hcr (rule : LinearRewriteRuleColored {tc} red s) big-subst l[bs]=injt r[bs]=B =>
     \let | (middle-subst, substitution-equality, l-eq) =>
       decompose-metasubstitution
@@ -122,10 +126,72 @@
       | root-color => TopLevelColoredReduction.extract-root-coloring A~>B
       | empty : Empty => eliminate-colors {tc} (blue) other-root-color root-color
     \in contradiction
-  | red, var index p, B, A~>B => \let rc => TopLevelColoredReduction.extract-root-coloring A~>B \in \case \elim rc \with {}
-  | red, func f choosing, func (inr s1) choosing1, rewrite-with-parameter-f-colored p p1 r => contradiction
+  | red, var index p, B, A~>B => \let rc => TopLevelColoredReduction.extract-root-coloring A~>B \in \case \elim rc \with {
+  }
+  | red, func f choosing, func (inr s1) choosing1, rewrite-with-parameter-f-colored p p1 i tlcr eq => contradiction
   | blue, t, B, A~>B => {?}
   \where {
+    \func inductive {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
+                    (f f' : envL.FunctionalSymbol.symbol s)
+                    (eq : f = f')
+                    (choosing :
+                    \Pi (index : Fin (length (domain {FunctionalSymbol {tc.envL}} f))) ->
+                        Term tc.envL (context ++ f FunctionalSignature.!!param index) (f FunctionalSignature.!!sort index) inner-meta-signature)
+                    (choosing' :
+                    \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} (inl f')))) ->
+                        Term env (context ++ inl f' FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (inl f' FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                    (subst : MetaSubstitution env nil (inner-meta-signature) meta-signature)
+                    (root-colors : \Pi {s : Sort'} (m : inner-meta-signature.metaname s) -> HasColoredRoot (Color.flip red) (subst m))
+                    (i : Fin (length (domain {FunctionalSymbol {env}} (inl f))))
+                    (tlcr : TopLevelColoredReduction red (MetaSubstitution.apply {env}
+                        (Injections.inject-term-left tc.envL tc.envR (choosing i)) (SubList.extend-right-single SubList.sublist-trivial-skip)
+                        subst) (transport-chooser-f {env} (pmap (inl {_} {envR.FunctionalSymbol.symbol s}) eq) choosing' i))
+                    (eq' :
+                    \Pi (j : Fin (length (domain {FunctionalSymbol {env}} (inl f)))) -> (j = i -> Empty) -> MetaSubstitution.apply {env}
+                        (Injections.inject-term-left tc.envL tc.envR (choosing j)) (SubList.extend-right-single SubList.sublist-trivial-skip)
+                        subst = transport-chooser-f {env} (pmap (inl {_} {envR.FunctionalSymbol.symbol s}) eq) choosing' j)
+      :  \Sigma (u : Term tc.envL context s inner-meta-signature)
+                (MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR u) SubList.sublist-trivial-skip subst = func (inl f') choosing')
+                (monochrome-reduction red (func f choosing) u) \elim eq
+      | idp => \let inductive-step => (decompose-along-reduction red (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)) \in
+        (func f (\lam index => \case (FinDec index i) \with {
+          | yes e => rewrite e (inductive-step).1
+          | no n => choosing index
+        }), pmap (func {env} (inl f)) (ext (\lam index => \case (FinDec index i) \as ix, idp : ix = (FinDec index i) \return MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR (\case \elim ix \with {
+          | yes e => transportInv
+              (\lam x => Term tc.envL (context ++ f FunctionalSignature.!!param x) (f FunctionalSignature.!!sort x) inner-meta-signature)
+              e (decompose-along-reduction red (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)).1
+          | no _ => choosing index
+        })) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' index \with {
+          | yes e, p => lemma f choosing choosing' subst root-colors i index e tlcr (inductive-step).1 (inductive-step).2
+          | no n, p => eq' index n
+        })), rewrite-with-parameter-f idp {?})
+      \where {
+
+        \func lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
+                    (f : envL.FunctionalSymbol.symbol s)
+                    (choosing :
+                    \Pi (index : Fin (length (domain {FunctionalSymbol {tc.envL}} f))) ->
+                        Term tc.envL (context ++ f FunctionalSignature.!!param index) (f FunctionalSignature.!!sort index) inner-meta-signature)
+                    (choosing' :
+                    \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} (inl f)))) ->
+                        Term env (context ++ inl f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (inl f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                    (subst : MetaSubstitution env nil (inner-meta-signature) meta-signature)
+                    (root-colors : \Pi {s : Sort'} (m : inner-meta-signature.metaname s) -> HasColoredRoot (Color.flip red) (subst m))
+                    (i index : Fin (length (domain {FunctionalSymbol {env}} (inl f))))
+                    (eq : index = i)
+                    (tlcr : TopLevelColoredReduction red (MetaSubstitution.apply {env}
+                        (Injections.inject-term-left tc.envL tc.envR (choosing i)) (SubList.extend-right-single SubList.sublist-trivial-skip)
+                        subst) (transport-chooser-f {env} (pmap (inl {_} {envR.FunctionalSymbol.symbol s}) idp) choosing' i))
+                    (u : Term tc.envL (context ++ f FunctionalSignature.!!param i) (f FunctionalSignature.!!sort i) inner-meta-signature)
+                    (inductive-step : (MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR u) SubList.sublist-trivial-skip subst = choosing' i))
+                    : MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR (transportInv
+            (\lam x => Term tc.envL (context ++ f FunctionalSignature.!!param x) (f FunctionalSignature.!!sort x) inner-meta-signature)
+            eq u))
+            (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' index \elim eq
+          | idp => rewrite (any-nil-sublist-equate) inductive-step
+      }
+
     \func eliminate-colors {tc : TheoremContext} (color : Color) {context context' : List Sort'} {s : Sort'} {msig : MetaSignature Sort'}
                            {T : Term env context s msig} {subst : Substitution {env} context context' msig} (hcr : HasColoredRoot color T)
                            (hcr' : HasColoredRoot (Color.flip color) (Substitution.apply {env} T subst))
@@ -136,6 +202,10 @@
       | blue, func f choosing1, hcr, hcr' =>
         \let | eq => (inv (HasColoredRoot.reorganize red hcr')) *> HasColoredRoot.reorganize blue hcr
         \in contradiction
+
+    \func any-nil-sublist-equate {A : \Type} {a : List A} (sl sl' : SubList nil a) : sl = sl' \elim a, sl, sl'
+      | nil, sublist-trivial, sublist-trivial => idp
+      | :: y a, sublist-skip sl, sublist-skip sl' => pmap sublist-skip (any-nil-sublist-equate sl sl')
 
     \func different-weakening {env : Environment} {context : List Sort} {s : Sort} {ms : MetaSignature Sort}
                               (T : Term env nil s ms)
@@ -416,10 +486,6 @@
       | var index p => f
       | metavar m choosing => f
       | func f1 choosing => f1
-
-    --    \func unchoosing {env : Environment} {context : List Sort} {s : Sort} {ms : MetaSignature Sort} {f : FunctionalSymbol.symbol s}
-    --                     (choosing : )
-    --                     (T : Term env context s ms)
 
     \func inductive-step
       {tc : TheoremContext} {pattern-context core-context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
