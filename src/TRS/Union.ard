@@ -924,7 +924,7 @@
           choosing-A choosing-B (index))) => \let | some => TClosure.extract rd
                                                   | modular => (modular-function
                                                       (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-                                                      choosing-A choosing-B (suc index))
+                                                      choosing-A choosing-B (index))
                                                   | some' => insert-term {env} f modular index (choosing-B index)
                                                   | mapped => TClosure.lift {_} {_}
                                                       {TopLevelColoredReduction gc {meta-signature} {context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index} {f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index}}
@@ -934,7 +934,7 @@
                                                       (choosing-B index)
                                                       (choosing-A index)
                                                       rd
-                                             \in {?}
+                                             \in rewrite (pointed-with-modular-1.ext' (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing-A choosing-B) (rewrite {2} (pointed-with-modular-2.ext' (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing-A choosing-B) mapped)
 
       \func pointed-function {n : Nat} (C : Fin n -> \Type)
                              (f : \Pi (i : Fin n) -> C i)
@@ -968,6 +968,38 @@
         | suc n, 0, suc j => idp
         | suc n, suc index, 0 => idp
         | suc n, suc index, suc j => pointed-not-at-index (\lam i => C (suc i)) (\lam i => f (suc i)) index point j (\lam p => j-not-index (pmap fsuc p))
+
+      \func pointed-with-modular-1 {n : Nat} (C : Fin n -> \Type)
+                                   (f g : \Pi (i : Fin n) -> C i)
+                                   (delim : Fin n)
+                                   (i : Fin n)
+                                   : modular-function C f g (suc delim) i = pointed-function C (modular-function C f g delim) delim (g delim) i \elim n, delim, i
+        | suc n, 0, 0 => idp
+        | suc n, 0, suc i => rewrite modular-function.left-eq idp
+        | suc n, suc delim, 0 => idp
+        | suc n, suc delim, suc i => pointed-with-modular-1 (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
+          \where {
+            \func ext'  {n : Nat} (C : Fin n -> \Type)
+                        (f g : \Pi (i : Fin n) -> C i)
+                        (delim : Fin n)
+                        : modular-function C f g (suc delim) = pointed-function C (modular-function C f g delim) delim (g delim) => ext (pointed-with-modular-1 C f g delim)
+          }
+
+      \func pointed-with-modular-2 {n : Nat} (C : Fin n -> \Type)
+                                   (f g : \Pi (i : Fin n) -> C i)
+                                   (delim : Fin n)
+                                   (i : Fin n)
+        : modular-function C f g delim i = pointed-function C (modular-function C f g delim) delim (f delim) i \elim n, delim, i
+        | suc n, 0, 0 => idp
+        | suc n, 0, suc i => idp
+        | suc n, suc delim, 0 => idp
+        | suc n, suc delim, suc i => pointed-with-modular-2 (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
+        \where {
+          \func ext'  {n : Nat} (C : Fin n -> \Type)
+                      (f g : \Pi (i : Fin n) -> C i)
+                      (delim : Fin n)
+            : modular-function C f g delim = pointed-function C (modular-function C f g delim) delim (f delim) => ext (pointed-with-modular-2 C f g delim)
+        }
 
       \func insert-term {env : Environment} {context : List Sort} {s : Sort} {ms : MetaSignature Sort} (f : FunctionalSymbol.symbol s)
                         (choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index) ms)
