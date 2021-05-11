@@ -81,3 +81,7 @@
 \func unor {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
   | inl a => a
   | inr b => default
+
+\func unor-r {A B : \Type} (default : B) (or : A `Or` B) : B \elim or
+  | inl a => default
+  | inr b => b
