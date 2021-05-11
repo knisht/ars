@@ -138,7 +138,15 @@
   {env : Environment} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
   (rho : MetaSubstitution env nil old-msig new-msig)
   (sublist sublist' : SubList nil (context ++ context'))
-  (eq : sublist = sublist')
   (term : Term env (context ++ context') s old-msig)
-  : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho \elim eq
-  | idp => idp
+  : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho => lemma rho sublist sublist' term (decompose-along-reduction.any-nil-sublist-equate _ _)
+  \where {
+    \func lemma
+      {env : Environment} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+      (rho : MetaSubstitution env nil old-msig new-msig)
+      (sublist sublist' : SubList nil (context ++ context'))
+      (term : Term env (context ++ context') s old-msig)
+      (eq : sublist = sublist')
+      : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho \elim eq
+      | idp => idp
+  }

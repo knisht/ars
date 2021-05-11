@@ -590,13 +590,13 @@
             (inner-reductions i).1
             ((inner-reductions i).2)
             (rewrite (modular-commutation {env} (\lam j => LinearMetasignatureT {envL} (choosing j)) i SubList.sublist-trivial-skip (unify-top.convert-to-injected-term red (choosing i)) rho)
-                (rewrite (invariant-through-empty-subst {env} rho SubList.sublist-trivial-skip (SubList.extend-right-single SubList.sublist-trivial-skip) (decompose-along-reduction.any-nil-sublist-equate _ _) (LinearTerm.upgrade-metavariables-t {env}
+                (rewrite (invariant-through-empty-subst {env} rho SubList.sublist-trivial-skip (SubList.extend-right-single SubList.sublist-trivial-skip) (LinearTerm.upgrade-metavariables-t {env}
                     (\lam j => LinearMetasignatureT {colored-env red} (choosing j)) (unify-top.convert-to-injected-term red (choosing i)))) (inner-reductions i).3))
       \in (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2,
            inv p *> (pmap (func {env} (inl f))
                (ext (\lam index => rewriteI
                    (modular-commutation {env} (\lam j => LinearMetasignatureT {envL} (choosing j)) index (SubList.extend-right-single SubList.sublist-trivial-skip) (unify-top.convert-to-injected-term red (choosing index)) (\lam {s1} mvar => (inductive-result (mvar.1)).1 mvar.2))
-                   (rewrite (invariant-through-empty-subst {env} _ _ _ (decompose-along-reduction.any-nil-sublist-equate _ _)) (inductive-result index).2)))),
+                   (rewrite (invariant-through-empty-subst {env}) (inductive-result index).2)))),
            \lam {s1} m => (inductive-result (m.1)).3 m.2)
     | red, lt-func f choosing, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr p) =>
       \let
