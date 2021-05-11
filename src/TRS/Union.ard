@@ -10,6 +10,7 @@
 \import Paths.Meta
 \import Relation
 \import Set
+\import Set.Fin
 \import TRS.HRS
 \import TRS.Linearity
 \import TRS.List
@@ -766,7 +767,8 @@
       \in rewriteI p (sc, (parallelization-f med inrd cwr))
     | just a, func f choosing, parallelization-f mediator _x (cr-rewrite tlcr p) =>
       \let | medium-reductions i => reduction-over-substitution (_x i).1 (choosing i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') (expand-reduction-right subst subst' subst=>subst')
-      \in (collect-reductions-together-tlcr f (\lam i => Substitution.apply {env} (choosing i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions (Substitution.apply {env} B subst') (rewrite p (TClosure.lift (\lam t => Substitution.apply {env} t subst') (\lam rel => tlcr-over-substitution subst' rel) (func {env} f mediator) B tlcr)))
+           | (some-color, med, inrd, cwr) => (collect-reductions-together-tlcr (just gc) f (\lam i => Substitution.apply {env} (choosing i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions (Substitution.apply {env} B subst') (cr-rewrite (rewrite p (TClosure.lift (\lam t => Substitution.apply {env} t subst') (\lam rel => tlcr-over-substitution subst' rel) (func {env} f mediator) B tlcr)) idp))
+      \in (some-color, parallelization-f med inrd cwr)
 
   \func expand-reduction-right
     {tc : TheoremContext} {context new-context additional-context : List Sort'}
@@ -852,12 +854,189 @@
   \func collect-reductions-together-tlcr
     {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
     {gc : Color}
+    (someColor : Maybe Color)
     (f : env.FunctionalSymbol.symbol s)
     (choosing-A choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
     (tlcrs : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (choosing-A index) (choosing-B index)))
     (C : Term env context s meta-signature)
-    (B~>*C : TClosure (TopLevelColoredReduction gc) (func {env} f choosing-B) C)
-    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (func f choosing-A) C) => {?}
+    (B~>*C : ColorwiseReduction gc someColor (func {env} f choosing-B) C)
+    : \Sigma
+    (someColor : Maybe Color)
+    (mediator : \Pi (index : Fin (length (domain {FunctionalSymbol {env {tc}}} f))) ->
+        Term (env {tc}) (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+    (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f) -> \Sigma
+      (someColor : Maybe Color)
+      ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
+      (BorderedParallelReduction {tc} gc someColor (choosing-A i) (mediator i)))
+    (ColorwiseReduction {tc} gc someColor (func f mediator) (C)) =>
+    \let | common-reduction i => unfold-bpr (color-of-root f) (choosing-A i) (choosing-B i) (tlcrs i).2
+         | ind-last =>
+           progressive-induction
+               (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+               (\lam curmed => \Sigma (someColor : Maybe Color) (ColorwiseReduction gc someColor (func f curmed) C))
+               (choosing-B)
+               (\lam i => (common-reduction i).1)
+               (someColor, B~>*C)
+               (\lam delim prev-result => \let arg-rewrite => (common-reduction delim).6
+                                          \in propagate-rewriting f C choosing-B (\lam i => (common-reduction i).1) delim prev-result.1 prev-result.2 (common-reduction delim).5 arg-rewrite
+               )
+    \in (ind-last.1, \lam index => (common-reduction index).1, \lam i => ((common-reduction i).2, (common-reduction i).4, (common-reduction i).3), ind-last.2)
+    \where {
+      \func propagate-rewriting
+        {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+        {gc : Color}
+        (f : env.FunctionalSymbol.symbol s)
+        (C : Term env context s meta-signature)
+        (choosing-B midterms : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+        (delim : Fin (length (env.FunctionalSymbol.domain f)))
+        (prev-rd-cl : Maybe Color)
+        (pred-rd-cwr : ColorwiseReduction gc prev-rd-cl (func f (modular-function
+            (\lam index => Term env (context ++ f FunctionalSignature.!!param  {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort  {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+            choosing-B midterms delim)) C)
+        (point-rd-cl : Maybe Color)
+        (point-rd-cwr : ColorwiseReduction gc point-rd-cl (midterms delim) (choosing-B delim)) :
+        \Sigma (someColor : Maybe Color) (ColorwiseReduction gc someColor (func f (modular-function
+            (\lam index => Term env (context ++ f FunctionalSignature.!!param  {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort  {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+            choosing-B midterms (suc delim))) C) \elim prev-rd-cl, pred-rd-cwr, point-rd-cl, point-rd-cwr
+        | nothing, cr-skip p, nothing, cr-skip p1 => (nothing, cr-skip ({?})) -- use modular-jump
+        | nothing, cr-skip p, just color, cr-rewrite t p1 => {?}
+        | just color, cr-rewrite t p, nothing, cr-skip p1 => {?}
+        | just color, cr-rewrite before~>C idp, just color1, cr-rewrite ind1~>ind' idp =>
+          (just gc, \let upgraded-reduction : TClosure (TopLevelColoredReduction gc) (func {env} f (modular-function
+              (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+              choosing-B midterms (suc delim))) (func {env} f (modular-function
+              (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+              choosing-B midterms (delim))) => upgrade-iterated-reduction f choosing-B midterms delim ind1~>ind'
+                    \in cr-rewrite (TClosure.compose upgraded-reduction before~>C) idp)
+
+      \func upgrade-iterated-reduction
+        {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+        {gc : Color}
+        (f : env.FunctionalSymbol.symbol s)
+        (choosing-A choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index)) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+        (index : Fin (length (env.FunctionalSymbol.domain f)))
+        (rd : TClosure (TopLevelColoredReduction gc) (choosing-B index) (choosing-A index))
+        : TClosure (TopLevelColoredReduction gc) (func {env} f (modular-function
+          (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+          choosing-A choosing-B (suc index))) (func f (modular-function
+          (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+          choosing-A choosing-B (index))) => \let | some => TClosure.extract rd
+                                                  | modular => (modular-function
+                                                      (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                                                      choosing-A choosing-B (suc index))
+                                                  | some' => insert-term {env} f modular index (choosing-B index)
+                                             \in {?}
+
+      \func pointed-function {n : Nat} (C : Fin n -> \Type)
+                             (f : \Pi (i : Fin n) -> C i)
+                             (index : Fin n)
+                             (point : C index)
+                             (j : Fin n)
+        : C j => \case (FinDec index j) \with {
+        | yes e => rewriteI e point
+        | no n1 => f j
+      }
+
+      \func insert-term {env : Environment} {context : List Sort} {s : Sort} {ms : MetaSignature Sort} (f : FunctionalSymbol.symbol s)
+                        (choosing : \Pi (index : Fin (length (env.FunctionalSymbol.domain f))) -> Term env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index) ms)
+                        (index : Fin (length (env.FunctionalSymbol.domain f)))
+                        (point : Term env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index) ms)
+        : Term env context s ms =>
+        func f
+            (pointed-function
+                (\lam index => Term env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index) ms)
+                choosing
+                index
+                point)
+
+      \func unfold-bpr
+        {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+        {gc : Color} {someColor : Maybe Color} (forbidden-color : Color)
+        (A B : Term env context s meta-signature)
+        (bpr : BorderedParallelReduction gc someColor A B)
+        : \Sigma (midterm : Term env context s meta-signature)
+                 (new-color : Maybe Color)
+                 (bpr : BorderedParallelReduction gc new-color A midterm)
+                 ((new-color = nothing) `Or` (new-color = just (Color.flip forbidden-color)))
+                 (nc' : Maybe Color)
+                 (cwr : ColorwiseReduction gc nc' midterm B)
+      \elim someColor, A, bpr
+        | _, A, equal-trees p => (A, nothing, equal-trees idp, inl idp, nothing, cr-skip p)
+        | nothing, func f choosing, parallelization-f mediator _x c => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), inl idp, nothing, c)
+        | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => \case \elim gc, \elim forbidden-color, \elim a, \elim _x, \elim t, \elim p \with {
+          | red, forbidden-color, red, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just red, cr-rewrite tlcr idp)
+          | blue, forbidden-color, blue, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just blue, cr-rewrite tlcr idp)
+        }
+    }
+
+  \func modular-function
+    {n : Nat}
+    (C : Fin n -> \Type)
+    (f g : \Pi (i : Fin n) -> C i)
+    (delim : Fin (suc n))
+    (i : Fin n)
+    : C i
+  \elim n, delim, i
+    | suc n, 0, i => f i
+    | suc n, suc delim, 0 => g 0
+    | suc n, suc delim, suc i => modular-function (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) delim i
+    \where {
+      \func left-eq {n : Nat}
+                    (C : Fin (n) -> \Type)
+                    (f g : \Pi (i : Fin (n)) -> C i)
+                    (i : Fin n) : modular-function C f g 0 i = f i \elim n, i
+        | suc n, i => idp
+
+      \func left-eq-ext {n : Nat}
+                        (C : Fin (n) -> \Type)
+                        (f g : \Pi (i : Fin (n)) -> C i) :  modular-function C f g 0 = f => ext (left-eq C f g)
+
+      \func right-eq {n : Nat}
+                     (C : Fin (n) -> \Type)
+                     (f g : \Pi (i : Fin (n)) -> C i)
+                     (i : Fin n)
+        : modular-function C f g n i = g i \elim n, i
+        | suc n, 0 => {?}
+        | suc n, suc i => {?}
+
+      \func modular-jump {n : Nat}
+                         (C : Fin (n) -> \Type)
+                         (f g : \Pi (i : Fin (n)) -> C i)
+                         (delim : Fin n)
+                         (eq : f delim = g delim)
+                         (j : Fin n)
+        : modular-function C f g delim j = modular-function C f g (suc delim) j \elim n, delim, j
+        | suc n, 0, 0 => eq
+        | suc n, 0, suc j => rewrite left-eq idp
+        | suc n, suc delim, 0 => idp
+        | suc n, suc delim, suc j => modular-jump (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) delim eq j
+
+      \func right-eq-ext
+        {n : Nat}
+        (C : Fin (n) -> \Type)
+        (f g : \Pi (i : Fin (n)) -> C i) : modular-function C f g n = g => ext (right-eq C f g)
+    }
+
+  \func progressive-induction
+    {n : Nat} (C : Fin n -> \Type)
+    (Q : (\Pi (i : Fin n) -> C i) -> \Type)
+    (f g : \Pi (i : Fin n) -> C i)
+    (start : Q f)
+    (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
+    : Q g => transport Q (modular-function.right-eq-ext C f g) (progressive-induction-lemma {n} C Q f g step n start)
+    \where {
+      \func progressive-induction-lemma
+        {n : Nat} (C : Fin n -> \Type)
+        (Q : (\Pi (i : Fin n) -> C i) -> \Type)
+        (f g : \Pi (i : Fin n) -> C i)
+        (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
+        (delim : Fin (suc n))
+        (start : Q f)
+        : Q (modular-function C f g delim) \elim n, delim
+        | 0, 0 => transportInv (Q) (modular-function.left-eq-ext C f g) start
+        | suc n, 0 => start
+        | suc n, suc delim => step delim (progressive-induction-lemma {suc n} C Q f g step delim start)
+    }
 
   \func collect-reductions-together-raw
     {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
@@ -873,6 +1052,7 @@
       (someColor : Maybe Color)
       ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f))))
       (BorderedParallelReduction {tc} gc someColor (choosing-A i) (mediator i)))
-    (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) => ({?}, choosing-A, {?}, {?})
+    (ColorwiseReduction {tc} gc someColor (func f mediator) (func f choosing-B)) =>
+    collect-reductions-together-tlcr nothing f (choosing-A) choosing-B tlcrs (func f choosing-B) (cr-skip idp)
 
 }
