@@ -877,8 +877,8 @@
                (choosing-B)
                (\lam i => (common-reduction i).1)
                (someColor, B~>*C)
-               (\lam delim prev-result => \let arg-rewrite => (common-reduction delim).6
-                                          \in propagate-rewriting f C choosing-B (\lam i => (common-reduction i).1) delim prev-result.1 prev-result.2 (common-reduction delim).5 arg-rewrite
+               (\lam delim prev-result => \let arg-rewrite => (common-reduction delim).7
+                                          \in propagate-rewriting f C choosing-B (\lam i => (common-reduction i).1) delim prev-result.1 prev-result.2 (common-reduction delim).5 (common-reduction delim).6 arg-rewrite
                )
     \in (ind-last.1, \lam index => (common-reduction index).1, \lam i => ((common-reduction i).2, (common-reduction i).4, (common-reduction i).3), ind-last.2)
     \where {
@@ -894,20 +894,20 @@
             (\lam index => Term env (context ++ f FunctionalSignature.!!param  {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort  {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
             choosing-B midterms delim)) C)
         (point-rd-cl : Maybe Color)
+        (point-coherence : (point-rd-cl = nothing) `Or` (point-rd-cl = just (color-of-root f)))
         (point-rd-cwr : ColorwiseReduction gc point-rd-cl (midterms delim) (choosing-B delim)) :
         \Sigma (someColor : Maybe Color) (ColorwiseReduction gc someColor (func f (modular-function
             (\lam index => Term env (context ++ f FunctionalSignature.!!param  {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort  {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-            choosing-B midterms (suc delim))) C) \elim prev-rd-cl, pred-rd-cwr, point-rd-cl, point-rd-cwr
-        | nothing, cr-skip p, nothing, cr-skip p1 => (nothing, cr-skip ({?})) -- use modular-jump
-        | nothing, cr-skip p, just color, cr-rewrite t p1 => {?}
-        | just color, cr-rewrite t p, nothing, cr-skip p1 => {?}
-        | just color, cr-rewrite before~>C idp, just color1, cr-rewrite ind1~>ind' idp =>
-          (just gc, \let upgraded-reduction : TClosure (TopLevelColoredReduction gc) (func {env} f (modular-function
-              (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-              choosing-B midterms (suc delim))) (func {env} f (modular-function
-              (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
-              choosing-B midterms (delim))) => upgrade-iterated-reduction f {?} choosing-B midterms delim ind1~>ind'
-                    \in cr-rewrite (TClosure.compose upgraded-reduction before~>C) idp)
+            choosing-B midterms (suc delim))) C) \elim prev-rd-cl, pred-rd-cwr, point-rd-cl, point-coherence, point-rd-cwr
+        | nothing, cr-skip p, nothing, point-coherence, cr-skip p1
+        => (nothing, cr-skip ((pmap (func {env} f) (inv (modular-function.modular-jump.ext' (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing-B midterms delim (inv p1)))) *> p))
+        | nothing, cr-skip p, just color, inl (), _
+        | nothing, cr-skip idp, just color, inr b, cr-rewrite ind1~>ind' idp => (just gc, cr-rewrite (upgrade-iterated-reduction f (Maybe.unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') idp)
+        | just color, cr-rewrite tlcr p, nothing, point-coherence, cr-skip p1
+        => (just color, cr-rewrite (rewrite (inv (modular-function.modular-jump.ext' (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing-B midterms delim (inv p1))) tlcr) p)
+        | just color, cr-rewrite before~>C idp, just color1, inl (), _
+        | just color, cr-rewrite before~>C idp, just color1, inr b, cr-rewrite ind1~>ind' idp =>
+          (just gc, cr-rewrite (TClosure.compose (upgrade-iterated-reduction f (Maybe.unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') before~>C) idp)
 
       \func upgrade-iterated-reduction
         {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
@@ -1015,21 +1015,24 @@
 
       \func unfold-bpr
         {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
-        {gc : Color} {someColor : Maybe Color} (forbidden-color : Color)
+        {gc : Color} {someColor : Maybe Color} (required-color : Color)
         (A B : Term env context s meta-signature)
         (bpr : BorderedParallelReduction gc someColor A B)
         : \Sigma (midterm : Term env context s meta-signature)
                  (new-color : Maybe Color)
                  (bpr : BorderedParallelReduction gc new-color A midterm)
-                 ((new-color = nothing) `Or` (new-color = just (Color.flip forbidden-color)))
+                 ((new-color = nothing) `Or` (new-color = just (Color.flip required-color)))
                  (nc' : Maybe Color)
+                 ((nc' = nothing) `Or` (nc' = just required-color))
                  (cwr : ColorwiseReduction gc nc' midterm B)
       \elim someColor, A, bpr
-        | _, A, equal-trees p => (A, nothing, equal-trees idp, inl idp, nothing, cr-skip p)
-        | nothing, func f choosing, parallelization-f mediator _x c => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), inl idp, nothing, c)
-        | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => \case \elim gc, \elim forbidden-color, \elim a, \elim _x, \elim t, \elim p \with {
-          | red, forbidden-color, red, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just red, cr-rewrite tlcr idp)
-          | blue, forbidden-color, blue, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just blue, cr-rewrite tlcr idp)
+        | _, A, equal-trees p => (A, nothing, equal-trees idp, inl idp, nothing, inl idp, cr-skip p)
+        | nothing, func f choosing, parallelization-f mediator _x c => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), inl idp, nothing, inl idp, c)
+        | just a, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => \case \elim gc, \elim required-color, \elim a, \elim _x, \elim t, \elim p \with {
+          | red, red, red, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just red, inr idp, cr-rewrite tlcr idp)
+          | red, blue, red, _x, tlcr, p => (B, just red, parallelization-f mediator _x (cr-rewrite tlcr idp), inr idp, nothing, inl idp, cr-skip idp)
+          | blue, red, blue, _x, tlcr, p => (B, just blue, parallelization-f mediator _x (cr-rewrite tlcr idp), inr idp, nothing, inl idp, cr-skip idp)
+          | blue, blue, blue, _x, tlcr, p => ((func f mediator), nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just blue, inr idp, cr-rewrite tlcr idp)
         }
     }
 
@@ -1074,6 +1077,14 @@
         | suc n, 0, suc j => rewrite left-eq idp
         | suc n, suc delim, 0 => idp
         | suc n, suc delim, suc j => modular-jump (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) delim eq j
+        \where {
+          \func ext' {n : Nat}
+                     (C : Fin (n) -> \Type)
+                     (f g : \Pi (i : Fin (n)) -> C i)
+                     (delim : Fin n)
+                     (eq : f delim = g delim) : modular-function C f g delim = modular-function C f g (suc delim) =>
+            ext (modular-jump C f g delim eq)
+        }
 
       \func right-eq-ext
         {n : Nat}
