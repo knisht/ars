@@ -461,8 +461,16 @@
                  (transport (Term envL __ _ inner-meta-signature) (++-assoc {_} {core-context} {pattern-context} {f1 FunctionalSignature.!!param i}) (choosing1 i))
                  (\lam m => big-substitution (i, m))
                  middle-substitution
-                 ({?})
+                 (\let ind : ( MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (LinearPattern.upgrade-metavariables-p {envL}
+                     (\lam i => LinearMetasignature {envL} (choosing i)) (LinearPattern.convert-to-term {envL} (choosing i))))
+                     (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution)
+                   =
+                 (MetaSubstitution.apply {env}
+                     (Injections.inject-term-left envL envR (choosing1 i)) (SubList.extend-left-single SubList.sublist-trivial-skip)
+                     middle-substitution) => args-eq i \in apply-modularity-colored red (\lam i => LinearMetasignature {envL} (choosing i)) (\lam j m => big-substitution (j, m)) _ _ _ *> (rewrite weakening-over-double-extend.inv' (rewrite weakening-over-double-extend-2.inv' (rewrite weakening-over-double-extend-3 (ad-hoc-lemma red (\lam i => LinearMetasignature {envL} (choosing i))  (LinearPattern.convert-to-term {envL} (choosing i)) ++-assoc _ _ (\lam {s1} m => big-substitution (m.1, m.2)) (choosing1 i) middle-substitution _ ind)))))
                  root-colors
+
+             --
 
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2,
              \lam {s1} m => (inductive m.1).2 m.2,
@@ -477,7 +485,26 @@
                      (rewrite (weakening-over-double-extend)
                          (rewrite weakening-over-double-extend-2
                              (expand-substitution-3 {envL} _ _ _ _ _ _ ind))))))
+
+    \func ad-hoc-lemma
+      {tc : TheoremContext} {subst-context context  big-context big-context' : List Sort'} {s : Sort'} {ms-a ms-b : MetaSignature Sort'}
+      {n : Nat} {index : Fin n}
+      (color : Color)
+      (producer : Fin n -> MetaSignature Sort')
+      (term : Term (colored-env color) context s (producer index))
+      (eq : big-context = big-context')
+      (sublist : SubList context big-context)
+      (sublist' : SubList subst-context big-context)
+      (msubst : MetaSubstitution env subst-context (ModularMetaSignature {env} producer) ms-b)
+      (S : Term (colored-env color) big-context s ms-a)
+      (msubst' : MetaSubstitution env nil ms-a ms-b)
+      (sublist'' : SubList nil big-context)
+      (target-eq : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color (LinearPattern.upgrade-metavariables-p {colored-env color} producer term)) sublist) sublist' msubst = MetaSubstitution.apply {env} (inject-monochrome-term color S) sublist'' msubst')
+      : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color (LinearPattern.upgrade-metavariables-p {colored-env color} producer term)) (transport (SubList context) eq sublist)) (transport (SubList subst-context) eq sublist') msubst = MetaSubstitution.apply {env} (inject-monochrome-term color (transport (Term (colored-env color) __ s ms-a) eq S)) (transport (SubList nil) eq sublist'') msubst' \elim color, eq
+      | red, idp => target-eq
+      | blue, idp => target-eq
   }
+
 
 \func weakening-extension-ext {env : Environment} {left-context right-context : List Sort} {meta-signature : MetaSignature Sort}
   :
@@ -504,16 +531,21 @@
       i
 
 \func weakening-over-double-extend {A : \Type} {context-a context-b context-c : List A}
-  : (SubList.extend-right-both (SubList.extend-left-single (SubList.identity {_} {context-b}) {context-a}) {context-c}) = transport (SubList (context-b ++ context-c)) (inv ++-assoc) (SubList.extend-left-single SubList.identity) \elim context-a, context-b, context-c
+  : (SubList.extend-right-both (SubList.extend-left-single (SubList.identity {_} {context-b}) {context-a}) {context-c}) = transport (SubList (context-b ++ context-c)) (inv ++-assoc) (SubList.extend-left-single SubList.identity)
+\elim context-a, context-b, context-c
   | nil, nil, context-c => idp
   | nil, :: a context-b, context-c => rewrite (weakening-over-double-extend {_} {nil} {context-b} {_}) (idp)
   | :: a context-a, nil, :: a1 context-c => rewrite (weakening-over-double-extend {_} {_} {nil}) (rewrite (decompose-along-reduction.different-weakening.equate-sublists.commute-skip {A} {a} _ (SubList.extend-left-single (sublist-match idp SubList.identity))) (transport-lemma (SubList (a1 :: nil ++ context-c)) (:: a) _ _))
   | :: a context-a, nil, nil => rewrite (weakening-over-double-extend {_} {_} {nil}) (rewrite (decompose-along-reduction.different-weakening.equate-sublists.commute-skip {A} {a} _ (SubList.extend-left-single (sublist-trivial))) (transport-lemma (SubList (nil)) (:: a) _ _))
   | :: a context-a, :: a1 context-b, context-c => rewrite (weakening-over-double-extend {_} {_} {:: a1 context-b}) (rewrite (decompose-along-reduction.different-weakening.equate-sublists.commute-skip {A} {a} _ (SubList.extend-left-single (sublist-match idp SubList.identity))) (transport-lemma (SubList (a1 :: context-b ++ context-c)) (:: a) _ _))
- \where {
-   \func transport-lemma {A B : \Type} (C : B -> \Type) (map : A -> B) {a a' : A} (eq : a = a') (x : C (map a')) : transport C (pmap map (inv eq)) x = transport C (inv (path (\lam i => map (eq @ i)))) x \elim eq
-     | idp => idp
- }
+  \where {
+    \func transport-lemma {A B : \Type} (C : B -> \Type) (map : A -> B) {a a' : A} (eq : a = a') (x : C (map a')) : transport C (pmap map (inv eq)) x = transport C (inv (path (\lam i => map (eq @ i)))) x \elim eq
+      | idp => idp
+
+    \func inv' {A : \Type} {context-a context-b context-c : List A}
+      : (SubList.extend-left-single SubList.identity) = transport (SubList (context-b ++ context-c)) (++-assoc) (SubList.extend-right-both (SubList.extend-left-single (SubList.identity {_} {context-b}) {context-a}) {context-c}) =>
+      inv (transport_id_inv (SubList (context-b ++ context-c)) ++-assoc _) *> (pmap (transport (SubList (context-b ++ context-c)) (++-assoc)) (inv weakening-over-double-extend))
+  }
 
 
 \func weakening-over-double-extend-2 {A : \Type} {context-a context-b context-c : List A}
@@ -522,10 +554,25 @@
   | :: a context-a, context-b, context-c => rewrite (weakening-over-double-extend-2 {_} {context-a}) (rewrite decompose-along-reduction.different-weakening.equate-sublists-2.commute-match idp)
   \where {
     \func extension-lemma {A : \Type} {context-a context-b : List A}
-          : SubList.extend-right-single SubList.sublist-trivial-skip {context-b} = SubList.sublist-trivial-skip {_} {context-a ++ context-b} \elim context-a, context-b
+      : SubList.extend-right-single SubList.sublist-trivial-skip {context-b} = SubList.sublist-trivial-skip {_} {context-a ++ context-b} \elim context-a, context-b
       | nil, context-b => idp
-      | :: a context-a,  context-b => pmap sublist-skip extension-lemma
+      | :: a context-a, context-b => pmap sublist-skip extension-lemma
+
+    \func inv' {A : \Type} {context-a context-b context-c : List A}
+      : (SubList.extend-right-single SubList.identity) = transport (SubList (context-a)) (++-assoc) (SubList.extend-right-single (SubList.extend-right-single (SubList.identity {_} {context-a}) {context-b}) {context-c}) =>
+      inv (transport_id_inv (SubList (context-a)) ++-assoc _) *> (pmap (transport (SubList (context-a)) (++-assoc)) (inv weakening-over-double-extend-2))
   }
+
+\func weakening-over-double-extend-3 {A : \Type} {context-a context-b context-c : List A}
+  : SubList.sublist-trivial-skip {_} {context-a ++ context-b ++ context-c} = transport (SubList nil) ++-assoc (SubList.extend-left-single (SubList.sublist-trivial-skip {_} {context-c}) {context-a ++ context-b})
+  \elim context-a, context-b, context-c
+    | nil, nil, context-c => idp
+    | nil, :: a context-b, context-c => rewrite (weakening-over-double-extend-3 {_} {nil} {context-b} {context-c}) idp
+    | :: a context-a, context-b, context-c => rewrite (weakening-over-double-extend-3 {_} {context-a} {context-b} {context-c}) (rewrite decompose-along-reduction.different-weakening.equate-sublists.commute-skip idp)
+\where {
+  \func transport-lemma {A B : \Type} (C : B -> \Type) (map : A -> B) {a a' : A} (eq : a = a') (x : C (map a)) : transport C (pmap map (eq)) x = transport C ((path (\lam i => map (eq @ i)))) x \elim eq
+    | idp => idp
+}
 
 
 \func expand-substitution-3 {env : Environment} {term-context ms-context big-context big-context' : List Sort} {s : Sort} {ms ms' : MetaSignature Sort}
@@ -536,5 +583,21 @@
                             (S : Term env big-context' s ms')
                             (eq : big-context' = big-context)
                             (target : MetaSubstitution.apply (weakening T sublist) sublist' msubst = transport (Term env __ s ms') eq S)
-                            : MetaSubstitution.apply (weakening T (transport (SubList term-context) (inv eq) sublist)) (transport (SubList ms-context) (inv eq) sublist') msubst = S \elim eq
+  : MetaSubstitution.apply (weakening T (transport (SubList term-context) (inv eq) sublist)) (transport (SubList ms-context) (inv eq) sublist') msubst = S \elim eq
   | idp => target
+
+\func apply-modularity-colored
+  {tc : TheoremContext} {context subst-context pattern-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'} {n : Nat} {index : Fin n}
+  (color : Color)
+  (producer : Fin n -> MetaSignature Sort')
+  (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) meta-signature)
+  (sublist : SubList subst-context context)
+  (pat-sublist : SubList pattern-context context)
+  (t : Term (colored-env color) pattern-context s (producer index)) :
+  MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color t) pat-sublist) sublist (substitutions index) = MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color (LinearPattern.upgrade-metavariables-p {colored-env color} producer t)) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim color, t
+  | red, var index1 p => idp
+  | red, metavar m choosing => pmap (\lam e => Substitution.apply {env} (substitutions index m) (extend-substitution-left {env} sublist e)) (ext (\lam i => apply-modularity-colored red producer substitutions sublist pat-sublist (choosing i)))
+  | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam i => apply-modularity-colored red producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right-both pat-sublist) (choosing i)))
+  | blue, var index1 p => idp
+  | blue, metavar m choosing => pmap (\lam e => Substitution.apply {env} (substitutions index m) (extend-substitution-left {env} sublist e)) (ext (\lam i => apply-modularity-colored blue producer substitutions sublist pat-sublist (choosing i)))
+  | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam i => apply-modularity-colored blue producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right-both pat-sublist) (choosing i)))
