@@ -76,8 +76,6 @@
     | inr (j, p) => rewrite p (suffix j)
   }
 
---\func partial-fin-in
-
 \func fin-decide {A : \Type} {a b : List A} (index : Fin (length (a ++ b))) : (\Sigma (i : Fin (length a)) (index = expand-fin i)) `Or` (\Sigma (j : Fin (length b)) (index = expand-fin-late j)) \elim a, index
   | nil, index => inr (index, idp)
   | :: a a1, 0 => inl (0, idp)

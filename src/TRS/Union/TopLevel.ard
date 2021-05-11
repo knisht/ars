@@ -549,9 +549,6 @@
                      middle-substitution) => args-eq i \in apply-modularity-colored red (\lam i => LinearMetasignature {envL} (choosing i)) (\lam j m => big-substitution (j, m)) _ _ _ *> (rewrite weakening-over-double-extend.inv' (rewrite weakening-over-double-extend-2.inv' (rewrite weakening-over-double-extend-3 (ad-hoc-lemma red (\lam i => LinearMetasignature {envL} (choosing i))  (LinearPattern.convert-to-term {envL} (choosing i)) ++-assoc _ _ (\lam {s1} m => big-substitution (m.1, m.2)) (choosing1 i) middle-substitution _ ind))))
                  )
                  root-colors
-
-             --
-
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2,
              \lam {s1} m => (inductive m.1).2 m.2,
              pmap (func {envL} f1) (ext (\lam index =>

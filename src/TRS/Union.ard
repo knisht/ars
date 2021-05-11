@@ -702,20 +702,21 @@
 
   \func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {inner-metasignature : MetaSignature Sort'}
                    (gc anti-color : Color)
-                   (s : Term env context' s inner-metasignature)
-                   (witness : inject-monochrome-term.InjectionWitness anti-color s)
+                   (S : Term env context' s inner-metasignature)
+                   (witness : inject-monochrome-term.InjectionWitness anti-color S)
                    (sublist : SubList context context')
                    (rho sigma : MetaSubstitution env context inner-metasignature (EmptyMetasignature {env}))
                    (rho~>sigma : \Pi {s : Sort'} (m : inner-metasignature.metaname s) ->
                        \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) :
-    \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (MetaSubstitution.apply {env} s sublist rho) (MetaSubstitution.apply {env} s sublist sigma))
-  \elim s, witness
+    \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (MetaSubstitution.apply {env} S sublist rho) (MetaSubstitution.apply {env} S sublist sigma))
+  \elim S, witness
     | var index p, _ => (nothing, equal-trees idp)
-    | metavar m choosing, wit =>
+    | metavar m choosing, inject-monochrome-term.iw-mvar _x =>
       \let | main-reduction => rho~>sigma m
            | rho-subst => (extend-substitution-left {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho))
            | sigma-subst => (extend-substitution-left {env} sublist (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma))
-           | target-reduction => reduction-over-substitution main-reduction.1 (rho m) (sigma m) main-reduction.2 rho-subst sigma-subst {?} -- extension of substitutions
+           | inductive i => unify-left gc anti-color (choosing i) (_x i) sublist rho sigma rho~>sigma
+           | target-reduction => reduction-over-substitution main-reduction.1 (rho m) (sigma m) main-reduction.2 rho-subst sigma-subst (\lam i => extend-substitutuion-left-for-parallel (\lam i => MetaSubstitution.apply {env} (choosing i) sublist rho) (\lam i => MetaSubstitution.apply {env} (choosing i) sublist sigma) inductive sublist i)
       \in (target-reduction)
     | func f choosing, inject-monochrome-term.iw-func p _x =>
       \let | in-indices i => unify-left gc (color-of-root f) (choosing i) (rewrite p (_x i)) (SubList.extend-right-single sublist) rho sigma rho~>sigma
@@ -724,6 +725,31 @@
                (\lam i => MetaSubstitution.apply {env} (choosing i) (SubList.extend-right-single sublist) sigma)
                in-indices
       \in (someColor, parallelization-f med inrd cwr)
+
+  \func extend-substitutuion-left-for-parallel
+    {tc : TheoremContext} {left-context right-context some-context : List Sort'}
+    {gc : Color}
+    (subst subst' : Substitution {env} right-context some-context (EmptyMetasignature {env}))
+    (rd' : \Pi (i : Fin (length right-context)) ->
+        \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
+    (sublist : SubList left-context some-context)
+    (index : Fin (length (left-context ++ right-context)))
+    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index))
+    => partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
+        (\lam i => rewrite (extend-substitution-left.for-left-context {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.for-left-context {env}) idp))))
+        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {env}) (inner.1, lemma inner.1 (inv (expand-fin-eq-late i)) inner.2)))
+        index
+        \where {
+          \func lemma {tc : TheoremContext} {context : List Sort'}
+                      {gc : Color} {ms : MetaSignature Sort'}
+                      (someColor : Maybe Color)
+                      {s s' : Sort'}
+                      (p : s = s')
+                      {A B : Term env context s ms}
+                      (bpr : BorderedParallelReduction gc someColor A B)
+                      : BorderedParallelReduction gc someColor (transport (Term env context __ ms) p A) (transport (Term env context __ ms) p B) \elim p
+            | idp => bpr
+        }
 
   \func reduction-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
                                     {gc : Color}
