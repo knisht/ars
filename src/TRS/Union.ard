@@ -844,27 +844,61 @@
         | metavar m choosing => \let inductive i => application-weakening-lemma (choosing i) msubst sublist \in {?} -- swap substitution and weakening
         | func f choosing => pmap (func f) (ext (\lam index =>
             \let inductive => application-weakening-lemma (choosing index) msubst sublist
-            \in rewrite (weakening-over-double-extend-2) (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend (rewrite (weakening-over-double-extend-2 {_} {context}) (rewrite weakening-over-double-extend-4 {?}))))))
+            \in rewrite (weakening-over-double-extend-2) (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend (rewrite (weakening-over-double-extend-2 {_} {context}) (rewrite weakening-over-double-extend-4 (equating-lemma (choosing index) ++-assoc ++-assoc _ _ _ _ _ _ _ inductive)))))))
         \where {
           \func equating-lemma
-            {env : Environment} {core-context context new-context context' add-context big-context big-context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
-            (A : Term env core-context s old-msig)
-            (eq : big-context = big-context')
-            (msubst : MetaSubstitution env new-context old-msig new-msig)
-            (msubst' : MetaSubstitution env context' old-msig new-msig)
-            (sublist : SubList context new-context)
-            (core-big'-sublist : SubList core-context big-context')
-            (new-big'-sublist : SubList new-context big-context')
-            (prime-big'-sublist : SubList context' big-context')
-            : MetaSubstitution.apply
-              (weakening A (transport (SubList (core-context)) (inv eq)
-                  (core-big'-sublist)))
-              (transport (SubList new-context) (inv eq) (new-big'-sublist))
-              (msubst) = weakening (MetaSubstitution.apply
-              (weakening (A) (transport (SubList (core-context)) (inv eq)
-                  (core-big'-sublist)))
-              (transport (SubList context') (inv eq) prime-big'-sublist) msubst')
-                             {?} => {?}
+            {env : Environment} {term-context big-context-al big-context-ar ms-l-context ms-r-context
+          rbig-context-al rbig-context-ar : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+            (A : Term env term-context s old-msig)
+            (eq : big-context-al = big-context-ar)
+            (eq' : rbig-context-al = rbig-context-ar)
+            (sublist-term-b-ar : SubList term-context big-context-ar)
+            (sublist-term-rb-ar : SubList term-context rbig-context-ar)
+            (sublist-ms-l-b-ar : SubList ms-l-context big-context-ar)
+            (sublist-ms-r-rb-ar : SubList ms-r-context rbig-context-ar)
+            (sublist-rb-ar-b-ar : SubList {Sort} rbig-context-ar big-context-ar)
+            (ms-l : MetaSubstitution env ms-l-context old-msig new-msig)
+            (ms-r : MetaSubstitution env ms-r-context old-msig new-msig)
+            (ind : MetaSubstitution.apply (weakening A sublist-term-b-ar) sublist-ms-l-b-ar ms-l = weakening (MetaSubstitution.apply (weakening A sublist-term-rb-ar) sublist-ms-r-rb-ar ms-r) sublist-rb-ar-b-ar)
+            :
+            MetaSubstitution.apply {env} {big-context-al} {ms-l-context}
+                (weakening {env} {_} {term-context}
+                    {big-context-al} (A)
+                    (transport {_} (SubList (term-context))
+                        {big-context-ar}
+                        {big-context-al}
+                        (inv eq)
+                        (sublist-term-b-ar)))
+                (transport {_} (SubList ms-l-context) {big-context-ar}
+                    {big-context-al}
+                    (inv eq)
+                    (sublist-ms-l-b-ar))
+                (ms-l) = weakening {_} {_} {rbig-context-al}
+                             {big-context-al} (MetaSubstitution.apply
+                    {_} {rbig-context-al}
+                    (weakening {_} {_} {term-context}
+                        {rbig-context-al} (A)
+                        (transport (SubList {Sort} (term-context))
+                            {rbig-context-ar}
+                            {rbig-context-al}
+                            (inv eq')
+                            (sublist-term-rb-ar)))
+                    (transport {List Sort} (SubList {Sort} ms-r-context) {rbig-context-ar}
+                        {rbig-context-al}
+                        (inv eq')
+                        (sublist-ms-r-rb-ar))
+                    ms-r)
+                             (transport (SubList __ (big-context-al))
+                                 {rbig-context-ar}
+                                 {rbig-context-al}
+                                 (inv eq')
+                                 (transport (SubList rbig-context-ar)
+                                     {big-context-ar}
+                                     {big-context-al}
+                                     (inv eq)
+                                     (sublist-rb-ar-b-ar)))
+            \elim eq, eq'
+              | idp, idp => unfold transport ind
         }
     }
 
