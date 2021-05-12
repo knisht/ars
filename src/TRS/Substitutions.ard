@@ -1,5 +1,5 @@
 \import Arith.Nat
-\import Data.List (!!, ++, ++_nil, ::, List, length, nil)
+\import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -38,8 +38,8 @@
 
 \func append-context-right
   {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
-  {additional-context : List Sort}
   (subst : Substitution old-context new-context meta-signature)
+  {additional-context : List Sort}
   (index : Fin (length (old-context ++ additional-context)))
   : Term env (new-context ++ additional-context) ((old-context ++ additional-context) !! index) meta-signature
 \elim old-context, index
@@ -184,9 +184,9 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
 \func append-context-right-to-identity
   {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
   {additional-context : List Sort} (i : Fin (length (old-context ++ additional-context)))
-  : append-context-right {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i = plain-identity i =>
+  : append-context-right {_} {old-context} {_} {meta-signature}  plain-identity {additional-context} i = plain-identity i =>
   partial-fin-induction
-      (\lam i => append-context-right {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i = plain-identity i)
+      (\lam i => append-context-right {_} {old-context} {_} {meta-signature} plain-identity {additional-context} i = plain-identity i)
       (\lam i1 => append-context-right-begin plain-identity i1 *>
       (rewrite lem (\let | some-lemma => weakening.recalculate-index-over-right-extension {_} {_} {additional-context} i1
                     \in rewrite (pmap (to-var) some-lemma.2) (unfold (to-var, plain-identity) (lem2 (expand-fin i1) (some-lemma).1 idp (inv (expand-fin-eq i1)))))))
@@ -205,7 +205,13 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       | idp => pmap (var index) (Path.inProp eq eq')
 
     \func ext' {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
-               {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {meta-signature} {additional-context} plain-identity i) = plain-identity =>
+               {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {meta-signature}  plain-identity {additional-context} i) = plain-identity =>
       ext append-context-right-to-identity
   }
 
+\func double-append-context-right {env : Environment} {context-a context-res context-b context-c : List Sort} {meta-signature : MetaSignature Sort}
+                                  (subst : Substitution context-a context-res meta-signature) :
+  (append-context-right (append-context-right subst {context-b}) {context-c})
+    =
+  transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) ->
+      Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) => {?}

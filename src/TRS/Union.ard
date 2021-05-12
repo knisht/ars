@@ -791,12 +791,91 @@
     | A, B, rewrite-with-rule-colored h (rule) msubst msubst[l]=A msubst[r]=B => rewrite-with-rule-colored (hcr-over-substitution subst h) rule (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) (rewrite (inv msubst[l]=A) {?}) (rewrite (inv msubst[r]=B) {?})
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 i tlcr eq => rewrite-with-parameter-f-colored idp p1 i (tlcr-over-substitution (append-context-right {env} subst) tlcr) (\lam j _x => rewrite (eq j _x) idp)
   \where {
+    \func commutation {env : Environment} {s : Sort} {aux-context core-context new-context : List Sort} {old-ms new-ms : MetaSignature Sort}
+                      (term : Term env aux-context s old-ms)
+                      (subst : Substitution core-context new-context new-ms)
+                      (metasubst : MetaSubstitution env core-context old-ms new-ms)
+      :
+      MetaSubstitution.apply
+          (weakening term (SubList.extend-left-single SubList.identity))
+          (SubList.extend-right-single SubList.identity) (\lam {s} m => Substitution.apply (metasubst m) (append-context-right subst))
+        =
+      Substitution.apply (MetaSubstitution.apply
+          (weakening term (SubList.extend-left-single SubList.identity))
+          (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst) \elim term
+      | var index idp => {?}
+      | metavar m choosing => {?} -- commutation of substitutions on different sublists
+      | func f choosing =>
+        pmap (func f) (ext (\lam index => \let inductive => commutation (choosing index) subst metasubst \in rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite double-append-context-right (inductive-step (choosing index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
+      \where {
+        \func inductive-step
+          {env : Environment} {s : Sort} {big-context-al big-context-ar new-context term-context core-context rbig-context-al rbig-context-ar : List Sort} {old-ms new-ms : MetaSignature Sort}
+          (term : Term env term-context s old-ms)
+          (eq : big-context-al = big-context-ar)
+          (eq' : rbig-context-al = rbig-context-ar)
+          (eq'' : core-context ++ term-context = rbig-context-ar)
+          (eq''' : new-context ++ term-context = big-context-ar)
+          (sl-term-ar : SubList term-context big-context-ar)
+          (sl-new-ar : SubList new-context big-context-ar)
+          (sl-term-rar : SubList term-context rbig-context-ar)
+          (sl-core-rar : SubList core-context rbig-context-ar)
+          (metasubst : MetaSubstitution env core-context old-ms new-ms)
+          (subst : Substitution core-context new-context new-ms)
+          (inductor : MetaSubstitution.apply
+              (weakening term sl-term-ar) sl-new-ar (\lam {s} m => Substitution.apply (metasubst m) (append-context-right subst)) =
+          Substitution.apply
+              (MetaSubstitution.apply (weakening term sl-term-rar) sl-core-rar metasubst) (transport2 (\lam ctx1 ctx2 => \Pi (i : Fin (length ctx1)) -> Term env ctx2 (ctx1 !! i) new-ms) eq'' eq''' (append-context-right
+              {env} {core-context} {new-context} {new-ms} subst {term-context})))
+          : MetaSubstitution.apply {env} {big-context-al} {new-context}
+            (weakening {env} {_} {term-context}
+                {big-context-al} term
+                (transport (SubList {Sort} (term-context))
+                    {big-context-ar}
+                    {big-context-al}
+                    (inv eq)
+                    (sl-term-ar)))
+            (transport (SubList {Sort} new-context) {big-context-ar}
+                {big-context-al}
+                (inv eq)
+                (sl-new-ar))
+            (\lam {s} m => Substitution.apply (metasubst {s} m)
+                (append-context-right {env} {core-context} {new-context} {new-ms} subst))
+          =
+        Substitution.apply
+            {_} {_} {rbig-context-al}
+            (MetaSubstitution.apply {env} {rbig-context-al} {core-context}
+                {_}
+                (weakening {_} {_} {term-context}
+                    {rbig-context-al} {old-ms} (term)
+                    (transport {List Sort} (SubList {Sort} (term-context))
+                        {rbig-context-ar}
+                        {rbig-context-al}
+                        (inv eq')
+                        (sl-term-rar)))
+                (transport {List Sort} (SubList {Sort} core-context) {rbig-context-ar}
+                    {rbig-context-al}
+                    (inv eq')
+                    (sl-core-rar)) metasubst)
+            {big-context-al}
+            (transport2 {List Sort} {List Sort} (\lam ctx ctx' => \Pi (index : Fin (length {Sort} ctx)) -> Term env ctx' (ctx !! index) new-ms)
+                {rbig-context-ar}
+                {rbig-context-al}
+                {big-context-ar}
+                {big-context-al}
+                (inv eq')
+                (inv eq)
+                (transport2 (\lam ctx1 ctx2 => \Pi (i : Fin (length ctx1)) -> Term env ctx2 (ctx1 !! i) new-ms) eq'' eq''' (append-context-right
+                    {env} {core-context} {new-context} {new-ms} subst {term-context})))
+        \elim eq, eq', eq'', eq'''
+          | idp, idp, idp, idp => unfold transport inductor
+      }
+
     \func hcr-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                                 {color : Color}
                                 {A : Term env context s meta-signature}
                                 (subst : Substitution {env} context new-context meta-signature)
                                 (hcr : HasColoredRoot color A)
-                                : HasColoredRoot color (Substitution.apply {env} A subst) \elim color, A, hcr
+      : HasColoredRoot color (Substitution.apply {env} A subst) \elim color, A, hcr
       | red, func (inl s1) choosing, red-func-root => red-func-root
       | blue, func (inr s1) choosing, blue-func-root => blue-func-root
   }
