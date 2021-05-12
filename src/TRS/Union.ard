@@ -834,15 +834,38 @@
       rewrite-with-parameter-f-colored idp p1 i (tlcr-over-weakening color (choosing-A i) (choosing-B i) tlcr (SubList.extend-right-both sublist)) (\lam j _x =>  rewrite (eq j _x) (idp))
     \where {
       \func application-weakening-lemma
-        {env : Environment} {core-context context new-context general-context : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+        {env : Environment} {core-context context new-context  : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
         (A : Term env core-context s old-msig)
         (msubst : MetaSubstitution env context old-msig new-msig)
         (sublist : SubList context new-context)
         : MetaSubstitution.apply (weakening A (SubList.extend-left-single SubList.identity)) (SubList.extend-right-single SubList.identity) (\lam m => weakening (msubst m) (SubList.extend-right-both sublist)) =
       weakening (MetaSubstitution.apply (weakening A (SubList.extend-left-single SubList.identity)) (SubList.extend-right-single SubList.identity) msubst) (SubList.extend-right-both sublist) \elim A
         | var index p => {?}
-        | metavar m choosing => {?}
-        | func f choosing => pmap (func f) (ext (\lam index => \let inductive => application-weakening-lemma (choosing index) msubst sublist \in {?}))
+        | metavar m choosing => \let inductive i => application-weakening-lemma (choosing i) msubst sublist \in {?} -- swap substitution and weakening
+        | func f choosing => pmap (func f) (ext (\lam index =>
+            \let inductive => application-weakening-lemma (choosing index) msubst sublist
+            \in rewrite (weakening-over-double-extend-2) (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend (rewrite (weakening-over-double-extend-2 {_} {context}) (rewrite weakening-over-double-extend-4 {?}))))))
+        \where {
+          \func equating-lemma
+            {env : Environment} {core-context context new-context context' add-context big-context big-context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+            (A : Term env core-context s old-msig)
+            (eq : big-context = big-context')
+            (msubst : MetaSubstitution env new-context old-msig new-msig)
+            (msubst' : MetaSubstitution env context' old-msig new-msig)
+            (sublist : SubList context new-context)
+            (core-big'-sublist : SubList core-context big-context')
+            (new-big'-sublist : SubList new-context big-context')
+            (prime-big'-sublist : SubList context' big-context')
+            : MetaSubstitution.apply
+              (weakening A (transport (SubList (core-context)) (inv eq)
+                  (core-big'-sublist)))
+              (transport (SubList new-context) (inv eq) (new-big'-sublist))
+              (msubst) = weakening (MetaSubstitution.apply
+              (weakening (A) (transport (SubList (core-context)) (inv eq)
+                  (core-big'-sublist)))
+              (transport (SubList context') (inv eq) prime-big'-sublist) msubst')
+                             {?} => {?}
+        }
     }
 
   \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
@@ -1070,13 +1093,17 @@
                         (C : Fin (n) -> \Type)
                         (f g : \Pi (i : Fin (n)) -> C i) :  modular-function C f g 0 = f => ext (left-eq C f g)
 
+      \func inject-nat (n : Nat) : Fin (suc n) \elim n
+        | 0 => 0
+        | suc n => suc (inject-nat n)
+
       \func right-eq {n : Nat}
                      (C : Fin (n) -> \Type)
                      (f g : \Pi (i : Fin (n)) -> C i)
                      (i : Fin n)
-        : modular-function C f g n i = g i \elim n, i
-        | suc n, 0 => {?}
-        | suc n, suc i => {?}
+        : modular-function C f g (inject-nat n) i = g i \elim n, i
+        | suc n, 0 => idp
+        | suc n, suc i => (right-eq (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) i)
 
       \func modular-jump {n : Nat}
                          (C : Fin (n) -> \Type)
@@ -1101,7 +1128,7 @@
       \func right-eq-ext
         {n : Nat}
         (C : Fin (n) -> \Type)
-        (f g : \Pi (i : Fin (n)) -> C i) : modular-function C f g n = g => ext (right-eq C f g)
+        (f g : \Pi (i : Fin (n)) -> C i) : modular-function C f g (inject-nat n) = g => ext (right-eq C f g)
     }
 
   \func progressive-induction
@@ -1110,7 +1137,7 @@
     (f g : \Pi (i : Fin n) -> C i)
     (start : Q f)
     (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
-    : Q g => transport Q (modular-function.right-eq-ext C f g) (progressive-induction-lemma {n} C Q f g step n start)
+    : Q g => transport Q (modular-function.right-eq-ext C f g) (progressive-induction-lemma {n} C Q f g step (modular-function.inject-nat n) start)
     \where {
       \func progressive-induction-lemma
         {n : Nat} (C : Fin n -> \Type)

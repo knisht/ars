@@ -651,6 +651,10 @@
       | idp => idp
   }
 
+\func weakening-over-double-extend-4 {A : \Type} {context-a context-b context-c context-d : List A}
+  (sublist : SubList context-c context-d)
+  : SubList.extend-right-both (SubList.extend-right-both sublist {context-b}) {context-a} = transport (SubList __ ((context-d ++ context-b) ++ context-a)) (inv ++-assoc) (transport (SubList (context-c ++ context-b ++ context-a)) (inv ++-assoc) (SubList.extend-right-both sublist {context-b ++ context-a})) => {?}
+
 
 \func expand-substitution-3 {env : Environment} {term-context ms-context big-context big-context' : List Sort} {s : Sort} {ms ms' : MetaSignature Sort}
                             (T : Term env term-context s ms)
