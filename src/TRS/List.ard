@@ -69,6 +69,10 @@
     \func shrink {A : \Type} {a : A} {list list' : List A} (sublist : SubList (a :: list) list') : SubList list list' \elim list', sublist
       | :: y list', sublist-match p sublist => sublist-skip sublist
       | :: y list', sublist-skip sublist => sublist-skip (shrink sublist)
+
+    \func extend-right-identity-eq {A : \Type} {a b : List A}  : SubList.extend-right-both (SubList.identity {_} {a}) = SubList.identity {_} {a ++ b} \elim a
+      | nil => idp
+      | :: a a1 => pmap (sublist-match idp) (extend-right-identity-eq)
   }
 
 \data DescendingVector (n limit : Nat) \elim n

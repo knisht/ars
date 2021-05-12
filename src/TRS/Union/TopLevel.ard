@@ -226,6 +226,9 @@
           \where {
             \func commute-skip {A : \Type} {x : A} {a b c : List A} (eq : a = b) (sl : SubList c a) : SubList.sublist-skip (transport (SubList c) eq sl) = transport (SubList c) (pmap (x ::) eq) (sublist-skip sl) \elim eq
               | idp => idp
+
+            \func commute-skip-2 {A : \Type} {x : A} {a b c : List A} (eq : a = b) (sl : SubList (a) (c)) : SubList.sublist-skip (transport (SubList __ c) (eq) sl) = transport (SubList __ (x :: c)) (eq) (sublist-skip sl) \elim eq
+              | idp => idp
           }
 
         \func equate-sublists-2 {A : \Type} {a : List A} : SubList.extend-right-single SubList.identity = transport (SubList a) (inv ++_nil) SubList.identity \elim a
@@ -234,6 +237,14 @@
           \where {
             \func commute-match {A : \Type} {x : A} {a b c : List A} (eq : c = b) (sl : SubList a b):
               SubList.sublist-match idp (transport (SubList a) (inv eq) sl) = transport (SubList (x :: a)) (inv (pmap (x ::) eq)) (sublist-match idp sl) \elim eq
+              | idp => idp
+
+            \func commute-match-straight {A : \Type} {x : A} {a b c : List A} (eq : b = c) (sl : SubList a b):
+              SubList.sublist-match idp (transport (SubList a) (eq) sl) = transport (SubList (x :: a)) ((pmap (x ::) eq)) (sublist-match idp sl) \elim eq
+              | idp => idp
+
+            \func commute-match-straight-2 {A : \Type} {x : A} {a b c : List A} (eq : b = c) (sl : SubList b a):
+              SubList.sublist-match idp (transport (SubList __ a) (eq) sl) = transport (SubList __ (x :: a)) ((pmap (x ::) eq)) (sublist-match idp sl) \elim eq
               | idp => idp
           }
 
@@ -653,8 +664,13 @@
 
 \func weakening-over-double-extend-4 {A : \Type} {context-a context-b context-c context-d : List A}
   (sublist : SubList context-c context-d)
-  : SubList.extend-right-both (SubList.extend-right-both sublist {context-b}) {context-a} = transport (SubList __ ((context-d ++ context-b) ++ context-a)) (inv ++-assoc) (transport (SubList (context-c ++ context-b ++ context-a)) (inv ++-assoc) (SubList.extend-right-both sublist {context-b ++ context-a})) => {?}
-
+  : SubList.extend-right-both (SubList.extend-right-both sublist {context-b}) {context-a} = transport (SubList __ ((context-d ++ context-b) ++ context-a)) (inv ++-assoc) (transport (SubList (context-c ++ context-b ++ context-a)) (inv ++-assoc) (SubList.extend-right-both sublist {context-b ++ context-a}))
+  \elim context-b, context-c, context-d, sublist
+    | context-b, nil, nil, sublist-trivial => SubList.extend-right-identity-eq
+    | context-b, :: x context-c, :: y context-d, sublist-match idp sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc)) (rewriteI (pmap_inv-comm (x ::) (++-assoc)) (rewriteI (decompose-along-reduction.different-weakening.equate-sublists-2.commute-match-straight (inv ++-assoc) (SubList.extend-right-both sublist)) (rewriteI decompose-along-reduction.different-weakening.equate-sublists-2.commute-match-straight-2 (pmap (sublist-match idp) (weakening-over-double-extend-4 sublist)))))
+    | nil, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {nil} {context-a})) ((rewriteI decompose-along-reduction.different-weakening.equate-sublists.commute-skip ((pmap (sublist-skip) (weakening-over-double-extend-4 sublist)))))
+    | :: a context-b, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {a :: context-b} {context-a})) (rewriteI decompose-along-reduction.different-weakening.equate-sublists.commute-skip ((pmap (sublist-skip) (weakening-over-double-extend-4 sublist))))
+    | context-b, :: a context-c, :: y context-d, sublist-skip sublist => rewrite (weakening-over-double-extend-4 sublist) (rewriteI (pmap_inv-comm (y ::) (++-assoc)) (rewriteI (pmap_inv-comm (a ::)) (rewriteI decompose-along-reduction.different-weakening.equate-sublists.commute-skip (rewriteI decompose-along-reduction.different-weakening.equate-sublists.commute-skip-2 idp))))
 
 \func expand-substitution-3 {env : Environment} {term-context ms-context big-context big-context' : List Sort} {s : Sort} {ms ms' : MetaSignature Sort}
                             (T : Term env term-context s ms)
