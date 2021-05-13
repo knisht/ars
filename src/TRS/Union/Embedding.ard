@@ -8,32 +8,81 @@
 \import TRS.List
 \import TRS.Maybe
 \import TRS.Substitutions
+\import TRS.TRS
 \import TRS.Union
 \import TRS.Utils
 \open Confluence
 \open TheoremContext
 
---\func fill-confluence {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
---                      (A B C : Term env context s meta-signature)
---                      (A~>B : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B)
---                      (A~>C : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A C)
---                      (l-confluential : ConfluentialSystem envL L-rules)
---                      (r-confluential : ConfluentialSystem envR R-rules)
---  : StraightJoin B C (Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))) =>
---  \let | A=>B => embed-rewrite-relation A B A~>B
---       | A=>C => embed-rewrite-relation A C A~>C
---       | grand-result : StraightJoin B C (Closure TrichromaticParallelReduction) => bpr-confluence A=>B.1 A=>C.1 A=>B.2 A=>C.2 l-confluential r-confluential
---  \in \new StraightJoin {
---    | common-reduct => grand-result.common-reduct
---    | a~>cr => \let closure-sequence => Closure.lift {_} {_} {_}
---        {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))} (\lam x => x)
---        (\lam tpr => unembed-rewrite-relation tpr.1 tpr.2) B grand-result.common-reduct grand-result.a~>cr
---               \in Closure.flatten closure-sequence
---    | b~>cr => \let closure-sequence => Closure.lift {_} {_} {_}
---        {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))} (\lam x => x)
---        (\lam tpr => unembed-rewrite-relation tpr.1 tpr.2) C grand-result.common-reduct grand-result.b~>cr
---               \in Closure.flatten closure-sequence
---  }
+\func fill-confluence {tc : TheoremContext} {context : List Sort'} {s : Sort'}
+                      (A B C : Term env context s (EmptyMetasignature {env}))
+                      (A~>B : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B)
+                      (A~>C : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A C)
+                      (l-confluential : ConfluentialSystem envL L-rules)
+                      (r-confluential : ConfluentialSystem envR R-rules)
+                      (all-rules-are-linear :
+                      \Pi (point : L-rules.J `Or` R-rules.J) ->
+                          \Sigma (color : Color)
+                                 (linear-pattern : LinearPattern (colored-env {tc} color) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
+                                 (meta-eq : RewriteRule.meta-signature {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetasignature {colored-env {tc} color} linear-pattern)
+                                 (LinearPattern.convert-to-injected-term {tc} color linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})))
+  : StraightJoin B C (Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))) =>
+  \let | lifted-a => Closure.lift
+      {Term env context s (EmptyMetasignature {env})}
+      {Term env context s (EmptyMetasignature {env})}
+      {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
+      {TrichromaticParallelReduction {tc}}
+      (\lam t => t)
+      (\lam {x} {y} rel => embed-rewrite-relation x y rel all-rules-are-linear) A B A~>B
+       | lifted-b => Closure.lift
+           {Term env context s (EmptyMetasignature {env})}
+           {Term env context s (EmptyMetasignature {env})}
+           {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
+           {TrichromaticParallelReduction {tc}}
+           (\lam t => t)
+           (\lam {x} {y} rel => embed-rewrite-relation x y rel all-rules-are-linear) A C A~>C
+       | joins => unify-reduction A B C lifted-a lifted-b (\lam a b c a->b a->c => \let (D, m1, m2, b->D, c->D) => bpr-confluence a->b.2 a->c.2 a->b.3 a->c.3 l-confluential r-confluential \in (D, (a->c.1, m1, b->D), (a->b.1, m2, c->D)))
+       | long-closure-b-w => Closure.lift {_} {_}
+           {TrichromaticParallelReduction}
+           {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))}
+           (\lam x => x)
+           (\lam {a} {b} bpr => unembed-rewrite-relation bpr.2 bpr.3)
+           B joins.1 joins.2
+       | long-closure-c-w => Closure.lift {_} {_}
+           {TrichromaticParallelReduction}
+           {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))}
+           (\lam x => x)
+           (\lam {a} {b} bpr => unembed-rewrite-relation bpr.2 bpr.3)
+           C joins.1 joins.3
+  \in \new StraightJoin {
+    | common-reduct => joins.1
+    | a~>cr => Closure.flatten long-closure-b-w
+    | b~>cr => Closure.flatten long-closure-c-w
+  }
+
+\func unify-reduction
+  {A : \Type} {Rel : A -> A -> \Type} (x y z : A)
+  (x->y : Closure Rel x y) (x->z : Closure Rel x z)
+  (unifier : \Pi (a b c : A) (a->b : Rel a b) (a->c : Rel a c) -> \Sigma (d : A) (b->d : Rel b d) (c->d : Rel c d))
+  : \Sigma (w : A) (y->w : Closure Rel y w) (z->w : Closure Rel z w) \elim x->y
+  | c-trivial idp => (z, x->z, c-trivial idp)
+  | c-basic x->y => unify-line x y z x->y x->z unifier
+  | c-connect c x->c c->y => \let | (w, c->w, z->w) => unify-line x c z x->c x->z unifier
+                                  | (w', y->w', w->w') => unify-reduction c y w c->y c->w unifier
+                             \in (w', y->w', Closure.concat z->w w->w')
+  \where {
+    \func unify-line
+      {A : \Type} {Rel : A -> A -> \Type} (x y z : A)
+      (x->y : Rel x y) (x->z : Closure Rel x z)
+      (unifier : \Pi (a b c : A) (a->b : Rel a b) (a->c : Rel a c) -> \Sigma (d : A) (b->d : Rel b d) (c->d : Rel c d))
+      : \Sigma (w : A) (y->w : Closure Rel y w) (z->w : Closure Rel z w) \elim x->z
+      | c-trivial idp => (y, c-trivial idp, c-basic x->y)
+      | c-basic x->z => \let (w, y->w, z->w) => unifier x y z x->y x->z \in (w, c-basic y->w, c-basic z->w)
+      | c-connect c x->c c->z =>
+        \let | (w, y->w, c->w) => unifier x y c x->y x->c
+             | (w', w->w', z->w') => unify-line c w z c->w c->z unifier
+        \in (w', c-connect w y->w w->w', z->w')
+  }
 
 \func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                              (A B : Term env context s (EmptyMetasignature {env}))
@@ -88,31 +137,22 @@
       | idp => \case \elim inner-meta-signature, \elim old-l, \elim old-r, \elim ms-eq, \elim lp=l, \elim subst, \elim l-coherence \with {
         | inner-meta-signature, old-l, old-r, idp, idp, subst, l-coherence => (new-l, {?}, subst, l-coherence, {?})
       }
-
   }
 
---\func unembed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
---                               (color : Maybe Color)
---                               {A B : Term env context s meta-signature}
---                               (A=>B : BorderedParallelReduction color A B)
---  : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B \elim color, A, B, A=>B
---  | color, A, B, equal-trees p => c-trivial p
---  | just color, A, B, reduction-top-level t => c-basic (unembed-tlcr color t)
---  | nothing, func f-A choosing-A, func f-B choosing-B, reduction-subterms f-A=f-B _x => redirection f-A f-B f-A=f-B choosing-A choosing-B _x
---  \where {
---    \func redirection {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
---                      (f-A f-B : env.FunctionalSymbol.symbol s)
---                      (f-A=f-B : f-A = f-B)
---                      (choosing-A : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-A))) -> Term env ((f-A FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-A FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
---                      (choosing-B : \Pi (index : Fin (length (env.FunctionalSymbol.domain f-B))) -> Term env ((f-B FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) ++ context) (f-B FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
---                      (args : (\Pi (i : F-param-index {Sort' {tc}} {FunctionalSymbol {env {tc}}} f-A) -> \Sigma
---                        (someColor : Maybe Color)
---                        ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root {tc} f-A))))
---                        (BorderedParallelReduction {tc} someColor (choosing-A i) (transport-chooser-f {env {tc}} f-A=f-B choosing-B i))))
---      : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f-A choosing-A) (func f-B choosing-B) \elim f-A=f-B
---      | idp => gather-closure-regular f-A choosing-A choosing-B (\lam i => unembed-rewrite-relation (args i).1 (args i).3)
---  }
---
+\func unembed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                               {gc : Color}
+                               (color : Maybe Color)
+                               {A B : Term env context s meta-signature}
+                               (A=>B : BorderedParallelReduction gc color A B)
+  : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B \elim color, A, A=>B
+  | color, A, equal-trees p => c-trivial p
+  | color, func f choosing, parallelization-f mediator _x c =>
+    \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
+         | joined : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f choosing) (func f mediator) => {?}
+         | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => {?}
+    \in Closure.concat joined from-cwr
+
+
 --\func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
 --                   (color : Color)
 --                   {A B : Term env context s meta-signature}

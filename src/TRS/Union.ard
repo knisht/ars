@@ -102,14 +102,6 @@
   \func promote-indexed-set-right {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (RewriteRule envR)) : IndexedSet (RewriteRule (JointEnvironment envL envR)) \cowith
     | J => rules.J
     | get j => Injections.promote-rewrite-rule-right envL envR (rules.get j)
-
-  \func promote-indexed-set-left-linear {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (LinearRewriteRule envL)) : IndexedSet (LinearRewriteRule (JointEnvironment envL envR)) \cowith
-    | J => rules.J
-    | get j => {?}
-
-  \func promote-indexed-set-right-linear {Sort : \Set} {envL envR : Environment Sort} (rules : IndexedSet (LinearRewriteRule envR)) : IndexedSet (LinearRewriteRule (JointEnvironment envL envR)) \cowith
-    | J => rules.J
-    | get j => {?}
 }
 
 \func JointRules {Sort : \Set} {envL envR : Environment Sort}
@@ -119,15 +111,6 @@
   \let
     | injected-left-set : IndexedSet (RewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-left {_} {envL} {envR} L-rules
     | injected-right-set : IndexedSet (RewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-right {_} {envL} {envR} R-rules
-  \in JointIndexedSet injected-left-set injected-right-set
-
-\func JointRulesLinear {Sort : \Set} {envL envR : Environment Sort}
-                       (L-rules : IndexedSet (LinearRewriteRule envL))
-                       (R-rules : IndexedSet (LinearRewriteRule envR))
-  : IndexedSet (LinearRewriteRule (JointEnvironment envL envR)) =>
-  \let
-    | injected-left-set : IndexedSet (LinearRewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-left-linear {_} {envL} {envR} L-rules
-    | injected-right-set : IndexedSet (LinearRewriteRule (JointEnvironment envL envR)) => Injections.promote-indexed-set-right-linear {_} {envL} {envR} R-rules
   \in JointIndexedSet injected-left-set injected-right-set
 
 \instance JointHRS {Sort : \Set} {envL envR : Environment Sort} {meta-signature : MetaSignature Sort}
