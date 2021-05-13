@@ -14,17 +14,18 @@
 \open Confluence
 \open TheoremContext
 
-\func fill-confluence {tc : TheoremContext} {context : List Sort'} {s : Sort'}
-                      (A B C : Term env context s (EmptyMetasignature {env}))
-                      (A~>B : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B)
-                      (A~>C : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A C)
-                      (l-confluential : ConfluentialSystem envL L-rules)
-                      (r-confluential : ConfluentialSystem envR R-rules)
-                      (all-rules-are-linear :
-                      \Pi (point : L-rules.J `Or` R-rules.J) ->
-                          \Sigma (color : Color)
-                                 (linear-pattern : LinearPattern (colored-env {tc} color) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
-                                 (meta-eq : RewriteRule.meta-signature {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetasignature {colored-env {tc} color} linear-pattern)
+\func fill-confluence
+  {tc : TheoremContext} {context : List Sort'} {s : Sort'}
+  (A B C : Term env context s (EmptyMetasignature {env}))
+  (A~>B : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B)
+  (A~>C : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A C)
+  (l-confluential : ConfluentialSystem envL L-rules)
+  (r-confluential : ConfluentialSystem envR R-rules)
+  (all-rules-are-linear :
+  \Pi (point : L-rules.J `Or` R-rules.J) ->
+      \Sigma (color : Color)
+             (linear-pattern : LinearPattern (colored-env {tc} color) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
+             (meta-eq : RewriteRule.meta-signature {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetasignature {colored-env {tc} color} linear-pattern)
                                  (LinearPattern.convert-to-injected-term {tc} color linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})))
   : StraightJoin B C (Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))) =>
   \let | lifted-a => Closure.lift
@@ -148,15 +149,49 @@
   | color, A, equal-trees p => c-trivial p
   | color, func f choosing, parallelization-f mediator _x c =>
     \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
-         | joined : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f choosing) (func f mediator) => {?}
-         | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => {?}
+         | joined => progressive-induction
+             (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+             (\lam curmed => Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f choosing) (func f curmed))
+             choosing
+             mediator
+             (c-trivial idp)
+             (\lam delim prev-result =>
+                 \let | curmodular => from-indices delim
+                      | modular => (modular-function
+                          (\lam index => Term env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}} index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature)
+                          choosing mediator delim)
+                      | lifted => Closure.lift {_} {_}
+                          {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
+                          {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
+                          (collect-reductions-together-tlcr.insert-term {env} f modular delim)
+                          (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite collect-reductions-together-tlcr.pointed-at-index (rewrite collect-reductions-together-tlcr.pointed-at-index a->b)) (\lam j _x1 => rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ _ _ _ j _x1) (rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ _ _ _ j _x1) idp)))
+                          (choosing delim)
+                          (mediator delim)
+                          curmodular
+                 \in Closure.concat prev-result (rewrite
+                     (collect-reductions-together-tlcr.pointed-with-modular-1.ext' (\lam index => Term TheoremContext.env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing mediator)
+                     (rewrite {1}
+                         (collect-reductions-together-tlcr.pointed-with-modular-2.ext' (\lam index => Term TheoremContext.env (context ++ f FunctionalSignature.!!param {_} {FunctionalSymbol {env {tc}}}  index) (f FunctionalSignature.!!sort {_} {FunctionalSymbol {env {tc}}} index) meta-signature) choosing mediator delim)
+                         lifted)))
+         | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => unwrap-cwr color c
     \in Closure.concat joined from-cwr
 
+\func unwrap-cwr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                 {gc : Color}
+                 (color : Maybe Color)
+                 {A B : Term env context s meta-signature}
+                 (A=>B : ColorwiseReduction gc color A B)
+  : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B \elim color, A=>B
+  | nothing, cr-skip idp => c-trivial idp
+  | just color, cr-rewrite A->B p =>
+    TClosure.to-closure
+        (TClosure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B)
 
---\func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
---                   (color : Color)
---                   {A B : Term env context s meta-signature}
---                   (A=>B : TopLevelColoredReduction color A B)
---  : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
---  | A, B, rewrite-with-rule-colored h step => rewrite-with-rule step {?}
---  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 r => {?}
+\func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+                   (color : Color)
+                   {A B : Term env context s meta-signature}
+                   (A=>B : TopLevelColoredReduction color A B)
+  : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
+  | A, B, rewrite-with-rule-colored h linear-pattern r l-is-func substitution left-coherence right-coherence => rewrite-with-rule {?} {?}
+  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 index A=>B eq => rewrite-with-parameter-f idp index (unembed-tlcr color A=>B) eq
+
