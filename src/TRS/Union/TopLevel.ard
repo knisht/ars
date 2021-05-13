@@ -6,7 +6,7 @@
 \import Meta
 \import Paths
 \import Paths.Meta
-\import Set
+\import Set \hiding (#)
 \import TRS.HRS
 \import TRS.Linearity \hiding (linear-pattern)
 \import TRS.List
@@ -33,17 +33,26 @@
        | lifted-c~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel) join-b-c.b common-reduct join-b-c.b~>cr
   \in (injected-reduct, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-b lifted-b~>d, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-c lifted-c~>d)
 
-\func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature outer-meta-signature : MetaSignature Sort'}
+\func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
                     (color : Color)
-                    (subst : MetaSubstitution env nil meta-signature outer-meta-signature)
+                    (subst : MetaSubstitution env nil meta-signature (EmptyMetasignature {env}))
                     {t u : Term (colored-env color) context s meta-signature}
                     (t~>u : monochrome-reduction color t u)
-  : TopLevelColoredReduction color {outer-meta-signature} {context} {s}
+  : TopLevelColoredReduction color {_} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
-    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim t, u, t~>u
-  | t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
-  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq => {?}
-  | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq => {?}
+    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u
+  | color, t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
+  | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq =>
+    rewrite-with-parameter-f-colored idp idp index
+        (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
+      (Injections.inject-term-left tc.envL tc.envR (choosing-A index)) SubList.sublist-trivial-skip subst)
+      ((MetaSubstitution.apply {env}
+          (Injections.inject-term-left tc.envL tc.envR (choosing-B index)) (sl)
+          subst))) (decompose-along-reduction.any-nil-sublist-equate (SubList.sublist-trivial-skip) (SubList.extend-right-single SubList.sublist-trivial-skip) ) (lift-relation red subst rd)))
+        (\lam j _x => rewrite (eq j _x) idp)
+  | blue, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq => {?}
+  | red, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m idp i rd eq => {?}
+  | blue, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq => {?}
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                      (color : Color)
