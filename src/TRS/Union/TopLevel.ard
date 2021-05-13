@@ -41,7 +41,7 @@
   : TopLevelColoredReduction color {outer-meta-signature} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim t, u, t~>u
-  | t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?}
+  | t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
   | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p r => {?}
   | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p r => {?}
 
@@ -101,25 +101,25 @@
     \let | unmap => pmap (unor {_} {envR.FunctionalSymbol.symbol s} f) p
          | eq-p : p = pmap (inl) unmap => Path.inProp _ _
     \in inductive _ _ unmap choosing choosing' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
-  | red, func f choosing, B, rewrite-with-rule-colored hcr (rule : LinearRewriteRuleColored {tc} red s) big-subst l[bs]=injt r[bs]=B =>
+  | red, func f choosing, B, rewrite-with-rule-colored hcr lr r lf big-subst l[bs]=injt r[bs]=B =>
     \let | (middle-subst, substitution-equality, l-eq) =>
       decompose-metasubstitution
-          red rule.linear-pattern (transport (Term envL __ s inner-meta-signature) (inv ++_nil) (func {envL} f choosing)) big-subst subst
-          (rewrite (unwrap-injection {_} {red} rule.linear-pattern) (rewrite (inv decompose-along-reduction.different-weakening.equate-sublists-3)
+          red lr (transport (Term envL __ s inner-meta-signature) (inv ++_nil) (func {envL} f choosing)) big-subst subst
+          (rewrite (unwrap-injection {_} {red} lr) (rewrite (inv decompose-along-reduction.different-weakening.equate-sublists-3)
               (rewrite decompose-along-reduction.different-weakening.equate-sublists-2 (rewrite (transport-over-injection red)
                   (metasubst-over-transport-2 {env} ++_nil
-                      (LinearPattern.convert-to-injected-term red rule.linear-pattern)
+                      (LinearPattern.convert-to-injected-term red lr)
                       (func (inl f) (\lam i => inject-monochrome-term red (choosing i))) big-subst subst l[bs]=injt))))) root-colors
-         | term-u => MetaSubstitution.apply {envL} (weakening {envL} rule.r SubList.sublist-trivial-skip) SubList.identity middle-subst
-         | colored-coherence => colored-metacomposition red middle-subst subst big-subst substitution-equality SubList.identity (weakening {envL} rule.r SubList.sublist-trivial-skip)
+         | term-u => MetaSubstitution.apply {envL} (weakening {envL} r SubList.sublist-trivial-skip) SubList.identity middle-subst
+         | colored-coherence => colored-metacomposition red middle-subst subst big-subst substitution-equality SubList.identity (weakening {envL} r SubList.sublist-trivial-skip)
     \in (term-u,
          inv (colored-coherence) *> (pmap (MetaSubstitution.apply {env} __ SubList.identity big-subst) (inv (injection-weakening-commutation red _ _))) *> r[bs]=B,
-         produce-monochrome-reduction red rule.linear-pattern rule.r middle-subst (func f choosing) term-u
+         produce-monochrome-reduction red lr r middle-subst (func f choosing) term-u
              (rewrite (different-weakening {envL}) (metasubst-over-transport {envL} ++_nil _ (func f choosing) middle-subst
                  ((rewrite (inv decompose-along-reduction.different-weakening.equate-sublists-2)
-                     (pmap (\lam sl => MetaSubstitution.apply {envL} (weakening {envL} (LinearPattern.convert-to-term {envL} rule.linear-pattern) sl) (SubList.extend-right-single SubList.identity) middle-subst)
+                     (pmap (\lam sl => MetaSubstitution.apply {envL} (weakening {envL} (LinearPattern.convert-to-term {envL} lr) sl) (SubList.extend-right-single SubList.identity) middle-subst)
                          decompose-along-reduction.different-weakening.equate-sublists-3)) *> l-eq)))
-             idp rule.l-is-func)
+             idp lf)
   | red, metavar m choosing, B, A~>B =>
     \let
       | other-root-color => root-colors m

@@ -214,4 +214,18 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   (append-context-right (append-context-right subst {context-b}) {context-c})
     =
   transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) ->
-      Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) => {?}
+      Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) =>
+  {?}
+  \where {
+    \func unext {env : Environment} {context-a context-res context-b context-c : List Sort} {meta-signature : MetaSignature Sort}
+                (subst : Substitution context-a context-res meta-signature) (i : Fin (length ((context-a ++ context-b) ++ context-c)))
+      : (append-context-right (append-context-right subst {context-b}) {context-c}) i = transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) ->
+        Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) i =>
+      partial-fin-induction
+          (\lam fin =>
+              (append-context-right (append-context-right subst {context-b}) {context-c}) fin =
+              transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) -> Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) fin)
+          (\lam i1 => rewrite append-context-right-begin {?})
+          (\lam i1 => {?})
+          i
+  }
