@@ -2,6 +2,7 @@
 \import Data.Or
 \import Paths
 \import Paths.Meta
+\import Set
 \import TRS.HRS
 \import TRS.Linearity
 \import TRS.List
@@ -34,7 +35,7 @@
 --               \in Closure.flatten closure-sequence
 --  }
 
-\func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {meta-signature : MetaSignature Sort'}
+\func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                              (A B : Term env context s (EmptyMetasignature {env}))
                              (A~>B : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B)
                              (all-rules-are-linear :
@@ -58,7 +59,13 @@
            (choosing1)
            (\lam i1 => (nothing, inl idp, equal-trees idp))
            (cr-rewrite (tc-basic (rewrite-with-rule-colored {?} (unified.1) (unified.2) {?} unified.3 unified.4 unified.5)) color-eq))
-  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p r => ({?}, {?}, {?})
+  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq =>
+    \let | (global-color, color, bpr) => embed-rewrite-relation (choosing-A index) (choosing-B index) rd all-rules-are-linear
+         | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A choosing-A choosing-B (\lam i => \case (FinDec i index) \with {
+           | yes e => rewrite e (color, bpr)
+           | no n => (nothing, equal-trees (eq i n))
+         })
+    \in (global-color, someColor, parallelization-f mediator inrd cwr)
   | metavar () choosing-A, _, _
   \where {
     \func unify-tlcr
@@ -81,7 +88,6 @@
       | idp => \case \elim inner-meta-signature, \elim old-l, \elim old-r, \elim ms-eq, \elim lp=l, \elim subst, \elim l-coherence \with {
         | inner-meta-signature, old-l, old-r, idp, idp, subst, l-coherence => (new-l, {?}, subst, l-coherence, {?})
       }
-    --               (new-l-coherence : MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-injected-term color new-lp) SubList.sublist-trivial-skip) SubList.identity new-subst = A)
 
   }
 

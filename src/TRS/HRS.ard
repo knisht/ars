@@ -148,29 +148,26 @@
   : \Pi (index : Fin (length (meta-signature.m-domain m-A))) -> Term env context ((meta-signature.m-domain m-A) !! index) meta-signature =>
   transport (\lam (m : meta-signature.metaname s) => \Pi (index : Fin (length (meta-signature.m-domain m))) -> Term env context ((meta-signature.m-domain m) !! index) meta-signature) (inv p) choosing-B
 
-\data RewriteRelation {env : Environment}
-                                 {meta-signature : MetaSignature Sort}
-                                 (set-of-rules : IndexedSet (RewriteRule env))
-                                 {context : List Sort} {s : env.Sort}
-                                 (A B : Term env context s meta-signature) \elim A, B
+\data RewriteRelation
+  {env : Environment}
+  {meta-signature : MetaSignature Sort}
+  (set-of-rules : IndexedSet (RewriteRule env))
+  {context : List Sort} {s : env.Sort}
+  (A B : Term env context s meta-signature) \elim A, B
   | A, B =>
   rewrite-with-rule (step : RewriteStep {env} A B) (step.rule IndexedSet.in set-of-rules)
 
   | func f-A choosing-A, func f-B choosing-B =>
   rewrite-with-parameter-f (p : f-A = f-B)
-                           (ReductionAtIndex {env} (RewriteRelation {env} set-of-rules)
-                               (context ++ f-A !!param __)
-                               (f-A !!sort __)
-                               choosing-A
-                               (transport-chooser-f {env} p choosing-B))
+                           (i : Fin (length (domain f-A)))
+                           (reduction : RewriteRelation {env} set-of-rules (choosing-A i) (transport-chooser-f {env} p choosing-B i))
+                           (eq : \Pi (j : Fin (length (domain f-A))) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-f {env} p choosing-B j))
 
   | metavar (m-A : meta-signature.metaname s) choosing-A, metavar (m-B : meta-signature.metaname s) choosing-B =>
   rewrite-with-parameter-m (p : m-A = m-B)
-                           (ReductionAtIndex {env} (RewriteRelation {env} set-of-rules)
-                               (\lam _ => context)
-                               ((meta-signature.m-domain m-A) !! __)
-                               choosing-A
-                               (transport-chooser-m {env} p choosing-B))
+                           (i : Fin (length (m-domain m-A)))
+                           (reduction : RewriteRelation {env} set-of-rules (choosing-A i) (transport-chooser-m {env} p choosing-B i))
+                           (eq : \Pi (j : Fin (length (m-domain m-A))) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-m {env} p choosing-B j))
 
 \class HigherOrderTermRewritingSystem \noclassifying (env : Environment) (meta-signature : MetaSignature Sort) (set-of-rules : IndexedSet (RewriteRule env))  \extends AbstractReductionSystem
   | A => \Sigma (context : List env.Sort) (sort : env.Sort) (Term env context sort meta-signature)

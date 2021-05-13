@@ -42,8 +42,8 @@
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim t, u, t~>u
   | t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
-  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p r => {?}
-  | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p r => {?}
+  | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq => {?}
+  | metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq => {?}
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                      (color : Color)
@@ -165,7 +165,28 @@
         })) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' index \with {
           | yes e, p => lemma f choosing choosing' subst root-colors i index e tlcr (inductive-step).1 (inductive-step).2
           | no n, p => eq' index n
-        })), rewrite-with-parameter-f idp {?})
+        })),
+         rewrite-with-parameter-f
+             idp
+             i
+             (unfold (transport-chooser-f) (unfold transport (\case (FinDec i i) \as ix, idp : ix = (FinDec i i) \return (RewriteRelation {envL} tc.L-rules (choosing i) (\case \elim ix \with {
+               | yes e => transportInv
+                   (\lam x => Term tc.envL (context ++ f FunctionalSignature.!!param x) (f FunctionalSignature.!!sort x) inner-meta-signature)
+                   e inductive-step.1
+               | no _ => choosing i
+             }))\with {
+               | yes e, p => \let q : e = idp => Path.inProp _ _ \in rewrite q inductive-step.3
+               | no n, p => \let contr => n idp \in contradiction
+             })))
+             (\lam j _x => (unfold (transport-chooser-f) (unfold transport (\case (FinDec j i) \as ix, idp : ix = (FinDec j i) \return choosing j = (\case \elim ix \with {
+               | yes e => transportInv
+                   (\lam x => Term tc.envL (context ++ f FunctionalSignature.!!param x) (f FunctionalSignature.!!sort x) inner-meta-signature)
+                   e inductive-step.1
+               | no _ => choosing j
+             })\with {
+               | yes e, p => \let contr => _x e \in contradiction
+               | no n, p => idp
+             })))))
       \where {
 
         \func lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-meta-signature meta-signature : MetaSignature Sort'}
@@ -414,13 +435,13 @@
       \where {
         \func push-append-context-right {tc : TheoremContext} {context context' additional-context : List Sort'} {ms : MetaSignature Sort'}
                                         (subst : Substitution {envL} context context' ms)
-          : (append-context-right {env} {_} {_} {_} {additional-context} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i))) =
+          : (append-context-right {env} {_} {_} {_} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i)) {additional-context}) =
         (\lam i => Injections.inject-term-left tc.envL tc.envR (append-context-right {envL} subst i)) =>
           ext (push-append-context-right-ext subst)
 
         \func push-append-context-right-ext {tc : TheoremContext} {context context' additional-context : List Sort'} {ms : MetaSignature Sort'}
                                             (subst : Substitution {envL} context context' ms) (index : Fin (length (context ++ additional-context)))
-          : (append-context-right {env} {_} {_} {_} {additional-context} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i))) index =
+          : (append-context-right {env} {_} {_} {_} (\lam i => Injections.inject-term-left tc.envL tc.envR (subst i))) {additional-context}  index =
         (Injections.inject-term-left tc.envL tc.envR (append-context-right {envL} subst index)) \elim context, index
           | nil, index => idp
           | :: a context, 0 => injection-weakening-commutation red (SubList.extend-right-single SubList.identity) _
