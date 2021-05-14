@@ -1,6 +1,7 @@
 \import Arith.Nat
 \import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
 \import Data.Or
+\import Function.Meta
 \import Logic
 \import Logic.Meta
 \import Meta
@@ -79,6 +80,16 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       | :: x xs, :: y ys, sublist-match p sublist, zero, idp => (zero, p)
       | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
       | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
+
+    \func recalculate-index-fpr {A : \Set} {a b : List A} (sublist : SubList a b) (ind : Fin (length a)) : Fin (length b) \elim a, b, sublist, ind
+      | :: x xs, :: y ys, sublist-match p sublist, zero => zero
+      | :: x xs, :: y ys, sublist-match p sublist, suc ind => suc (recalculate-index-fpr sublist ind)
+      | l, :: y ys, sublist-skip sublist, ind => suc (recalculate-index-fpr sublist ind)
+
+    \func recalculate-index-to-fpr  {A : \Set} {a b : List A} {point : A} (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : (recalculate-index sublist ind p).1 = recalculate-index-fpr sublist ind \elim a, b, sublist, ind, p
+      | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
+      | :: x a, :: y b, sublist-match p sublist, suc ind, idp => rewriteI (recalculate-index-to-fpr sublist ind idp) idp
+      | :: a a1, :: y b, sublist-skip sublist, ind, idp => rewriteI (recalculate-index-to-fpr sublist ind idp) idp
 
     \lemma recalculate-index-over-identity {A : \Set} {a : List A} (ind : Fin (length a)) : recalculate-index SubList.identity ind idp = (ind, idp) \elim a, ind
       | :: a a1, zero => idp
@@ -189,23 +200,23 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   partial-fin-induction
       (\lam i => append-context-right {_} {old-context} {_} {mc} plain-identity {additional-context} i = plain-identity i)
       (\lam i1 => append-context-right-begin plain-identity i1 *>
-      (rewrite lem (\let | some-lemma => weakening.recalculate-index-over-right-extension {_} {_} {additional-context} i1
-                    \in rewrite (pmap (to-var) some-lemma.2) (unfold (to-var, plain-identity) (lem2 (expand-fin i1) (some-lemma).1 idp (inv (expand-fin-eq i1)))))))
+      (rewrite transport-over-weakening (\let | some-lemma => weakening.recalculate-index-over-right-extension {_} {_} {additional-context} i1
+                                         \in rewrite (pmap (to-var) some-lemma.2) (unfold (to-var, plain-identity) (lem2 (expand-fin i1) (some-lemma).1 idp (inv (expand-fin-eq i1)))))))
       (\lam i1 => append-context-right-end plain-identity i1 *> (pmap (to-var {env}) (weakening.recalculate-index-over-left-extension i1)))
       i
   \where {
-    \lemma lem {env : FSignature} {context context' : List Sort} {s s' : Sort} {mc : MetaContext Sort}
-              (T : Term env context s mc) (eq : s = s') (sublist : SubList context context')
+    \lemma transport-over-weakening {env : FSignature} {context context' : List Sort} {s s' : Sort} {mc : MetaContext Sort}
+                                    (T : Term env context s mc) (eq : s = s') (sublist : SubList context context')
       : weakening (transport (Term env context __ mc) eq T) sublist = transport (Term env context' __ mc) eq (weakening T sublist) \elim eq
       | idp => idp
 
     \lemma lem2  {env : FSignature} {context : List Sort} {s s' : Sort} {mc : MetaContext Sort}
-                (index : Fin (length context)) (eq : s = context !! index) (eq' : s' = context !! index) (eq'' : s = s')
+                 (index : Fin (length context)) (eq : s = context !! index) (eq' : s' = context !! index) (eq'' : s = s')
       : transport (Term env context __ mc) eq'' (var index eq)  = var index eq' \elim eq''
       | idp => pmap (var index) (Path.inProp eq eq')
 
     \lemma ext' {env : FSignature} {old-context : List Sort} {mc : MetaContext Sort}
-               {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {mc}  plain-identity {additional-context} i) = plain-identity =>
+                {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {mc}  plain-identity {additional-context} i) = plain-identity =>
       ext append-context-right-to-identity
   }
 
@@ -237,6 +248,13 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
                        (subst-a subst-b : Substitution context-a context-b ms) (eq : \Pi (i : Fin (length context-a)) -> subst-a i = subst-b i) : subst-a = subst-b =>
   ext eq
 
+\func var-extensionality {env : FSignature} {context : List Sort} {s : Sort} {ms : MetaContext Sort}
+                         (i1 i2 : Fin (length context))
+                         (eq : i1 = i2)
+                         (p1 : s = context !! i1)
+                         (p2 : s = context !! i2) : var {_} {_} {_} {ms} i1 p1 = var i2 p2 \elim eq
+  | idp => \let eq' : p1 = p2 => Path.inProp _ _ \in pmap (var i1) eq'
+
 \func weakening-as-substitution-eq  {env : FSignature} {narrow-context wide-context : List Sort} {s : Sort} (sublist : SubList narrow-context wide-context) {ms : MetaContext Sort}
                                     (t : Term env narrow-context s ms) : weakening t sublist = Substitution.apply t (weakening-as-substitution sublist) \elim t
   | var index idp => idp
@@ -250,9 +268,51 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       : weakening-as-substitution (SubList.extend-right-both sublist) {ms} index = append-context-right (weakening-as-substitution sublist) index =>
       partial-fin-induction
           (\lam i => weakening-as-substitution (SubList.extend-right-both sublist) {ms} i = append-context-right (weakening-as-substitution sublist) i)
-          (\lam i => rewrite (append-context-right-begin) {?})
-          (\lam i => rewrite (append-context-right-end) (unfold weakening-as-substitution {?}))
+          (\lam i => rewrite (append-context-right-begin) ((lemma sublist i _ _)))
+          (\lam i => rewrite (append-context-right-end) (unfold weakening-as-substitution (var-extensionality (weakening.recalculate-index (SubList.extend-right-both sublist) (expand-fin-late i) idp).1 (weakening.recalculate-index (SubList.extend-left-single SubList.identity) i (expand-fin-eq-late i)).1 (repeat {2} (rewrite weakening.recalculate-index-to-fpr) (recalculate-rb-vs-ls _ _)) _ _)))
           index
+
+    \func lemma {env : FSignature}
+                {s : Sort}
+                {narrow-context wide-context add-context : List Sort}
+                (sublist : SubList narrow-context wide-context) {ms : MetaContext Sort}
+                (index : Fin (length (narrow-context)))
+                (eq : s = narrow-context !! index)
+                (eq' : s = (narrow-context ++ add-context) !! (expand-fin index))
+      : to-var (weakening.recalculate-index (SubList.extend-right-both sublist) (expand-fin index) eq') = weakening (transport (\lam (p0 : env.Sort) => Term env wide-context p0 ms) (inv (eq))
+        (to-var (weakening.recalculate-index sublist index idp))) (SubList.extend-right-single SubList.identity) \elim eq
+      | idp => var-extensionality
+          (weakening.recalculate-index (SubList.extend-right-both sublist) (expand-fin index) eq').1
+          (weakening.recalculate-index
+              (SubList.extend-right-single SubList.identity) (weakening.recalculate-index sublist index idp).1
+              (weakening.recalculate-index sublist index idp).2).1
+          (repeat {3} (rewrite weakening.recalculate-index-to-fpr) (recalculate-rb-then-sublist _ _))
+          _
+          _
+
+    \func recalculate-rb-then-sublist {A : \Set} {a b c : List A} (sublist : SubList a b) (index : Fin (length a)) :
+      weakening.recalculate-index-fpr (SubList.extend-right-both sublist {c}) (expand-fin index)
+        =
+      weakening.recalculate-index-fpr
+          (SubList.extend-right-single SubList.identity) (weakening.recalculate-index-fpr sublist index) \elim a, b, sublist, index
+      | :: x a, :: y b, sublist-match p sublist, 0 => idp
+      | :: x a, :: y b, sublist-match p sublist, suc index => pmap fsuc (recalculate-rb-then-sublist sublist index)
+      | nil, :: y b, sublist-skip sublist, ()
+      | :: a a1, :: y b, sublist-skip sublist, index => pmap fsuc (recalculate-rb-then-sublist sublist index)
+
+    \func recalculate-rb-vs-ls {A : \Set} {a b c : List A} (sublist : SubList a b) (index : Fin (length c)) :
+      weakening.recalculate-index-fpr (SubList.extend-right-both sublist {c}) (expand-fin-late index)
+        =
+      weakening.recalculate-index-fpr
+          (SubList.extend-left-single SubList.identity) index \elim a, b, c, sublist, index
+      | nil, nil, :: a c, sublist-trivial, 0 => idp
+      | nil, nil, :: a c, sublist-trivial, suc index => idp
+      | :: x a, :: y b, :: a1 c, sublist-match p sublist, 0 => pmap fsuc (recalculate-rb-vs-ls sublist 0)
+      | :: x a, :: y b, :: a1 c, sublist-match idp sublist, suc index => pmap fsuc (recalculate-rb-vs-ls {A} {a} {b} {:: a1 c} sublist (fsuc index))
+      | nil, :: y b, :: a1 c, sublist-skip sublist, 0 => pmap fsuc (recalculate-rb-vs-ls sublist 0)
+      | :: a a2, :: y b, :: a1 c, sublist-skip sublist, 0 => pmap fsuc (recalculate-rb-vs-ls sublist 0)
+      | nil, :: y b, :: a1 c, sublist-skip sublist, suc index => pmap fsuc (recalculate-rb-vs-ls {A} {nil} {b} {:: a1 c} sublist (suc index))
+      | :: a a2, :: y b, :: a1 c, sublist-skip sublist, suc index => pmap fsuc (recalculate-rb-vs-ls {A} {:: a a2} {b} {:: a1 c} sublist (suc index))
   }
 
 \func weakening-extend-right {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
