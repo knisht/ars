@@ -1,8 +1,10 @@
+\import Algebra.Meta
 \import Algebra.Ring.Localization
 \import Confluence
 \import Data.Bool
 \import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
 \import Data.Or
+\import Function.Meta (repeat)
 \import Logic
 \import Logic.Meta
 \import Meta
@@ -63,12 +65,12 @@
     | l-is-func => promote-injection-left {_} {envL} {envR} rule.l rule.l-is-func
     \where {
       \lemma promote-injection-left {Sort : \Set}
-                                   {envL envR : FSignature Sort}
-                                   {context : List Sort}
-                                   {s : Sort}
-                                   {mc : MetaContext Sort}
-                                   (t : Term envL context s mc)
-                                   (t-is-func : FunctionalRoot {envL} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-left envL envR t) \elim t, t-is-func
+                                    {envL envR : FSignature Sort}
+                                    {context : List Sort}
+                                    {s : Sort}
+                                    {mc : MetaContext Sort}
+                                    (t : Term envL context s mc)
+                                    (t-is-func : FunctionalRoot {envL} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-left envL envR t) \elim t, t-is-func
         | func f choosing, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
     }
 
@@ -83,12 +85,12 @@
     | l-is-func => promote-injection-right {_} {envL} {envR} rule.l rule.l-is-func
     \where {
       \lemma promote-injection-right {Sort : \Set}
-                                    {envL envR : FSignature Sort}
-                                    {context : List Sort}
-                                    {s : Sort}
-                                    {mc : MetaContext Sort}
-                                    (t : Term envR context s mc)
-                                    (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-right envL envR t) \elim t, t-is-func
+                                     {envL envR : FSignature Sort}
+                                     {context : List Sort}
+                                     {s : Sort}
+                                     {mc : MetaContext Sort}
+                                     (t : Term envR context s mc)
+                                     (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-right envL envR t) \elim t, t-is-func
         | func f choosing, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
     }
 
@@ -627,11 +629,11 @@
         pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (\lam t => B t.1) __.2 p
 
       \lemma apply-modularity {env : FSignature} {context subst-context pattern-context : List Sort} {s : Sort} {mc : MetaContext Sort} {n : Nat} {index : Fin n}
-                             (producer : Fin n -> MetaContext Sort)
-                             (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) mc)
-                             (sublist : SubList subst-context context)
-                             (pat-sublist : SubList pattern-context context)
-                             (t : Term env pattern-context s (producer index)) :
+                              (producer : Fin n -> MetaContext Sort)
+                              (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) mc)
+                              (sublist : SubList subst-context context)
+                              (pat-sublist : SubList pattern-context context)
+                              (t : Term env pattern-context s (producer index)) :
         MetaSubstitution.apply (weakening t pat-sublist) sublist (substitutions index) = MetaSubstitution.apply (weakening (LinearPattern.upgrade-metavariables-p producer t) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim t
         | var index1 p => idp
         | metavar m choosing => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-left sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (choosing i)))
@@ -722,8 +724,8 @@
         \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
     (sublist : SubList left-context some-context)
     (index : Fin (length (left-context ++ right-context)))
-    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index))
-    => partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
+    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index)) =>
+    partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
         (\lam i => rewrite (extend-substitution-left.for-left-context {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.for-left-context {env}) idp))))
         (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {env}) (inner.1, lemma inner.1 (inv (expand-fin-eq-late i)) inner.2)))
         index
@@ -791,10 +793,59 @@
             (weakening term (SubList.extend-left-single SubList.identity))
             (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst) \elim term
         | var index idp => {?}
-        | metavar m choosing => {?} -- commutation of substitutions on different sublists
+        | metavar m choosing => repeat {2} (rewrite subst-comm) (cong (ext (\lam i =>
+            \let inductive : (\lam j => MetaSubstitution.apply
+                (weakening (choosing j) (SubList.extend-left-single SubList.identity))
+                (SubList.extend-right-single SubList.identity) (\lam {s} m => Substitution.apply (metasubst m) (append-context-right subst)))
+              =
+            (\lam j => Substitution.apply (MetaSubstitution.apply
+                (weakening (choosing j) (SubList.extend-left-single SubList.identity))
+                (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst)) => ext (\lam j => commutation (choosing j) subst metasubst)
+            \in rewrite inductive (subst-comm-different subst _ i))))
         | func f choosing =>
           pmap (func f) (ext (\lam index => \let inductive => commutation (choosing index) subst metasubst \in rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite double-append-context-right (inductive-step (choosing index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
         \where {
+          \lemma subst-comm  {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
+                             (t : Term env context-a s mc)
+                             (subst-a : Substitution context-a context-b mc)
+                             (subst-b : Substitution context-b context-c mc) :
+            Substitution.apply (Substitution.apply t subst-a) subst-b = Substitution.apply t (\lam i => Substitution.apply (subst-a i) subst-b) \elim t
+            | var index p => {?}
+            | metavar m choosing => pmap (metavar m) (ext (\lam index => subst-comm (choosing index) subst-a subst-b))
+            | func f choosing => pmap (func f) (ext (\lam index => subst-comm (choosing index) (append-context-right subst-a) (append-context-right subst-b) *> (pmap (Substitution.apply (choosing index)) (ext (\lam i => commutation-with-right-extension subst-a subst-b i)))))
+            \where {
+              \func commutation-with-right-extension {env : FSignature} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
+                                                     (subst-a : Substitution context-a context-b mc)
+                                                     (subst-b : Substitution context-b context-c mc)
+                                                     (i : Fin (length (context-a ++ add-context)))
+                : Substitution.apply (append-context-right subst-a i) (append-context-right subst-b) = append-context-right (\lam (i : Fin (length context-a)) => Substitution.apply (subst-a i) subst-b) i =>
+                partial-fin-induction
+                    (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Fin (length context-a)) => Substitution.apply (subst-a i) subst-b) ind)
+                    (\lam i1 => repeat {2} (rewrite append-context-right-begin) (rewrite weakening-extend-right (equating-lemma subst-a subst-b i1 _)))
+                    (\lam i1 => repeat {2} (rewrite append-context-right-end) (rewrite (weakening-extend-left subst-b (var i1 (expand-fin-eq-late i1))) idp))
+                    i
+                \where {
+                  \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
+                                        (subst-a : Substitution context-a context-b mc)
+                                        (subst-b : Substitution context-b context-c mc)
+                                        (i1 : Fin (length (context-a)))
+                                        (eq : s = context-a !! i1)
+                    : weakening (Substitution.apply (coe (\lam (i : I) => Term env context-b (inv (eq) @ i) mc) (subst-a i1) right) subst-b)
+                      (SubList.extend-right-single SubList.identity {add-context}) = weakening (transport (\lam (p0 : env.Sort) => Term env context-c p0 mc) (inv (eq)) (Substitution.apply (subst-a i1) subst-b))
+                                                                           (SubList.extend-right-single SubList.identity) \elim eq
+                    | idp => idp
+                }
+            }
+
+          \lemma subst-comm-different
+            {env : FSignature} {context-a context-b context-c context-d : List Sort} {mc : MetaContext Sort}
+            (subst : Substitution context-a context-b mc)
+            (subst2 : Substitution context-c (context-a ++ context-d) mc)
+            (i : Fin (length (context-a ++ context-c)))
+            : Substitution.apply (append-context-right subst i) (extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam j => Substitution.apply (subst2 j) (append-context-right subst)))
+            = Substitution.apply (extend-substitution-left (SubList.extend-right-single SubList.identity) subst2 i) (append-context-right subst) =>
+            {?}
+
           \lemma inductive-step
             {env : FSignature} {s : Sort} {big-context-al big-context-ar new-context term-context core-context rbig-context-al rbig-context-ar : List Sort} {old-ms new-ms : MetaContext Sort}
             (term : Term env term-context s old-ms)
@@ -932,6 +983,40 @@
             \let inductive => application-weakening-lemma (choosing index) msubst sublist
             \in rewrite (weakening-over-double-extend-2) (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend (rewrite (weakening-over-double-extend-2 {_} {context}) (rewrite weakening-over-double-extend-4 (equating-lemma (choosing index) ++-assoc ++-assoc _ _ _ _ _ _ _ inductive)))))))
         \where {
+          \func substitution-commutation
+            {env : FSignature} {context new-context add-context core-context : List Sort} {s : Sort} {ms : MetaContext Sort}
+            (t : Term env (context ++ add-context) s ms)
+            (subst-a : Substitution add-context (context ++ core-context) ms)
+            (subst-b : Substitution context new-context ms)
+            :
+            Substitution.apply (Substitution.apply t (append-context-right subst-b)) (extend-substitution-left (SubList.extend-right-single SubList.identity)
+                (\lam i => Substitution.apply (subst-a i) (append-context-right subst-b))) =
+            Substitution.apply (Substitution.apply t (extend-substitution-left (SubList.extend-right-single SubList.identity) subst-a)) (append-context-right subst-b) \elim t
+            | var index idp => {?}
+            | metavar m choosing => pmap (metavar m) (ext (\lam index => substitution-commutation (choosing index) subst-a subst-b))
+            | func f choosing => pmap (func f) (ext (\lam index =>
+                \let inductive => substitution-commutation (transport (Term env __ _ ms) ++-assoc (choosing index)) (transport (Substitution (add-context ++ f FSignature.!!param index) __ ms) ++-assoc (append-context-right subst-a {f FSignature.!!param index})) subst-b
+                \in rewrite double-append-context-right (rewrite double-append-context-right {?})))
+          -- (append-context-right {env} {new-context ++ add-context} {new-context ++ core-context} {ms} (extend-substitution-left
+          --          {env} {new-context} {add-context} {new-context ++ core-context} {ms} (SubList.extend-right-single
+          --            {env.Sort} {new-context} {new-context} (SubList.identity {env.Sort} {new-context}) {core-context})
+          --            (\lam (i : Fin (length {env.Sort} add-context)) =>
+          --            Substitution.apply {env} {add-context !! i} {context ++ core-context} {ms} (subst-a i) {new-context ++ core-context}
+          --              (append-context-right {env} {context} {new-context} {ms} subst-b {core-context}))) {f FSignature.!!param index})
+
+          -- (extend-substitution-left {env} {new-context} {add-context ++ f FSignature.!!param index}
+          --          {new-context ++ core-context ++ f FSignature.!!param index} {ms}
+          --          (SubList.extend-right-single {env.Sort} {new-context} {new-context} (SubList.identity {env.Sort} {new-context})
+          --            {core-context ++ f FSignature.!!param index})
+          --          (\lam (i : Fin (length {env.Sort} (add-context ++ f FSignature.!!param index))) => Substitution.apply
+          --            {env} {(add-context ++ f FSignature.!!param index) !! i} {context ++ core-context ++ f FSignature.!!param index} {ms}
+          --              (transport {List env.Sort} (\lam (p0 : List env.Sort) => Substitution {env} (add-context ++ f FSignature.!!param index) p0 ms)
+          --                {(context ++ core-context) ++ f FSignature.!!param index} {context ++ core-context ++ f FSignature.!!param index}
+          --                (++-assoc {env.Sort} {context} {core-context} {f FSignature.!!param index})
+          --                (append-context-right {env} {add-context} {context ++ core-context} {ms} subst-a {f FSignature.!!param index}) i)
+          --              {new-context ++ core-context ++ f FSignature.!!param index}
+          --              (append-context-right {env} {context} {new-context} {ms} subst-b {core-context ++ f FSignature.!!param index})))
+
           \lemma substitution-over-weakening {env : FSignature} {context new-context add-context core-context : List Sort} {s : Sort} {ms : MetaContext Sort}
                                              (t : Term env (context ++ add-context) s ms)
                                              (subst : Substitution add-context (context ++ core-context) ms)
@@ -1304,5 +1389,4 @@
       (BorderedParallelReduction gc someColor (choosing-A i) (mediator i)))
     (ColorwiseReduction gc someColor (func f mediator) (func f choosing-B)) =>
     collect-reductions-together-tlcr nothing f (choosing-A) choosing-B tlcrs (func f choosing-B) (cr-skip idp)
-
 }

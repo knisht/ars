@@ -72,7 +72,7 @@
                 {c' : List Sort}
                 (map : Substitution c c' mc)
       : Term env c' s mc \elim t
-      | var index p => transport (Term env c' __ mc) (inv p) (map index)
+      | var index idp => map index
       | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
       | func f choosing => func f (\lam i => Substitution.apply (choosing i) (append-context-right map))
 
