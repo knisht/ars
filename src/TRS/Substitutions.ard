@@ -263,11 +263,34 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-extend-right subst (choosing index)))
   | func f choosing => pmap (func f) (ext (\lam index => {?}))
 
-
 \func weakening-extend-left {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
-                             (subst : Substitution context-a context-b ms)
-                             (t : Term env context-c s ms)
+                            (subst : Substitution context-a context-b ms)
+                            (t : Term env context-c s ms)
   : Substitution.apply (weakening t (SubList.extend-left-single SubList.identity {context-a})) (append-context-right subst) = weakening (t) (SubList.extend-left-single SubList.identity) \elim t
   | var index p => {?}
   | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-extend-left subst (choosing index)))
+  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+
+\func weakening-append-left {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
+                            (subst : Substitution context-b (context-a ++ context-c) ms)
+                            (t : Term env context-a s ms)
+  :
+  Substitution.apply (weakening t (SubList.extend-right-single SubList.identity)) (extend-substitution-left (SubList.extend-right-single SubList.identity) subst)
+    =
+  weakening t (SubList.extend-right-single SubList.identity)
+\elim t
+  | var index idp => unfold  {?}
+  | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-append-left subst (choosing index)))
+  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+
+\func weakening-append-right {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
+                             (subst : Substitution context-b (context-a ++ context-c) ms)
+                             (t : Term env context-b s ms)
+  :
+  Substitution.apply (weakening t (SubList.extend-left-single SubList.identity)) (extend-substitution-left (SubList.extend-right-single SubList.identity) subst)
+    =
+  Substitution.apply t subst
+\elim t
+  | var index idp => {?}
+  | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-append-right subst (choosing index)))
   | func f choosing => pmap (func f) (ext (\lam index => {?}))
