@@ -10,100 +10,100 @@
 \import TRS.Union
 \import TRS.Union.TopLevel
 
-\func ModularMetaSignature {env : Environment} {n : Nat} (producer : \Pi (Fin n) -> MetaSignature Sort) : MetaSignature Sort \cowith
+\func ModularMetaContext {env : FSignature} {n : Nat} (producer : \Pi (Fin n) -> MetaContext Sort) : MetaContext Sort \cowith
   | metaname s => \Sigma (i : Fin n) (metaname {producer i} s)
   | m-domain m => m-domain {(producer (m.1))} m.2
 
-\func PointedModularMetaSignature {env : Environment} (point : Sort) (pointed-list : List Sort)
-                                  (producer : \Pi (Fin (length pointed-list)) -> MetaSignature Sort) : MetaSignature Sort \cowith
+\func PointedModularMetaContext {env : FSignature} (point : Sort) (pointed-list : List Sort)
+                                (producer : \Pi (Fin (length pointed-list)) -> MetaContext Sort) : MetaContext Sort \cowith
   | metaname s => (s = point) `Or` (\Sigma (i : Fin (length pointed-list)) (metaname {producer i} s))
   | m-domain m => \case \elim m \with {
     | inl eq => pointed-list
     | inr m => m-domain {(producer (m.1))} m.2
   }
 
-\func SingularMetaSignature {env : Environment} (point : Sort) (context : List Sort)
-  : MetaSignature Sort \cowith
+\func SingularMetaContext {env : FSignature} (point : Sort) (context : List Sort)
+  : MetaContext Sort \cowith
   | metaname s => s = point
   | m-domain eq => context
 
-\func EmptyMetasignature {env : Environment} : MetaSignature Sort \cowith
+\func EmptyMetaContext {env : FSignature} : MetaContext Sort \cowith
   | metaname m => Empty
   | m-domain e => contradiction
 
-\func PureTerm (env : Environment) (context : List Sort) (s : Sort) : \Type => Term env context s EmptyMetasignature
+\func PureTerm (env : FSignature) (context : List Sort) (s : Sort) : \Type => Term env context s EmptyMetaContext
 
 -- | Linear term, designed specifically for decomposition
-\data LinearTerm (env : Environment)
+\data LinearTerm (env : FSignature)
                  (context : List Sort)
                  (termSort : Sort)
-  | lt-func (f : FunctionalSymbol.symbol termSort)
-            (choosing : \Pi (index : Fin (length (domain f))) -> LinearTerm env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index))
+  | lt-func (f : symbol termSort)
+            (choosing : \Pi (index : Fin (length (domain f))) -> LinearTerm env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index))
   | lt-full-metavar
   | lt-var (index : Fin (length context)) (termSort = context !! index)
   \where {
-    \func upgrade-metavariables-t {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
-                                  (metas : \Pi (Fin n) -> MetaSignature Sort)
+    \func upgrade-metavariables-t {env : FSignature} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+                                  (metas : \Pi (Fin n) -> MetaContext Sort)
                                   (A : Term env context s (metas index))
-      : Term env context s (ModularMetaSignature metas) \elim A
+      : Term env context s (ModularMetaContext metas) \elim A
       | var index p => var index p
       | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-t metas (choosing i))
       | func f choosing => func f (\lam i => upgrade-metavariables-t metas (choosing i))
 
-    \func upgrade-metavariables-mt {env : Environment} {context : List Sort} {s : Sort}
+    \func upgrade-metavariables-mt {env : FSignature} {context : List Sort} {s : Sort}
                                    (point : Sort)
                                    (pointed-context : List Sort)
                                    {index : Fin (length pointed-context)}
-                                   (metas : \Pi (Fin (length pointed-context)) -> MetaSignature Sort)
+                                   (metas : \Pi (Fin (length pointed-context)) -> MetaContext Sort)
                                    (A : Term env context s (metas index))
-      : Term env context s (PointedModularMetaSignature point pointed-context metas) \elim A
+      : Term env context s (PointedModularMetaContext point pointed-context metas) \elim A
       | var index p => var index p
       | metavar m choosing => metavar (inr (index, m)) (\lam i => upgrade-metavariables-mt point pointed-context metas (choosing i))
       | func f choosing => func f (\lam i => upgrade-metavariables-mt point pointed-context metas (choosing i))
 
-    \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : Term env context s (LinearMetasignatureT term) \elim term
-      | lt-func f choosing => func f (\lam i => upgrade-metavariables-t (\lam i => LinearMetasignatureT (choosing i)) (convert-to-term (choosing i)))
+    \func convert-to-term {env : FSignature} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : Term env context s (LinearMetaContextT term) \elim term
+      | lt-func f choosing => func f (\lam i => upgrade-metavariables-t (\lam i => LinearMetaContextT (choosing i)) (convert-to-term (choosing i)))
       | lt-var index p => var index p
       | lt-full-metavar => metavar idp (\lam i => var i idp)
   }
 
-\func LinearMetasignatureT {env : Environment} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : MetaSignature Sort \elim term
-  | lt-func f choosing => ModularMetaSignature (\lam i => LinearMetasignatureT (choosing i))
-  | lt-var index p => EmptyMetasignature
-  | lt-full-metavar => SingularMetaSignature s context
+\func LinearMetaContextT {env : FSignature} {context : List Sort} {s : Sort} (term : LinearTerm env context s) : MetaContext Sort \elim term
+  | lt-func f choosing => ModularMetaContext (\lam i => LinearMetaContextT (choosing i))
+  | lt-var index p => EmptyMetaContext
+  | lt-full-metavar => SingularMetaContext s context
 
-\data LinearPattern (env : Environment)
+\data LinearPattern (env : FSignature)
                     (context : List Sort)
                     (termSort : Sort)
-  | lp-func (f : FunctionalSymbol.symbol termSort)
-            (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env (context ++ (f FunctionalSignature.!!param index)) (f FunctionalSignature.!!sort index))
+  | lp-func (f : symbol termSort)
+            (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index))
   | lp-metavar
   \where {
-    \func upgrade-metavariables-p {env : Environment} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
-                                  (producer : \Pi (Fin n) -> MetaSignature Sort)
+    \func upgrade-metavariables-p {env : FSignature} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+                                  (producer : \Pi (Fin n) -> MetaContext Sort)
                                   (A : Term env context s (producer index))
-      : Term env context s (ModularMetaSignature producer) \elim A
+      : Term env context s (ModularMetaContext producer) \elim A
       | var index p => var index p
       | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables-p producer (choosing i))
       | func f choosing => func f (\lam i => upgrade-metavariables-p producer (choosing i))
 
-    \func convert-to-term {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetasignature pattern) \elim pattern
-      | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetasignature (choosing i)) (convert-to-term (choosing i)))
+    \func convert-to-term {env : FSignature} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : Term env context s (LinearMetaContext pattern) \elim pattern
+      | lp-func f choosing => func f (\lam i => upgrade-metavariables-p (\lam i => LinearMetaContext (choosing i)) (convert-to-term (choosing i)))
       | lp-metavar => metavar idp (\lam index => var index idp)
 
     \open Confluence
 
-    \func convert-to-injected-term {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (pattern : LinearPattern (TheoremContext.colored-env color) context s) :
-      Term TheoremContext.env context s (LinearMetasignature {TheoremContext.colored-env color} pattern) \elim color, pattern
-      | red, lp-func f choosing => func (inl f) (\lam index => upgrade-metavariables-p {TheoremContext.env} (\lam i => LinearMetasignature {TheoremContext.colored-env red} (choosing i)) (convert-to-injected-term red (choosing index)))
+    \func convert-to-injected-term {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (pattern : LinearPattern (tc.colored-env color) context s) :
+      Term tc.env context s (LinearMetaContext {tc.colored-env color} pattern) \elim color, pattern
+      | red, lp-func f choosing => func (inl f) (\lam index => upgrade-metavariables-p {tc.env} (\lam i => LinearMetaContext {tc.envL} (choosing i)) (convert-to-injected-term red (choosing index)))
       | red, lp-metavar => metavar idp (\lam index => var index idp)
-      | blue, lp-func f choosing => func (inr f) (\lam index => upgrade-metavariables-p {TheoremContext.env} (\lam i => LinearMetasignature {TheoremContext.colored-env blue} (choosing i)) (convert-to-injected-term blue (choosing index)))
+      | blue, lp-func f choosing => func (inr f) (\lam index => upgrade-metavariables-p {tc.env} (\lam i => LinearMetaContext {tc.envR} (choosing i)) (convert-to-injected-term blue (choosing index)))
       | blue, lp-metavar => metavar idp (\lam index => var index idp)
   }
 
 \record LinearRewriteRule \extends RewriteRule {
   | linear-pattern : LinearPattern env nil s
-  | meta-signature => LinearMetasignature linear-pattern
+  | meta-context => LinearMetaContext linear-pattern
   | l => LinearPattern.convert-to-term linear-pattern
 }
 
@@ -111,38 +111,38 @@
   \override rule : LinearRewriteRule env {s}
 }
 
-\func LinearMetasignature {env : Environment} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaSignature Sort \elim pattern
-  | lp-func f choosing => \new MetaSignature {
-    | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetasignature (choosing i)} s)
-    | m-domain m => m-domain {LinearMetasignature (choosing m.1)} m.2
+\func LinearMetaContext {env : FSignature} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaContext Sort \elim pattern
+  | lp-func f choosing => \new MetaContext {
+    | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetaContext (choosing i)} s)
+    | m-domain m => m-domain {LinearMetaContext (choosing m.1)} m.2
   }
-  | lp-metavar => \new MetaSignature {
+  | lp-metavar => \new MetaContext {
     | metaname s' => s = s'
     | m-domain m => context
   }
 
-\func modular-commutation {env : Environment} {subcontext context : List Sort} {s : Sort} {msig : MetaSignature Sort}
-                          {n : Nat}
-                          (sigs : \Pi (i : Fin n) -> MetaSignature Sort)
-                          (i : Fin n)
-                          (sublist : SubList subcontext context)
-                          (term : Term env context s (sigs i))
-                          (rho : MetaSubstitution env subcontext (ModularMetaSignature sigs) msig)
+\lemma modular-commutation {env : FSignature} {subcontext context : List Sort} {s : Sort} {msig : MetaContext Sort}
+                           {n : Nat}
+                           (sigs : \Pi (i : Fin n) -> MetaContext Sort)
+                           (i : Fin n)
+                           (sublist : SubList subcontext context)
+                           (term : Term env context s (sigs i))
+                           (rho : MetaSubstitution env subcontext (ModularMetaContext sigs) msig)
   : MetaSubstitution.apply term sublist (\lam m => rho (i, m)) = MetaSubstitution.apply (LinearTerm.upgrade-metavariables-t sigs term) sublist rho
 \elim term
   | var index p => idp
   | metavar m choosing => pmap (\lam f => Substitution.apply (rho (i, m)) (extend-substitution-left sublist f)) (ext (\lam index => modular-commutation sigs i sublist (choosing index) rho))
   | func f choosing => pmap (func f) (ext (\lam index => modular-commutation sigs i (SubList.extend-right-single sublist) (choosing index) rho))
 
-\func invariant-through-empty-subst
-  {env : Environment} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+\lemma invariant-through-empty-subst
+  {env : FSignature} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaContext Sort}
   (rho : MetaSubstitution env nil old-msig new-msig)
   (sublist sublist' : SubList nil (context ++ context'))
   (term : Term env (context ++ context') s old-msig)
   : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho => lemma rho sublist sublist' term (decompose-along-reduction.any-nil-sublist-equate _ _)
   \where {
-    \func lemma
-      {env : Environment} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaSignature Sort}
+    \lemma lemma
+      {env : FSignature} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaContext Sort}
       (rho : MetaSubstitution env nil old-msig new-msig)
       (sublist sublist' : SubList nil (context ++ context'))
       (term : Term env (context ++ context') s old-msig)

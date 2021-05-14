@@ -11,14 +11,14 @@
 
 \data LC-Symbols : \Set | abstraction | application
 
-\func LC-FSignature : FunctionalSignature SingularSort \cowith
+\func LC-FSignature : FSignature SingularSort \cowith
   | symbol sort => LC-Symbols
   | domain symb => \case \elim symb \with {
     | abstraction => (lc-term :: nil, lc-term) :: nil
     | application => (nil, lc-term) :: (nil, lc-term) :: nil
   }
 
-\func LC-MSignature : MetaSignature SingularSort \cowith
+\func LC-MContext : MetaContext SingularSort \cowith
   | metasymbol sort => MetaVariables
   | metadomain var => \case \elim var \with {
     | metavar-a => lc-term :: nil
@@ -27,12 +27,7 @@
 
 \data MetaVariables | metavar-a | metavar-b
 
-\instance LC-Env : Environment \cowith
-  | Sort => SingularSort
-  | FunctionalSymbol => LC-FSignature
-  | MetaVariable => LC-MSignature
-
-\func BetaRedex : Term LC-Env nil lc-term =>
+\func BetaRedex : Term LC-FSignature nil lc-term =>
   func application
       (\lam i => \case \elim i \with {
         | fzero => MVarWithAbstraction
@@ -40,7 +35,7 @@
         | fsuc (fsuc x) => contradiction
       })
 
-\func MVarWithAbstraction : Term LC-Env nil lc-term =>
+\func MVarWithAbstraction : Term LC-FSignature nil lc-term =>
   func abstraction (\lam i => \case \elim i \with {
     | fzero => metavar metavar-a (\lam j => \case \elim j \with {
       | fzero => var fzero idp
@@ -49,31 +44,31 @@
     | fsuc i => contradiction
   })
 
-\func BetaResult : Term LC-Env nil lc-term =>
+\func BetaResult : Term LC-FSignature nil lc-term =>
   metavar metavar-a (\lam i => \case \elim i \with {
     | fzero => metavar metavar-b (\lam _ => contradiction)
     | fsuc i => contradiction
   })
 
-\func beta-reduction : RewriteRule LC-Env \cowith
+\func beta-reduction : RewriteRule LC-FSignature \cowith
   | s => lc-term
   | l => BetaRedex
   | r => BetaResult
   | r-is-not-generating => {?}
 
-\func LC-rules : IndexedSet (RewriteRule LC-Env) \cowith
+\func LC-rules : IndexedSet (RewriteRule LC-FSignature) \cowith
   | J => \Sigma
   | get index => \case \elim index \with {
     | () => beta-reduction
   }
 
 \instance UntypedLambdaCalculus : SimpleHigherOrderTermRewritingSystem \cowith
-  | env => LC-Env
+  | env => LC-FSignature
   | set-of-rules => LC-rules
 
 
 -- \x.\y.x
-\func K : Term LC-Env nil lc-term => func abstraction (\lam i => \case \elim i \with {
+\func K : Term LC-FSignature nil lc-term => func abstraction (\lam i => \case \elim i \with {
   | fzero => func abstraction (\lam j => \case \elim j \with {
     | fzero => var (fsuc fzero) idp
     | fsuc _ => contradiction
@@ -82,20 +77,20 @@
 })
 
 -- \x.x
-\func I : Term LC-Env nil lc-term => func abstraction (\lam i => \case \elim i \with {
+\func I : Term LC-FSignature nil lc-term => func abstraction (\lam i => \case \elim i \with {
   | fzero => var fzero idp
   | fsuc i => contradiction
 })
 
 -- (\x.x) (\x.x)
-\func I_I : Term LC-Env nil lc-term =>
+\func I_I : Term LC-FSignature nil lc-term =>
   func application (\lam i => \case \elim i \with {
     | fzero => I
     | fsuc fzero => I
     | fsuc (fsuc x) => contradiction
   })
 
-\func suitable-substitution : MetaSubstitution LC-Env nil =>
+\func suitable-substitution : MetaSubstitution LC-FSignature nil =>
   \lam {sort} mvar => \case \elim sort, \elim mvar \with {
     | lc-term, metavar-a => var fzero idp
     | lc-term, metavar-b => I

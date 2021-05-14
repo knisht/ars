@@ -9,7 +9,7 @@
 \import TRS.HRS
 \import TRS.List
 
-\func F-param-index {Sort : \Set} {fs : FunctionalSignature Sort} {s : Sort} (f : fs.symbol s) : \Set =>
+\func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set =>
   Fin (length (fs.domain f))
 
 \func promote-fin {x : Nat} {y : Fin x} (z : Fin y) : Fin x \elim x, y, z
@@ -80,8 +80,8 @@
   | nil, index => inr (index, idp)
   | :: a a1, 0 => inl (0, idp)
   | :: a a1, suc index => \case (fin-decide index) \with {
-    | inl (i, eq) => inl (suc i, pmap (fsuc) eq)
-    | inr (j, eq) => inr (j, pmap (fsuc) eq)
+    | inl (i, eq) => inl (suc i, pmap fsuc eq)
+    | inr (j, eq) => inr (j, pmap fsuc eq)
   }
 
 \func fsuc {n : Nat} (x : Fin n) : Fin (suc n) => suc x
