@@ -343,9 +343,20 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
                             (subst : Substitution context-a context-b ms)
                             (t : Term env context-c s ms)
   : Substitution.apply (weakening t (SubList.extend-left-single SubList.identity {context-a})) (append-context-right subst) = weakening (t) (SubList.extend-left-single SubList.identity) \elim t
-  | var index p => {?}
+  | var index idp => rewrite weakening-extend-right.reapply (rewrite weakening.recalculate-index-over-left-extension' (rewrite append-context-right-end (unifying-lemma subst _ _)))
   | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-extend-left subst (choosing index)))
   | func f choosing => pmap (func f) (ext (\lam index => {?}))
+  \where {
+    \func unifying-lemma {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
+                         (subst : Substitution context-a context-b ms)
+                         (index : Fin (length context-c))
+                         (eq : s = context-c !! index)
+      : transport (\lam (p0 : env.Sort) => Term env (context-b ++ context-c) p0 ms) (inv (inv (eq)))
+        (var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq)).1
+            (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq)).2) = var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index idp).1
+                                                                                                                                  (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index idp).2 \elim eq
+      | idp => idp
+  }
 
 \func weakening-append-left {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
                             (subst : Substitution context-b (context-a ++ context-c) ms)
