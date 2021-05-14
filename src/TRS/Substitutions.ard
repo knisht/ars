@@ -10,14 +10,14 @@
 \import TRS.List
 \import TRS.Utils
 
-\func plain-identity {env : Environment} {context : List Sort} {meta-signature : MetaSignature Sort} : Substitution context context meta-signature =>
+\func plain-identity {env : FSignature} {context : List Sort} {mc : MetaContext Sort} : Substitution context context mc =>
   \lam i => var i idp
 
-\func wide-identity {env : Environment} {context wide-context : List Sort} (sublist : SubList context wide-context) {meta-signature : MetaSignature Sort} : Substitution context wide-context meta-signature =>
+\func wide-identity {env : FSignature} {context wide-context : List Sort} (sublist : SubList context wide-context) {mc : MetaContext Sort} : Substitution context wide-context mc =>
   \lam i => weakening (var i idp) sublist
 
-\func plain-identity-effect {env : Environment} {context : List Sort} {s : Sort} {meta-signature : MetaSignature Sort}
-                            (t : Term env context s meta-signature)
+\lemma plain-identity-effect {env : FSignature} {context : List Sort} {s : Sort} {mc : MetaContext Sort}
+                             (t : Term env context s mc)
   : Substitution.apply t plain-identity = t \elim t
   | var index p => \case \elim s, \elim p \with {
     | s, idp => idp
@@ -26,50 +26,50 @@
   | func f choosing => pmap (func f) (ext (\lam index => rewrite append-context-right-to-identity.ext' (plain-identity-effect (choosing index))))
 
 \func append-context-left
-  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+  {env : FSignature} {old-context new-context : List Sort} {mc : MetaContext Sort}
   {additional-context : List Sort}
-  (subst : Substitution old-context new-context meta-signature)
+  (subst : Substitution old-context new-context mc)
   (index : Fin (length (additional-context ++ old-context)))
-  : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) meta-signature
+  : Term env (additional-context ++ new-context) ((additional-context ++ old-context) !! index) mc
 \elim additional-context, index
   | nil, index => subst index
   | :: a additional-context, zero => var zero idp
   | :: a additional-context, suc index => weakening (append-context-left subst index) (sublist-skip SubList.identity)
 
 \func append-context-right
-  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
-  (subst : Substitution old-context new-context meta-signature)
+  {env : FSignature} {old-context new-context : List Sort} {mc : MetaContext Sort}
+  (subst : Substitution old-context new-context mc)
   {additional-context : List Sort}
   (index : Fin (length (old-context ++ additional-context)))
-  : Term env (new-context ++ additional-context) ((old-context ++ additional-context) !! index) meta-signature
+  : Term env (new-context ++ additional-context) ((old-context ++ additional-context) !! index) mc
 \elim old-context, index
   | nil, index => weakening (var index idp) (SubList.extend-left-single SubList.identity)
   | :: a old-context, zero => weakening (subst 0) (SubList.extend-right-single SubList.identity)
   | :: a old-context, suc index => append-context-right (\lam i => subst (suc i)) index
 
-\func append-context-right-begin  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+\lemma append-context-right-begin  {env : FSignature} {old-context new-context : List Sort} {mc : MetaContext Sort}
                             {additional-context : List Sort}
-                            (subst : Substitution old-context new-context meta-signature)
+                            (subst : Substitution old-context new-context mc)
                             (index : Fin (length (old-context)))
   : append-context-right subst (expand-fin index) =
-weakening (transport (Term env (new-context) __ meta-signature) (inv (expand-fin-eq {_} {_} {additional-context} index)) (subst index)) (SubList.extend-right-single SubList.identity) \elim old-context, index
+    weakening (transport (Term env (new-context) __ mc) (inv (expand-fin-eq {_} {_} {additional-context} index)) (subst index)) (SubList.extend-right-single SubList.identity) \elim old-context, index
   | :: a old-context, 0 => idp
   | :: a old-context, suc index => append-context-right-begin (\lam i => subst (suc i)) index
 
-\func append-context-right-end
-  {env : Environment} {old-context new-context : List Sort} {meta-signature : MetaSignature Sort}
+\lemma append-context-right-end
+  {env : FSignature} {old-context new-context : List Sort} {mc : MetaContext Sort}
   {additional-context : List Sort}
-  (subst : Substitution old-context new-context meta-signature)
+  (subst : Substitution old-context new-context mc)
   (index : Fin (length (additional-context)))
   : append-context-right subst (expand-fin-late {_} {old-context} {additional-context} index) =
-weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single SubList.identity) \elim old-context
+    weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single SubList.identity) \elim old-context
   | nil => idp
   | :: a old-context => append-context-right-end (\lam i => subst (suc i)) index
 
-\func weakening {env : Environment} {s' : Sort} {narrow-context wide-context : List Sort} {meta-signature : MetaSignature Sort}
-                (t : Term env narrow-context s' meta-signature)
+\func weakening {env : FSignature} {s' : Sort} {narrow-context wide-context : List Sort} {mc : MetaContext Sort}
+                (t : Term env narrow-context s' mc)
                 (sublist : SubList narrow-context wide-context)
-  : Term env wide-context s' meta-signature \elim t
+  : Term env wide-context s' mc \elim t
   | var index p => to-var (recalculate-index sublist index p)
   | metavar m choosing => metavar m (\lam i1 => weakening (choosing i1) sublist)
   | func f choosing => func f (\lam i1 => weakening (choosing i1) (SubList.extend-right-both sublist))
@@ -79,11 +79,11 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
       | l, :: y ys, sublist-skip sublist, ind, idp => \let (ind', p') => recalculate-index sublist ind idp \in (suc ind', p')
 
-    \func recalculate-index-over-identity {A : \Set} {a : List A} (ind : Fin (length a)) : recalculate-index SubList.identity ind idp = (ind, idp) \elim a, ind
+    \lemma recalculate-index-over-identity {A : \Set} {a : List A} (ind : Fin (length a)) : recalculate-index SubList.identity ind idp = (ind, idp) \elim a, ind
       | :: a a1, zero => idp
       | :: a a1, suc ind => {?}
 
-    \func recalculate-index-over-shrink {A : \Set} {x : A} {p : A} {a b : List A} (sublist : SubList (x :: a) b) (ind : Fin (length a)) (eq : p = a !! ind)
+    \lemma recalculate-index-over-shrink {A : \Set} {x : A} {p : A} {a b : List A} (sublist : SubList (x :: a) b) (ind : Fin (length a)) (eq : p = a !! ind)
       : recalculate-index (SubList.shrink sublist) ind eq = recalculate-index sublist (suc ind) eq
     \elim a, b, sublist, ind, eq
       | nil, :: y b, sublist-match p1 sublist, ind, idp => idp
@@ -91,39 +91,39 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       | nil, :: y b, sublist-skip sublist, (), eq
       | :: a a1, :: y b, sublist-skip sublist, ind, idp => rewrite (recalculate-index-over-shrink sublist ind idp) idp
 
-    \func recalculate-index-over-right-extension {A : \Set} {a b : List A} (ind : Fin (length a)) :
+    \lemma recalculate-index-over-right-extension {A : \Set} {a b : List A} (ind : Fin (length a)) :
       \Sigma (eq : (a !! ind) = (a ++ b) !! expand-fin ind) (recalculate-index {A} {a} {a ++ b} (SubList.extend-right-single SubList.identity {b}) ind idp = (expand-fin {A} {a} {b} ind, eq)) \elim a, ind
       | :: a a1, 0 => (idp, idp)
       | :: a a1, suc ind => \let | (eq-custom, b-eq) => recalculate-index-over-right-extension {_} {a1} {b} ind
                                  | (ind', q') => recalculate-index (SubList.extend-right-single SubList.identity {b}) ind idp
                             \in (eq-custom, rewrite b-eq idp)
 
-    \func recalculate-index-over-right-extension' {A : \Set} {a b : List A} (ind : Fin (length a)) :
+    \lemma recalculate-index-over-right-extension' {A : \Set} {a b : List A} (ind : Fin (length a)) :
       \Sigma (eq : (a ++ b) !! expand-fin ind = (a !! ind)) (recalculate-index {A} {a} {a ++ b} (SubList.extend-right-single SubList.identity {b}) ind eq = (expand-fin {A} {a} {b} ind, idp)) \elim a, ind
       | :: a a1, 0 => (idp, idp)
       | :: a a1, suc ind => \let | (eq-custom, b-eq) => recalculate-index-over-right-extension' {_} {a1} {b} ind
                                  | (ind', q') => recalculate-index (SubList.extend-right-single SubList.identity {b}) ind idp
                             \in (eq-custom, recalculate-over-match {A} {a1} {a1 ++ b} (SubList.extend-right-single SubList.identity {b}) ind eq-custom *> (rewrite b-eq idp))
 
-    \func recalculate-index-over-left-extension {A : \Set} {a b : List A} (ind : Fin (length b)) :
+    \lemma recalculate-index-over-left-extension {A : \Set} {a b : List A} (ind : Fin (length b)) :
       (recalculate-index {A} {b} {a ++ b} (SubList.extend-left-single SubList.identity {a}) ind (expand-fin-eq-late {_} {a} ind) = (expand-fin-late ind, idp)) \elim a
       | nil => (recalculate-index-over-identity ind)
       | :: a a1 => \let | b-eq => recalculate-index-over-left-extension {_} {a1} {b} ind
                    \in (rewrite (recalculate-over-skip {A} {b} {a1 ++ b} {_} {a} (SubList.extend-left-single SubList.identity) ind (expand-fin-eq-late ind)) (rewrite b-eq idp))
 
-    \func recalculate-index-over-left-extension' {A : \Set} {a b : List A} (ind : Fin (length b)) :
+    \lemma recalculate-index-over-left-extension' {A : \Set} {a b : List A} (ind : Fin (length b)) :
       (recalculate-index {A} {b} {a ++ b} (SubList.extend-left-single SubList.identity {a}) ind (idp) = (expand-fin-late ind, inv (expand-fin-eq-late {_} {a} ind))) \elim a
       | nil => (recalculate-index-over-identity ind)
       | :: a a1 => \let b-eq => recalculate-index-over-left-extension' {_} {a1} {b} ind \in rewrite (recalculate-over-skip {A} {b} {a1 ++ b} {_} {a} (SubList.extend-left-single SubList.identity) ind idp) (rewrite b-eq idp)
 
-    \func recalculate-over-skip {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! ind) :
+    \lemma recalculate-over-skip {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! ind) :
       recalculate-index {A} {a} {point' :: b} {point} (sublist-skip sublist) ind eq = (\let (ind', eq') => recalculate-index sublist ind eq \in (suc ind', eq')) \elim a, b, sublist, ind, eq
       | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
       | :: x a, :: y b, sublist-match p sublist, suc ind, idp => idp
       | nil, :: y b, sublist-skip sublist, ind, idp => idp
       | :: a a1, :: y b, sublist-skip sublist, ind, idp => idp
 
-    \func recalculate-over-match {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! (ind)) :
+    \lemma recalculate-over-match {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Fin (length a)) (eq : point = a !! (ind)) :
       recalculate-index {A} {point' :: a} {point' :: b} {point} (sublist-match idp sublist) (suc ind) eq = (\let (ind', eq') => recalculate-index sublist ind eq \in (suc ind', eq')) \elim a, b, sublist, ind, eq
       | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
       | :: x a, :: y b, sublist-match p sublist, suc ind, idp => idp
@@ -132,11 +132,11 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   }
 
 \func extend-substitution-right
-  {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
+  {env : FSignature} {left-context right-context some-context : List Sort} {mc : MetaContext Sort}
   (sublist : SubList right-context some-context)
-  (chooser : Substitution left-context some-context meta-signature)
+  (chooser : Substitution left-context some-context mc)
   (j : Fin (length (left-context ++ right-context)))
-  : Term env some-context ((left-context ++ right-context) !! j) meta-signature
+  : Term env some-context ((left-context ++ right-context) !! j) mc
 \elim left-context, j
   | nil, j => to-var (produce-inner-term sublist j)
   | :: a narrow-context, zero => chooser zero
@@ -150,81 +150,80 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   }
 
 \func extend-substitution-left
-  {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
+  {env : FSignature} {left-context right-context some-context : List Sort} {mc : MetaContext Sort}
   (sublist : SubList left-context some-context)
-  (chooser : Substitution right-context some-context meta-signature)
+  (chooser : Substitution right-context some-context mc)
   (j : Fin (length (left-context ++ right-context)))
-  : Term env some-context ((left-context ++ right-context) !! j) meta-signature \elim left-context, j
+  : Term env some-context ((left-context ++ right-context) !! j) mc \elim left-context, j
   | nil, j => chooser j
   | :: a left-context, 0 => weakening (var 0 idp) sublist
   | :: a left-context, suc j => extend-substitution-left (SubList.shrink sublist) chooser j
   \where {
-    \func for-left-context
-      {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
+    \lemma for-left-context
+      {env : FSignature} {left-context right-context some-context : List Sort} {mc : MetaContext Sort}
       (sublist : SubList left-context some-context)
-      (chooser : Substitution right-context some-context meta-signature)
+      (chooser : Substitution right-context some-context mc)
       (j : Fin (length (left-context))) : extend-substitution-left sublist chooser (expand-fin j) = weakening (var j (expand-fin-eq j)) sublist \elim left-context, j
       | :: a left-context, 0 => idp
       | :: a left-context, suc j => \let inductive => for-left-context (SubList.shrink sublist) chooser j \in inductive *> (pmap to-var (weakening.recalculate-index-over-shrink sublist j (expand-fin-eq j)))
 
-    \func for-right-context
-      {env : Environment} {left-context right-context some-context : List Sort} {meta-signature : MetaSignature Sort}
+    \lemma for-right-context
+      {env : FSignature} {left-context right-context some-context : List Sort} {mc : MetaContext Sort}
       (sublist : SubList left-context some-context)
-      (chooser : Substitution right-context some-context meta-signature)
+      (chooser : Substitution right-context some-context mc)
       (j : Fin (length (right-context)))
-      : extend-substitution-left sublist chooser (expand-fin-late j) = transport (Term env some-context __ meta-signature) (inv (expand-fin-eq-late j)) (chooser j)
+      : extend-substitution-left sublist chooser (expand-fin-late j) = transport (Term env some-context __ mc) (inv (expand-fin-eq-late j)) (chooser j)
     \elim left-context, j
       | nil, j => idp
       | :: a left-context, j => for-right-context (SubList.shrink sublist) chooser j
   }
 
-\func to-var {env : Environment} {some-context : List Sort} {s : Sort} {msig : MetaSignature Sort} (sig : \Sigma (ind : Fin (length some-context)) (s = some-context !! ind))
+\func to-var {env : FSignature} {some-context : List Sort} {s : Sort} {msig : MetaContext Sort} (sig : \Sigma (ind : Fin (length some-context)) (s = some-context !! ind))
   : Term env some-context s msig => var sig.1 sig.2
 
-\func append-context-right-to-identity
-  {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
+\lemma append-context-right-to-identity
+  {env : FSignature} {old-context : List Sort} {mc : MetaContext Sort}
   {additional-context : List Sort} (i : Fin (length (old-context ++ additional-context)))
-  : append-context-right {_} {old-context} {_} {meta-signature}  plain-identity {additional-context} i = plain-identity i =>
+  : append-context-right {_} {old-context} {_} {mc}  plain-identity {additional-context} i = plain-identity i =>
   partial-fin-induction
-      (\lam i => append-context-right {_} {old-context} {_} {meta-signature} plain-identity {additional-context} i = plain-identity i)
+      (\lam i => append-context-right {_} {old-context} {_} {mc} plain-identity {additional-context} i = plain-identity i)
       (\lam i1 => append-context-right-begin plain-identity i1 *>
       (rewrite lem (\let | some-lemma => weakening.recalculate-index-over-right-extension {_} {_} {additional-context} i1
                     \in rewrite (pmap (to-var) some-lemma.2) (unfold (to-var, plain-identity) (lem2 (expand-fin i1) (some-lemma).1 idp (inv (expand-fin-eq i1)))))))
       (\lam i1 => append-context-right-end plain-identity i1 *> (pmap (to-var {env}) (weakening.recalculate-index-over-left-extension i1)))
       i
   \where {
-    \func lem {env : Environment} {context context' : List Sort} {s s' : Sort} {meta-signature : MetaSignature Sort}
-              (T : Term env context s meta-signature) (eq : s = s') (sublist : SubList context context')
-      :
-      weakening (transport (Term env context __ meta-signature) eq T) sublist = transport (Term env context' __ meta-signature) eq (weakening T sublist) \elim eq
+    \lemma lem {env : FSignature} {context context' : List Sort} {s s' : Sort} {mc : MetaContext Sort}
+              (T : Term env context s mc) (eq : s = s') (sublist : SubList context context')
+      : weakening (transport (Term env context __ mc) eq T) sublist = transport (Term env context' __ mc) eq (weakening T sublist) \elim eq
       | idp => idp
 
-    \func lem2  {env : Environment} {context : List Sort} {s s' : Sort} {meta-signature : MetaSignature Sort}
+    \lemma lem2  {env : FSignature} {context : List Sort} {s s' : Sort} {mc : MetaContext Sort}
                 (index : Fin (length context)) (eq : s = context !! index) (eq' : s' = context !! index) (eq'' : s = s')
-      : transport (Term env context __ meta-signature) eq'' (var index eq)  = var index eq' \elim eq''
+      : transport (Term env context __ mc) eq'' (var index eq)  = var index eq' \elim eq''
       | idp => pmap (var index) (Path.inProp eq eq')
 
-    \func ext' {env : Environment} {old-context : List Sort} {meta-signature : MetaSignature Sort}
-               {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {meta-signature}  plain-identity {additional-context} i) = plain-identity =>
+    \lemma ext' {env : FSignature} {old-context : List Sort} {mc : MetaContext Sort}
+               {additional-context : List Sort} : (\lam (i : Fin (length (old-context ++ additional-context))) => append-context-right {_} {old-context} {_} {mc}  plain-identity {additional-context} i) = plain-identity =>
       ext append-context-right-to-identity
   }
 
-\func double-append-context-right {env : Environment} {context-a context-res context-b context-c : List Sort} {meta-signature : MetaSignature Sort}
-                                  (subst : Substitution context-a context-res meta-signature) :
-  (append-context-right (append-context-right subst {context-b}) {context-c})
+\lemma double-append-context-right {env : FSignature} {context-a context-res context-b context-c : List Sort} {mc : MetaContext Sort}
+                                  (subst : Substitution context-a context-res mc) :
+  append-context-right (append-context-right subst)
     =
-  transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) ->
-      Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) =>
+  transport2 (\lam ctx ctx' => \Pi (index : Fin (length ctx)) ->
+      Term env ctx' (ctx !! index) mc) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) =>
   {?}
   \where {
-    \func unext {env : Environment} {context-a context-res context-b context-c : List Sort} {meta-signature : MetaSignature Sort}
-                (subst : Substitution context-a context-res meta-signature) (i : Fin (length ((context-a ++ context-b) ++ context-c)))
-      : (append-context-right (append-context-right subst {context-b}) {context-c}) i = transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) ->
-        Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) i =>
+    \lemma unext {env : FSignature} {context-a context-res context-b context-c : List Sort} {mc : MetaContext Sort}
+                (subst : Substitution context-a context-res mc) (i : Fin (length ((context-a ++ context-b) ++ context-c)))
+      : append-context-right (append-context-right subst) i = transport2 (\lam ctx ctx' => \Pi (index : Fin (length ctx)) ->
+        Term env ctx' (ctx !! index) mc) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) i =>
       partial-fin-induction
           (\lam fin =>
-              (append-context-right (append-context-right subst {context-b}) {context-c}) fin =
-              transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) -> Term env (ctx') ((ctx) !! index) meta-signature) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) fin)
+              append-context-right (append-context-right subst) fin =
+              transport2 (\lam ctx ctx' => \Pi (index : Fin (length (ctx))) -> Term env (ctx') ((ctx) !! index) mc) (inv ++-assoc) (inv ++-assoc) (append-context-right subst {context-b ++ context-c}) fin)
           (\lam i1 => rewrite append-context-right-begin {?})
           (\lam i1 => {?})
           i
