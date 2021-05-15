@@ -86,6 +86,11 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       | :: x xs, :: y ys, sublist-match p sublist, zero => zero
       | :: x xs, :: y ys, sublist-match p sublist, suc ind => suc (recalculate-index-fpr sublist ind)
       | l, :: y ys, sublist-skip sublist, ind => suc (recalculate-index-fpr sublist ind)
+        \where {
+          \func over-skip {A : \Set} {a b : List A} {x : A} (sublist : SubList a b) (ind : Fin (length (a))) : recalculate-index-fpr (sublist-skip {_} {_} {x} sublist) ind = fsuc (recalculate-index-fpr sublist ind) \elim a
+            | nil => idp
+            | :: a a1 => idp
+        }
 
     \func recalculate-index-to-fpr  {A : \Set} {a b : List A} {point : A} (sublist : SubList a b) (ind : Fin (length a)) (p : point = a !! ind) : (recalculate-index sublist ind p).1 = recalculate-index-fpr sublist ind \elim a, b, sublist, ind, p
       | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
@@ -284,8 +289,47 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
         (append-context-right subst) (expand-fin-late i1)) =
     transport (Term env __ (((context-a ++ context-b) ++ context-add) !! expand-fin-late i1) mc) (++-assoc) (weakening (var i1 (expand-fin-eq-late i1)) ((SubList.extend-left-single SubList.identity)))
     \elim context-a
-      | nil => unfold transport {?}
-      | :: a context-a => \let inductive => end-over-transport-2 {_} {_} {context-b} (\lam i => subst (suc i)) (i1) \in {?} *> inductive
+      | nil => unfold transport
+          (transport (\lam vr => var (vr).1 (vr).2 =
+          coe (\lam i => Term env (++-assoc @ i) ((context-b ++ context-add) !! expand-fin-late i1) mc)
+              (var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) i1 (expand-fin-eq-late i1)).1
+                  (weakening.recalculate-index (SubList.extend-left-single SubList.identity) i1 (expand-fin-eq-late i1)).2) right) (inv (weakening.recalculate-index-over-left-extension' (expand-fin-late i1)))
+              (              (rewrite (push-transport-var _ _ _).2 (var-extensionality _ _ (expansion-lemma {_} {context-res} {context-b} i1 *> (repeat {2} (rewrite weakening.recalculate-index-to-fpr) idp)) _ _))))
+      | :: a context-a => \let inductive => end-over-transport-2 {_} {_} {context-b} (\lam i => subst (suc i)) (i1) \in (equation _ _ _ _) *> inductive
+      \where {
+        \func expansion-lemma {A : \Set} {context-a context-b context-c : List A}
+                              (index : Fin (length context-c)) :
+          expand-fin-late {_} {context-a} (expand-fin-late {_} {context-b} index) =
+          transport (\lam ctx => Fin (length (ctx))) ++-assoc
+              (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (expand-fin-eq-late {_} {context-a ++ context-b} index)).1 \elim context-a, context-b
+          | nil, nil => rewrite weakening.recalculate-index-over-identity idp
+          | nil, :: a context-b => rewrite weakening.recalculate-over-skip (rewrite weakening.recalculate-index-over-left-extension idp)
+          | :: a context-a, context-b => rewrite (expansion-lemma {_} {context-a} index) (rewrite weakening.recalculate-index-to-fpr (rewrite (weakening.recalculate-index-to-fpr (sublist-skip (SubList.extend-left-single SubList.identity))) (unassoc _ _)))
+            \where {
+              \func unassoc {A : \Set} {context-a context-b context-c big-context : List A} {a : A}
+                            (eq : (context-a ++ context-b) ++ context-c = big-context)
+                            (index : Fin (length context-c)) : suc (coe (\lam (i : I) => Fin (length (eq @ i)))
+                  (weakening.recalculate-index-fpr (SubList.extend-left-single SubList.identity) index) right) = transport (\lam (ctx : List A) => Fin (length ctx)) (path (\lam (i : I) => a :: eq @ i))
+                                                                                                                     (weakening.recalculate-index-fpr (sublist-skip {_} {_} {a} (SubList.extend-left-single SubList.identity)) index) \elim eq
+                | idp => unfold transport (rewrite weakening.recalculate-index-fpr.over-skip idp)
+            }
+
+        \func push-transport-var {env : FSignature} {s : Sort} {context context' : List Sort} (eq : context = context') {ms : MetaContext Sort} (index : Fin (length context)) (eq' : s = context !! index): \Sigma (eqn : s = context' !! transport (\lam ctx => Fin (length ctx)) eq index) (transport (Term env __ s ms) eq (var index eq') = var (transport (\lam ctx => Fin (length ctx)) eq index) eqn) \elim eq
+          | idp => (eq', idp)
+
+        \func equation {env : FSignature} {context-a context-b context-res context-add big-context-a : List Sort} {mc : MetaContext Sort}
+                       (a : Sort)
+                       (subst : Substitution (a :: context-a) context-res mc)
+                       (i1 : Fin (length (big-context-a)))
+                       (eq : big-context-a = context-a ++ (context-b ++ context-add))
+          :
+          transport (\lam (ctx : List env.Sort) =>
+              \Pi (index : Fin (length ctx)) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc)
+              (inv (path (\lam (i : I) => a :: eq @ i))) (append-context-right subst) (suc (i1)) = transport (\lam (ctx : List env.Sort) =>
+              \Pi (index : Fin (length ctx)) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc) (inv eq)
+                                                                                                       (append-context-right (\lam (i : Fin (length context-a)) => subst (suc i))) (i1) \elim eq
+          | idp => unfold transport idp
+      }
   }
 
 \func weakening-as-substitution {env : FSignature} {narrow-context wide-context : List Sort} (sublist : SubList narrow-context wide-context) {ms : MetaContext Sort}: Substitution narrow-context wide-context ms =>
