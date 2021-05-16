@@ -44,25 +44,6 @@
   | func (f : symbol termSort) -- | Functional symbol
          (choosing : \Pi (index : Fin (length (domain f))) -> Term env (context ++ (f !!param index)) (f !!sort index) mc)
 
---\data PatternTerm (env : FSignature)
---                  (context : List Sort)
---                  (termSort : Sort)
---                  (mc : MetaContext Sort) : \Set
---  | pattern-var (index : Fin (length context)) (termSort = context !! index)
---  | pattern-metavar (m : mc.metaname termSort)
---                    (arguments : DescendingVector (length (mc.m-domain m)) (length context))
---                    (arguments-coherence : \Pi (index : Fin (length (mc.m-domain m))) -> (mc.m-domain m) !! index = context !! (arguments dv!! index))
---  | pattern-func (f : FunctionalSymbol.symbol termSort)
---                 (choosing : \Pi (index : Fin (length (domain f))) -> PatternTerm env ((f !!param index) ++ context) (f !!sort index) mc)
---  \where {
---    \func convertToTerm {env : FSignature} {context : List Sort} {s : Sort} {mc : MetaContext Sort} (pattern : PatternTerm env context s mc) : Term env context s mc \elim pattern
---      | pattern-var index p => var index p
---      | pattern-metavar m arguments arguments-coherence => metavar m (\lam index => var (arguments dv!! index) (arguments-coherence index))
---      | pattern-func f choosing => func f (\lam index => convertToTerm (choosing index))
---  }
-
-\open Term
-
 -- | Substitution of regular variables
 \func Substitution {env : FSignature} (c c' : List Sort) (mc : MetaContext Sort) : \Set =>
   \Pi (index : Fin (length c)) -> Term env c' (c !! index) mc

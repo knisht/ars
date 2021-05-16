@@ -1,105 +1,84 @@
 \import Data.List (::, List, nil)
 \import Logic
 \import Logic.Meta
+\import Meta
 \import Paths
 \import Paths.Meta
-\import Set.Fin
 \import TRS.HRS
+\import TRS.Linearity
 \import TRS.List
 
 \data SingularSort | lc-term
 
 \data LC-Symbols : \Set | abstraction | application
 
-\func LC-FSignature : FSignature SingularSort \cowith
+\instance LC-FSignature : FSignature SingularSort \cowith
   | symbol sort => LC-Symbols
   | domain symb => \case \elim symb \with {
     | abstraction => (lc-term :: nil, lc-term) :: nil
     | application => (nil, lc-term) :: (nil, lc-term) :: nil
   }
 
-\func LC-MContext : MetaContext SingularSort \cowith
-  | metasymbol sort => MetaVariables
-  | metadomain var => \case \elim var \with {
+\func BetaRedexContext : MetaContext SingularSort \cowith
+  | metaname sort => MetaVariables
+  | m-domain var => \case \elim var \with {
     | metavar-a => lc-term :: nil
     | metavar-b => nil
   }
 
 \data MetaVariables | metavar-a | metavar-b
 
-\func BetaRedex : Term LC-FSignature nil lc-term =>
+\func BetaRedex : Term LC-FSignature nil lc-term BetaRedexContext =>
   func application
       (\lam i => \case \elim i \with {
-        | fzero => MVarWithAbstraction
-        | fsuc fzero => metavar metavar-b (\lam _ => contradiction)
-        | fsuc (fsuc x) => contradiction
+        | 0 => func abstraction (\lam 0 => metavar metavar-a (\lam 0 => var 0 idp))
+        | 1 => metavar metavar-b (\lam ())
       })
 
-\func MVarWithAbstraction : Term LC-FSignature nil lc-term =>
-  func abstraction (\lam i => \case \elim i \with {
-    | fzero => metavar metavar-a (\lam j => \case \elim j \with {
-      | fzero => var fzero idp
-      | fsuc j => contradiction
-    })
-    | fsuc i => contradiction
-  })
-
-\func BetaResult : Term LC-FSignature nil lc-term =>
-  metavar metavar-a (\lam i => \case \elim i \with {
-    | fzero => metavar metavar-b (\lam _ => contradiction)
-    | fsuc i => contradiction
-  })
+\func BetaResult : Term LC-FSignature nil lc-term BetaRedexContext =>
+  metavar metavar-a (\lam 0 => metavar metavar-b (\lam ()))
 
 \func beta-reduction : RewriteRule LC-FSignature \cowith
+  | meta-context => BetaRedexContext
   | s => lc-term
   | l => BetaRedex
   | r => BetaResult
-  | r-is-not-generating => {?}
+  | l-is-func => T-has-functional-root {LC-FSignature}
 
 \func LC-rules : IndexedSet (RewriteRule LC-FSignature) \cowith
   | J => \Sigma
-  | get index => \case \elim index \with {
-    | () => beta-reduction
-  }
+  | get () => beta-reduction
 
-\instance UntypedLambdaCalculus : SimpleHigherOrderTermRewritingSystem \cowith
+\instance UntypedLambdaCalculus  : SimpleHigherOrderTermRewritingSystem \cowith
   | env => LC-FSignature
   | set-of-rules => LC-rules
+  | meta-context => EmptyMetaContext {LC-FSignature}
 
 
 -- \x.\y.x
-\func K : Term LC-FSignature nil lc-term => func abstraction (\lam i => \case \elim i \with {
-  | fzero => func abstraction (\lam j => \case \elim j \with {
-    | fzero => var (fsuc fzero) idp
-    | fsuc _ => contradiction
-  })
-  | fsuc _ => contradiction
-})
+\func K : PureTerm LC-FSignature nil lc-term =>
+  func abstraction (\lam 0 => func abstraction (\lam 0 => var 0 idp))
 
 -- \x.x
-\func I : Term LC-FSignature nil lc-term => func abstraction (\lam i => \case \elim i \with {
-  | fzero => var fzero idp
-  | fsuc i => contradiction
-})
+\func I : PureTerm LC-FSignature nil lc-term => func abstraction (\lam 0 => var 0 idp)
 
 -- (\x.x) (\x.x)
-\func I_I : Term LC-FSignature nil lc-term =>
-  func application (\lam i => \case \elim i \with {
-    | fzero => I
-    | fsuc fzero => I
-    | fsuc (fsuc x) => contradiction
-  })
+\func I_I : PureTerm LC-FSignature nil lc-term =>
+  func application (\lam i => \case \elim i \with { | 0 => I | 1 => I })
 
-\func suitable-substitution : MetaSubstitution LC-FSignature nil =>
-  \lam {sort} mvar => \case \elim sort, \elim mvar \with {
-    | lc-term, metavar-a => var fzero idp
-    | lc-term, metavar-b => I
+\func suitable-substitution : MetaSubstitution LC-FSignature nil BetaRedexContext (EmptyMetaContext {LC-FSignature}) =>
+  \lam {(lc-term)} mvar => \case \elim mvar \with {
+    | metavar-a => var 0 idp
+    | metavar-b => I
   }
 
 \func rewrite-step : RewriteStep I_I I \cowith
   | rule => beta-reduction
   | substitution => suitable-substitution
-  | left-coherence => {?}
-  | right-coherence => {?}
+  | left-coherence => pmap (func application) (ext (\lam index => \case \elim index \with {
+    | 0 => pmap (func abstraction) (ext (\lam 0 => idp))
+    | 1 => pmap (func abstraction) (ext (\lam 0 => idp))
+  }))
+  | right-coherence => pmap (func abstraction) (ext (\lam 0 => idp))
 
 \func I_I~>I : RewriteRelation LC-rules I_I I => rewrite-with-rule rewrite-step ((), idp)
