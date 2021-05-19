@@ -19,14 +19,15 @@
     | application => (nil, lc-term) :: (nil, lc-term) :: nil
   }
 
+
+\data MetaVariables | metavar-a | metavar-b
+
 \func BetaRedexContext : MetaContext SingularSort \cowith
   | metaname sort => MetaVariables
   | m-domain var => \case \elim var \with {
     | metavar-a => lc-term :: nil
     | metavar-b => nil
   }
-
-\data MetaVariables | metavar-a | metavar-b
 
 \func BetaRedex : Term LC-FSignature nil lc-term BetaRedexContext =>
   func application
