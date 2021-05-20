@@ -553,9 +553,6 @@
   | blue, metavar m choosing => pmap (metavar {env} m) (ext (\lam index => injection-weakening-commutation blue sublist (choosing index)))
   | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => injection-weakening-commutation blue (SubList.extend-right-both sublist) (choosing index)))
 
---\func transport-application {env : Environment}
-
---\data Depth
 
 \func decompose-metasubstitution
   {tc : TheoremContext} {pattern-context core-context : List Sort'} {s : Sort'} {inner-mc mc : MetaContext Sort'}

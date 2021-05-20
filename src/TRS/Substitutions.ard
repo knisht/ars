@@ -467,6 +467,10 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
       }
   }
 
+\func append-context-right-to-nil {env : FSignature} {context-a context-b : List Sort} {mc : MetaContext Sort}
+                                  (subst : Substitution context-a context-b mc) :
+  subst = transport2 (\lam ctx ctx' => Substitution ctx ctx' mc) ++_nil ++_nil (append-context-right subst) => {?}
+
 \func weakening-as-substitution {env : FSignature} {narrow-context wide-context : List Sort} (sublist : SubList narrow-context wide-context) {ms : MetaContext Sort}: Substitution narrow-context wide-context ms =>
   \lam i => to-var (weakening.recalculate-index sublist i idp)
 
