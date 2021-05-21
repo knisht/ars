@@ -42,7 +42,7 @@
   : TopLevelColoredReduction color {_} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u, fw
-  | color, t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
+  | color, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
   | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
@@ -304,16 +304,7 @@
                                    (r-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} rule-r SubList.sublist-trivial-skip) SubList.identity subst = r)
                                    (l-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern))
   : monochrome-reduction color l r \elim color
-  | red => rewrite-with-rule (\new RewriteStep {
-    | rule => \new LinearRewriteRule {
-      | linear-pattern => pattern
-      | r => rule-r
-      | l-is-func => l-is-func
-    }
-    | substitution => subst
-    | left-coherence => l-eq
-    | right-coherence => r-eq
-  }) {?} -- easy
+  | red => rewrite-with-rule {?} {?} {?} {?} {?}
   | blue => {?} -- same as above
 
 \func inject-linear-pattern {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)

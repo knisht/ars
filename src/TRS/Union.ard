@@ -112,6 +112,7 @@
     | injected-right-set : IndexedSet (RewriteRule (JointFSignature envL envR)) => Injections.promote-indexed-set-right {_} {envL} {envR} R-rules
   \in JointIndexedSet injected-left-set injected-right-set
 
+
 \instance JointHRS {Sort : \Set} {envL envR : FSignature Sort} {mc : MetaContext Sort}
                    (L : SimpleHigherOrderTermRewritingSystem envL mc)
                    (R : SimpleHigherOrderTermRewritingSystem envR mc)
@@ -210,6 +211,30 @@
 
   \open TheoremContext
 
+  \func break-down-rule {tc : Confluence.TheoremContext}
+                        (idx : J {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules})
+    : \Sigma (new-r : Term (colored-env (color-of-idx idx)) nil (RewriteRule.s {get {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.meta-context {get {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules} idx}))
+             (inject-monochrome-term (color-of-idx idx) new-r = RewriteRule.r {get {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules} idx}) \elim idx
+    | inl left-idx => \let rule : RewriteRule envL => L-rules.get left-idx \in (rule.r, idp)
+    | inr right-idx => \let rule : RewriteRule envR => R-rules.get right-idx \in (rule.r, idp)
+
+  \func get-colored-root-for-l
+    {tc : TheoremContext}
+    (idx : J {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules})
+    : HasColoredRoot (color-of-idx idx) (RewriteRule.l {get {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules} idx}) \elim idx
+    | inl a => \let rule : RewriteRule envL => L-rules.get a \in extract-left-l red rule.l rule.l-is-func
+    | inr b => \let rule : RewriteRule envR => R-rules.get b \in extract-left-l blue rule.l rule.l-is-func
+    \where {
+      \func extract-left-l {tc : TheoremContext} (color : Color) {s : Sort'} {mc : MetaContext Sort'} (t : Term (colored-env color) nil s mc) (fr : FunctionalRoot {colored-env color} t) : HasColoredRoot color (inject-monochrome-term color t) \elim color, t, fr
+        | red, func f choosing, T-has-functional-root => red-func-root
+        | blue, func f choosing, T-has-functional-root => blue-func-root
+    }
+
+  \func color-of-idx {tc : TheoremContext}
+                     (idx : J {JointRules {_} {Confluence.envL} {Confluence.envR} tc.L-rules tc.R-rules}) : Color \elim idx
+    | inl a => red
+    | inr b => blue
+
   \data TopLevelColoredReduction {tc : TheoremContext} (color : Color) {mc : MetaContext env.Sort} {context : List env.Sort} {s : env.Sort} (A B : Term env context s mc) \elim A, B
     | A, B =>
     rewrite-with-rule-colored (HasColoredRoot color A)
@@ -289,7 +314,7 @@
         (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (\lam x y => \Sigma (rd : RewriteRelation rules x y) (FunctionalWitness rd)))
 
   \data FunctionalWitness {env : FSignature} {rules : IndexedSet (RewriteRule env)} {context : List Sort} {s : Sort} {mc : MetaContext Sort} {t u : Term env context s mc} (rd : RewriteRelation rules t u) \elim t, u, rd
-    | A, B, rewrite-with-rule _ _ => rule-rewriting
+    | A, B, rewrite-with-rule _ _ _ _ _ => rule-rewriting
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f _ _ rd _ => param-rewriting (FunctionalWitness rd)
 
   \record StraightJoin {A : \Type} (a b : A) (rel : A -> A -> \Type)

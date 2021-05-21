@@ -132,7 +132,11 @@
   {context : List Sort} {s : Sort}
   (A B : Term env context s mc) \elim A, B
   | A, B =>
-  rewrite-with-rule (step : RewriteStep A B) (step.rule IndexedSet.in set-of-rules)
+  rewrite-with-rule (idx : set-of-rules.J)
+                    (sort-eq : s = (RewriteRule.s {set-of-rules.get idx}))
+                    (substitution : MetaSubstitution env context (RewriteRule.meta-context {set-of-rules.get idx}) mc)
+                    (left-coherence : MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution = transport (Term env context __ mc) sort-eq A)
+                    (right-coherence : MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution = transport (Term env context __ mc) sort-eq B)
 
   | func f-A choosing-A, func f-B choosing-B =>
   rewrite-with-parameter-f (p : f-A = f-B)
