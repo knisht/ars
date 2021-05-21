@@ -235,6 +235,13 @@
     | inl a => red
     | inr b => blue
 
+  \record Inherited {tc : TheoremContext} (color : Color) (s : Sort') (lp : LinearPattern (colored-env color) nil s) (r : Term (colored-env color) nil s (LinearMetaContext {colored-env color} lp))
+    | idx : J {JointRules {_} {envL} {envR} L-rules R-rules}
+    | i-sort-eq : s = RewriteRule.s {get {JointRules {_} {envL} {envR} L-rules R-rules} idx}
+    | i-meta-eq : (LinearMetaContext {colored-env color} lp) = RewriteRule.meta-context {get {JointRules {_} {envL} {envR} L-rules R-rules} idx}
+    | idx-l-eq : RewriteRule.l {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) (i-sort-eq {\this}) i-meta-eq (LinearPattern.convert-to-injected-term color lp)
+    | ifx-r-eq : RewriteRule.r {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) i-sort-eq i-meta-eq (inject-monochrome-term color r)
+
   \data TopLevelColoredReduction {tc : TheoremContext} (color : Color) {mc : MetaContext env.Sort} {context : List env.Sort} {s : env.Sort} (A B : Term env context s mc) \elim A, B
     | A, B =>
     rewrite-with-rule-colored (HasColoredRoot color A)
@@ -244,7 +251,7 @@
                               (substitution : MetaSubstitution env context (LinearMetaContext {colored-env color} linear-pattern) mc)
                               (left-coherence : MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-injected-term color {nil} {s} linear-pattern) SubList.sublist-trivial-skip) SubList.identity substitution = A)
                               (right-coherence : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color r) SubList.sublist-trivial-skip) SubList.identity substitution = B)
-    --(step.rule IndexedSet.in {LinearRewriteRule step.env} (colored-rules coor)) todo
+                              (inherited : Inherited color s linear-pattern r)
     | func f-A choosing-A, func f-B choosing-B =>
     rewrite-with-parameter-f-colored (p : f-A = f-B)
                                      (color-of-root f-A = color)
@@ -254,7 +261,7 @@
     \where {
       \lemma extract-root-coloring {tc : TheoremContext} {color : Color} {mc : MetaContext Sort'} {context : List env.Sort} {s : env.Sort} {A B : Term env context s mc} (tlcr : TopLevelColoredReduction color A B) : HasColoredRoot color A
       \elim color, A, B, tlcr
-        | color, A, B, rewrite-with-rule-colored h _ _ _ _ _ _ => h
+        | color, A, B, rewrite-with-rule-colored h _ _ _ _ _ _ _ => h
         | color, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored p p1 i tlcr eq => \case \elim color, \elim f-A, \elim choosing-A, \elim p1 \with {
           | red, inl a, choosing-A, p1 => red-func-root
           | blue, inr b, choosing-A, p1 => blue-func-root
@@ -805,7 +812,7 @@
                                (subst : Substitution {env} context new-context mc)
                                (A~>B : TopLevelColoredReduction color A B)
     : TopLevelColoredReduction color (Substitution.apply {env} A subst) (Substitution.apply {env} B subst) \elim A, B, A~>B
-    | A, B, rewrite-with-rule-colored h lp r lf msubst msubst[l]=A msubst[r]=B =>
+    | A, B, rewrite-with-rule-colored h lp r lf msubst msubst[l]=A msubst[r]=B inh =>
       rewrite-with-rule-colored
           (hcr-over-substitution subst h)
           lp
@@ -814,6 +821,7 @@
           (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst))
           (rewrite (inv msubst[l]=A) (((rewrite first-sublist-commutation) ((rewrite (first-sublist-commutation {_} {context})) (rewrite (second-sublist-commutation {_} {new-context}) (rewrite (second-sublist-commutation {_} {context}) (rewrite {2} (append-context-right-to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (LinearPattern.convert-to-injected-term color lp) subst msubst)))))))))
           (rewrite (inv msubst[r]=B) (((rewrite first-sublist-commutation) ((rewrite (first-sublist-commutation {_} {context})) (rewrite (second-sublist-commutation {_} {new-context}) (rewrite (second-sublist-commutation {_} {context}) (rewrite {2} (append-context-right-to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (inject-monochrome-term color r) subst msubst)))))))))
+          inh
     | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 i tlcr eq => rewrite-with-parameter-f-colored idp p1 i (tlcr-over-substitution (append-context-right {env} subst) tlcr) (\lam j _x => rewrite (eq j _x) idp)
     \where {
       \func untransport {env : FSignature} {context-a context-a' context-b context-b' context-meta context-meta2 : List Sort} {s : Sort} {mc mc' : MetaContext Sort}

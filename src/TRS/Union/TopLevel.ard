@@ -42,7 +42,7 @@
   : TopLevelColoredReduction color {_} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u, fw
-  | color, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
+  | color, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?} {?}
   | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
@@ -112,7 +112,7 @@
     \let | unmap => pmap (unor {_} {envR.symbol s} f) p
          | eq-p : p = pmap (inl) unmap => Path.inProp _ _
     \in inductive _ _ unmap choosing choosing' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
-  | red, func f choosing, B, rewrite-with-rule-colored hcr lr r lf big-subst l[bs]=injt r[bs]=B =>
+  | red, func f choosing, B, rewrite-with-rule-colored hcr lr r lf big-subst l[bs]=injt r[bs]=B _ =>
     \let | (middle-subst, substitution-equality, l-eq) =>
       decompose-metasubstitution
           red lr (transport (Term envL __ s inner-mc) (inv ++_nil) (func {envL} f choosing)) big-subst subst
