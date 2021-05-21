@@ -93,3 +93,5 @@
 \func unor-r {A B : \Type} (default : B) (or : A `Or` B) : B \elim or
   | inl a => default
   | inr b => b
+
+\func or-contradiction {A B : \Type} {a : A} {b : B} (eq : inl a = inr b) : Empty => contradiction
