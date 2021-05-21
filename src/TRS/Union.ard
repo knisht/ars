@@ -196,7 +196,6 @@
           | red, inl s1, red-func-root => idp
           | blue, inr s1, blue-func-root => idp
       }
-    --      | _, metavar _ _ => uncolored-metavar-root
 
     \func color-of-root {s : Sort'} (f : env.symbol s) : Color \elim f
       | inl _ => red
@@ -287,7 +286,11 @@
     \Pi {mc : MetaContext Sort} {context : List Sort} {s : Sort}
         (A B C : Term env context s mc)
         (TClosure (RewriteRelation rules) A B)
-        (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (RewriteRelation rules))
+        (TClosure (RewriteRelation rules) A C) -> StraightJoin B C (TClosure (\lam x y => \Sigma (rd : RewriteRelation rules x y) (FunctionalWitness rd)))
+
+  \data FunctionalWitness {env : FSignature} {rules : IndexedSet (RewriteRule env)} {context : List Sort} {s : Sort} {mc : MetaContext Sort} {t u : Term env context s mc} (rd : RewriteRelation rules t u) \elim t, u, rd
+    | A, B, rewrite-with-rule _ _ => rule-rewriting
+    | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f _ _ rd _ => param-rewriting (FunctionalWitness rd)
 
   \record StraightJoin {A : \Type} (a b : A) (rel : A -> A -> \Type)
     | common-reduct : A
@@ -482,7 +485,7 @@
       | eqs3 : (func {env} f choosing-A) = (MetaSubstitution.apply {env} (convert-to-injected-term color t) SubList.sublist-trivial-skip rho) => inv t[rho]=A
       | witnesses => inject-linear-term.generate-injection-witness color t
       | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f choosing-C) t rho (root-colors) nothing (inl idp) (rewriteI eqs3 (parallelization-f choosing-C inner-reductions (cr-skip idp)))
-      | uni-right => TClosure.lift {_} {_} {monochrome-reduction color} {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) SubList.sublist-trivial-skip sigma)) (lift-relation color sigma) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
+      | uni-right => TClosure.lift {_} {_} {\lam x y => \Sigma (rrd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rrd) } {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) SubList.sublist-trivial-skip sigma)) (\lam tlcr => lift-relation color sigma tlcr.1 tlcr.2) (LinearTerm.convert-to-term {colored-env color} t) u t~>*u
       | (mcl, uni-left) => unify-left color' color injected-u (inject-monochrome-term.generate-injection-witness color u) SubList.sublist-trivial-skip rho sigma reds
     \in ((MetaSubstitution.apply {env} injected-u SubList.sublist-trivial-skip sigma),
          (rewrite C=t[sigma] (rewriteI unwrap-injection uni-right)),
@@ -501,13 +504,13 @@
         (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip color) (rho m))
         : \Sigma (u : Term (colored-env color) context s inner-mc)
                  (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip rho = B)
-                 (TClosure (monochrome-reduction color) (t) u) \elim A~>*B
+                 (TClosure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd)) (t) u) \elim A~>*B
         | tc-basic A~>B =>
-          \let | (u, lu[rho]=B, t~>u) => decompose-along-reduction color t B rho root-colors (rewrite teq A~>B)
-          \in (u, lu[rho]=B, tc-basic t~>u)
+          \let | (u, lu[rho]=B, t~>u, fw) => decompose-along-reduction color t B rho root-colors (rewrite teq A~>B)
+          \in (u, lu[rho]=B, tc-basic (t~>u, fw))
         | tc-connect C A->C C~>*B =>
-          \let | (c, meq, rd) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
-               | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, tc-connect c rd tcl)
+          \let | (c, meq, rd, fw) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
+               | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, tc-connect c (rd, fw) tcl)
 
       \func convert-to-injected-term {tc : Confluence.TheoremContext} (color : Confluence.Color) {context : List Confluence.Sort'} {s : Confluence.Sort'} (term : LinearTerm (colored-env color) context s) : Term env context s (LinearMetaContextT {colored-env color} (term)) \elim color, term
         | red, lt-func f choosing => func (inl f) (\lam i => LinearTerm.upgrade-metavariables-t {env} (\lam i => LinearMetaContextT {envL} (choosing i)) (convert-to-injected-term red (choosing i)))
@@ -1136,6 +1139,23 @@
         | suc n, 0, suc j => f (suc j)
         | suc n, suc index, 0 => f 0
         | suc n, suc index, suc j => pointed-function (\lam i => C (suc i)) (\lam i => f (suc i)) index point j
+
+      \func pointed-induction {n : Nat} (C : Fin n -> \Type)
+                              (Q : \Pi (i : Fin n) -> (C i) -> \Type)
+                              (f : \Pi (i : Fin n) -> C i)
+                              (index : Fin n)
+                              (point : C index)
+                              (eq1 : Q index point)
+                              (eq2 : \Pi (j : Fin n) (Not (j = index)) -> (Q j (f j)))
+                              (i : Fin n) : Q i (pointed-function C f index point i) \elim n, index, i
+        | suc n, 0, 0 => eq1
+        | suc n, 0, suc i => eq2 (suc i) (\lam ())
+        | suc n, suc index, 0 => eq2 0 (\lam ())
+        | suc n, suc index, suc i => pointed-induction (\lam i => C (suc i)) (\lam i ci => Q (suc i) ci) (\lam i => f (suc i)) index point eq1 (\lam j ne => eq2 (suc j) (\lam p => ne (FinSet.suc-isInj _ _ p))) i
+
+        \func unsuc {n : Nat} (a : Nat) : Nat \elim a
+          | 0 => 0
+          | suc a => a
 
       \func pointed-at-index
         {n : Nat} (C : Fin n -> \Type)

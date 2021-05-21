@@ -27,10 +27,10 @@
        | inner-ms => LinearMetaContextT {colored-env color} a
        | (b, eq-b, a~>b) => unify-top.iterate-decomposition (LinearTerm.convert-to-term {colored-env color} a) subst B (rewrite unify-top.unwrap-injection eq-a) A~>B root-colors
        | (c, eq-c, a~>c) => unify-top.iterate-decomposition (LinearTerm.convert-to-term {colored-env color} a) subst C (rewrite unify-top.unwrap-injection eq-a) A~>C root-colors
-       | join-b-c : StraightJoin b c (TClosure (monochrome-reduction color {_} {_} {inner-ms})) => join-monochrome-terms color {_} {_} {inner-ms} (LinearTerm.convert-to-term {colored-env color} a) b c a~>b a~>c monochrome-confluence
+       | join-b-c : StraightJoin b c (TClosure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd))) => join-monochrome-terms color {_} {_} {inner-ms} (LinearTerm.convert-to-term {colored-env color} a) b c (TClosure.lift (\lam t => t) (\lam rel => rel.1) _ _ a~>b) (TClosure.lift (\lam t => t) (\lam rel => rel.1) _ _ a~>c) monochrome-confluence
        | injected-reduct => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} join-b-c.common-reduct) SubList.sublist-trivial-skip subst
-       | lifted-b~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel) join-b-c.a common-reduct join-b-c.a~>cr
-       | lifted-c~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel) join-b-c.b common-reduct join-b-c.b~>cr
+       | lifted-b~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2) join-b-c.a common-reduct join-b-c.a~>cr
+       | lifted-c~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2) join-b-c.b common-reduct join-b-c.b~>cr
   \in (injected-reduct, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-b lifted-b~>d, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-c lifted-c~>d)
 
 \func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -38,21 +38,22 @@
                     (subst : MetaSubstitution env nil mc (EmptyMetaContext {env}))
                     {t u : Term (colored-env color) context s mc}
                     (t~>u : monochrome-reduction color t u)
+                    (fw : FunctionalWitness {colored-env color} {colored-set-of-rules color} t~>u)
   : TopLevelColoredReduction color {_} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
-    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u
-  | color, t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
-  | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq =>
+    (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u, fw
+  | color, t, u, rewrite-with-rule ((rule,bsubst,l[bs]=injt,r[bs]=inju)) i, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?}
+  | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
-      (Injections.inject-term-left envL envR (choosing-A index)) SubList.sublist-trivial-skip subst)
-      ((MetaSubstitution.apply {env}
-          (Injections.inject-term-left envL envR (choosing-B index)) (sl)
-          subst))) (decompose-along-reduction.any-nil-sublist-equate (SubList.sublist-trivial-skip) (SubList.extend-right-single SubList.sublist-trivial-skip) ) (lift-relation red subst rd)))
+            (Injections.inject-term-left envL envR (choosing-A index)) SubList.sublist-trivial-skip subst)
+            ((MetaSubstitution.apply {env}
+                (Injections.inject-term-left envL envR (choosing-B index)) (sl)
+                subst))) (decompose-along-reduction.any-nil-sublist-equate (SubList.sublist-trivial-skip) (SubList.extend-right-single SubList.sublist-trivial-skip) ) (lift-relation red subst rd fw)))
         (\lam j _x => rewrite (eq j _x) idp)
-  | blue, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq => {?}
-  | red, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m idp i rd eq => {?}
-  | blue, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq => {?}
+  | blue, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq, fw => {?}
+  | red, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m idp i rd eq, ()
+  | blue, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq, ()
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                      (color : Color)
@@ -92,7 +93,7 @@
                             (a~>b : TClosure (monochrome-reduction color) a b)
                             (a~>c : TClosure (monochrome-reduction color) a c)
                             (conf : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
-  : StraightJoin b c (TClosure (monochrome-reduction color)) \elim color
+  : StraightJoin b c (TClosure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd))) \elim color
   | red => conf a b c a~>b a~>c
   | blue => conf a b c a~>b a~>c
 
@@ -105,7 +106,8 @@
                                 (A~>B : TopLevelColoredReduction color {mc} {context} {s} (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst) B)
   : \Sigma (u : Term (colored-env color) context s (inner-mc))
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst = B)
-           (monochrome-reduction color t u) \elim color, t, B, A~>B
+           (rd : monochrome-reduction color t u)
+           (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd)\elim color, t, B, A~>B
   | red, func f choosing, func (inl f') choosing', rewrite-with-parameter-f-colored p p1 i tlcr eq =>
     \let | unmap => pmap (unor {_} {envR.symbol s} f) p
          | eq-p : p = pmap (inl) unmap => Path.inProp _ _
@@ -128,7 +130,8 @@
                  ((rewrite (inv decompose-along-reduction.different-weakening.equate-sublists-2)
                      (pmap (\lam sl => MetaSubstitution.apply {envL} (weakening {envL} (LinearPattern.convert-to-term {envL} lr) sl) (SubList.extend-right-single SubList.identity) middle-subst)
                          decompose-along-reduction.different-weakening.equate-sublists-3)) *> l-eq)))
-             idp lf)
+             idp lf,
+         rule-rewriting {colored-env red} {L-rules})
   | red, metavar m choosing, B, A~>B =>
     \let
       | other-root-color => root-colors m
@@ -161,65 +164,27 @@
                         subst = transport-chooser-f {env} (pmap (inl {_} {envR.symbol s}) eq) choosing' j)
       :  \Sigma (u : Term envL context s inner-mc)
                 (MetaSubstitution.apply {env} (Injections.inject-term-left envL envR u) SubList.sublist-trivial-skip subst = func (inl f') choosing')
-                (monochrome-reduction red (func f choosing) u) \elim eq
+                (rd : monochrome-reduction red (func f choosing) u)
+                (FunctionalWitness {colored-env red} {L-rules} rd)\elim eq
       | idp => \let inductive-step => (decompose-along-reduction red (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)) \in
-        (func f (\lam index => \case (FinDec index i) \with {
-          | yes e => rewrite e (inductive-step).1
-          | no n => choosing index
-        }), pmap (func {env} (inl f)) (ext (\lam index => \case (FinDec index i) \as ix, idp : ix = (FinDec index i) \return MetaSubstitution.apply {env} (Injections.inject-term-left envL envR (\case \elim ix \with {
-          | yes e => transportInv
-              (\lam x => Term envL (context ++ f envL.!!param x) (f envL.!!sort x) inner-mc)
-              e (decompose-along-reduction red (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)).1
-          | no _ => choosing index
-        })) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' index \with {
-          | yes e, p => lemma f choosing choosing' subst root-colors i index e tlcr (inductive-step).1 (inductive-step).2
-          | no n, p => eq' index n
-        })),
-         rewrite-with-parameter-f
-             idp
-             i
-             (unfold (transport-chooser-f) (unfold transport (\case (FinDec i i) \as ix, idp : ix = (FinDec i i) \return (RewriteRelation {envL} L-rules (choosing i) (\case \elim ix \with {
-               | yes e => transportInv
-                   (\lam x => Term envL (context ++ f envL.!!param x) (f envL.!!sort x) inner-mc)
-                   e inductive-step.1
-               | no _ => choosing i
-             }))\with {
-               | yes e, p => \let q : e = idp => Path.inProp _ _ \in rewrite q inductive-step.3
-               | no n, p => \let contr => n idp \in contradiction
-             })))
-             (\lam j _x => (unfold (transport-chooser-f) (unfold transport (\case (FinDec j i) \as ix, idp : ix = (FinDec j i) \return choosing j = (\case \elim ix \with {
-               | yes e => transportInv
-                   (\lam x => Term envL (context ++ f envL.!!param x) (f envL.!!sort x) inner-mc)
-                   e inductive-step.1
-               | no _ => choosing j
-             })\with {
-               | yes e, p => \let contr => _x e \in contradiction
-               | no n, p => idp
-             })))))
+        (func f (collect-reductions-together-tlcr.pointed-function (\lam index => Term envL (context ++ f FSignature.!!param {envL} index) (f FSignature.!!sort {envL} index) inner-mc) choosing i (inductive-step).1),
+         pmap (func {env} (inl f))
+             (ext (\lam index => collect-reductions-together-tlcr.pointed-induction
+                 (\lam index => Term envL (context ++ f FSignature.!!param {envL} index) (f FSignature.!!sort {envL} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR
+                     (fx)) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' j)
+                 choosing
+                 i
+                 (inductive-step).1
+                 (rewrite any-nil-sublist-equate inductive-step.2)
+                 (\lam j n => eq' j n)
+                 index)),
+         rewrite-with-parameter-f idp i (rewrite collect-reductions-together-tlcr.pointed-at-index (inductive-step.3)) (\lam j _x => inv (collect-reductions-together-tlcr.pointed-not-at-index _ choosing _ _ j _x)),
+         param-rewriting (unifying-lemma _ _ _ _ _ inductive-step.4))
       \where {
-
-        \lemma lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-mc mc : MetaContext Sort'}
-                     (f : envL.symbol s)
-                     (choosing :
-                     \Pi (index : Fin (length (envL.domain f))) ->
-                         Term tc.envL (context ++ f envL.!!param index) (f envL.!!sort index) inner-mc)
-                     (choosing' :
-                     \Pi (index : Fin (length (env.domain (inl f)))) ->
-                         Term env (context ++ inl f env.!!param index) (inl f env.!!sort index) mc)
-                     (subst : MetaSubstitution env nil (inner-mc) mc)
-                     (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip red) (subst m))
-                     (i index : Fin (length (domain {env} (inl f))))
-                     (eq : index = i)
-                     (tlcr : TopLevelColoredReduction red (MetaSubstitution.apply {env}
-                         (Injections.inject-term-left envL envR (choosing i)) (SubList.extend-right-single SubList.sublist-trivial-skip)
-                         subst) (transport-chooser-f {env} (pmap (inl {_} {envR.symbol s}) idp) choosing' i))
-                     (u : Term envL (context ++ f envL.!!param i) (f envL.!!sort i) inner-mc)
-                     (inductive-step : (MetaSubstitution.apply {env} (Injections.inject-term-left envL envR u) SubList.sublist-trivial-skip subst = choosing' i))
-                     : MetaSubstitution.apply {env} (Injections.inject-term-left envL envR (transportInv
-            (\lam x => Term envL (context ++ f envL.!!param x) (f envL.!!sort x) inner-mc)
-            eq u))
-            (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' index \elim eq
-          | idp => rewrite (any-nil-sublist-equate) inductive-step
+        \func unifying-lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
+                             (t u v : Term envL context s mc) (eq : v = u) (rd : RewriteRelation {envL} L-rules t u)
+          (fw : FunctionalWitness {envL} {L-rules} rd):
+          FunctionalWitness {envL} {L-rules} (transportInv (RewriteRelation {envL} tc.L-rules t) (eq) rd) \elim eq | idp => fw
       }
 
     \lemma eliminate-colors {tc : TheoremContext} (color : Color) {context context' : List Sort'} {s : Sort'} {msig : MetaContext Sort'}
