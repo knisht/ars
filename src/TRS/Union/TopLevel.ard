@@ -107,8 +107,87 @@
         =
       MetaSubstitution.apply (MetaSubstitution.apply t sublist msubst) SubList.sublist-trivial-skip msubst2 \elim t
       | var index p => idp
-      | metavar m choosing => {?}
+      | metavar m choosing =>
+        \let inductive : (\lam i => MetaSubstitution.apply (choosing i) sublist
+            (\lam {s : env.Sort} (m : mc.metaname s) => MetaSubstitution.apply (msubst m) SubList.sublist-trivial-skip msubst2)) = (\lam i => MetaSubstitution.apply (MetaSubstitution.apply (choosing i) sublist msubst) SubList.sublist-trivial-skip msubst2) => ext (\lam i => metacommutation msubst msubst2 (choosing i) sublist)
+        \in rewrite inductive (rewrite (subst-extend-left-comm.ext' msubst2 sublist (\lam (i : Fin (length (mc.m-domain m))) => MetaSubstitution.apply (choosing i) sublist msubst)) (subst-metasubst-comm msubst2 (msubst m) _))
       | func f choosing => pmap (func f) (ext (\lam index => rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (metacommutation msubst msubst2 (choosing index) (SubList.extend-right-single sublist))))
+
+    \func subst-metasubst-comm
+      {env : FSignature} {context context' : List Sort} {s : Sort} {mc' mc'' : MetaContext Sort}
+      (msubst2 : MetaSubstitution env nil mc' mc'')
+      (t : Term env (context') s mc')
+      (subst : Substitution context' context mc')
+      :
+      Substitution.apply (MetaSubstitution.apply t SubList.sublist-trivial-skip msubst2) (\lam i => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst2)
+        =
+      MetaSubstitution.apply (Substitution.apply t (subst)) SubList.sublist-trivial-skip msubst2 \elim t
+      | var index idp => idp
+      | metavar m choosing => \let inductive-ext : (\lam i => Substitution.apply (MetaSubstitution.apply (choosing i) SubList.sublist-trivial-skip msubst2) (\lam i => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst2))
+        =
+      (\lam i => MetaSubstitution.apply (Substitution.apply (choosing i) (subst)) SubList.sublist-trivial-skip msubst2) => ext (\lam i => subst-metasubst-comm msubst2 (choosing i) subst) \in rewriteI inductive-ext (tlcr-over-substitution.commutation.subst-comm _ _ _)
+      | func f choosing => pmap (func f) (ext (\lam index => rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) SubList.sublist-trivial-skip) (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) SubList.sublist-trivial-skip) (rewriteI (subst-metasubst-comm msubst2 (choosing index) (append-context-right subst)) (pmap (Substitution.apply (MetaSubstitution.apply (choosing index) SubList.sublist-trivial-skip msubst2)) (ext (append-context-right-inside-metaapply subst msubst2)))))))
+
+    \func append-context-right-inside-metaapply
+      {env : FSignature} {context context' add-context : List Sort} {mc' mc'' : MetaContext Sort}
+      (subst : Substitution context context' mc')
+      (msubst : MetaSubstitution env nil mc' mc'')
+      (index : Fin (length (context ++ add-context)))
+      : append-context-right (\lam i => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst) {add-context} index = MetaSubstitution.apply (append-context-right subst index) SubList.sublist-trivial-skip msubst =>
+      partial-fin-induction
+          (\lam fin => append-context-right (\lam i => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst) {add-context} fin = MetaSubstitution.apply (append-context-right subst fin) SubList.sublist-trivial-skip msubst)
+          (\lam fin => repeat {2} (rewrite append-context-right-begin) (untransport2 _ (subst fin) msubst _))
+          (\lam fin => repeat {2} (rewrite append-context-right-end) idp)
+          index
+      \where {
+        \func untransport2 {env : FSignature} {s s' : Sort} (eq : s = s') {mc mc' : MetaContext Sort} {context context' : List Sort}
+                           (t : Term env context s mc)
+                           (msubst : MetaSubstitution env nil mc mc')
+                           (sublist : SubList context context')
+          : weakening (transport (\lam (p0 : env.Sort) => Term env context p0 mc') eq
+            (MetaSubstitution.apply t SubList.sublist-trivial-skip msubst)) sublist =
+        MetaSubstitution.apply
+            (weakening (transport (\lam (p0 : env.Sort) => Term env context p0 mc) eq t)
+                (sublist)) SubList.sublist-trivial-skip msubst \elim eq, t
+          | idp, var index p => idp
+          | idp, metavar m choosing => \let inductive-ext : (\lam i => weakening ((MetaSubstitution.apply (choosing i) SubList.sublist-trivial-skip msubst)) sublist) =
+              (\lam i => MetaSubstitution.apply
+              (weakening (choosing i)
+                  (sublist)) SubList.sublist-trivial-skip msubst) => ext (\lam i => untransport2 idp (choosing i) msubst sublist) \in unfold transport (rewriteI inductive-ext (rewrite weakening-as-substitution-eq (\let induced : (\lam (i : Fin (length (mc.m-domain m))) =>
+              weakening (MetaSubstitution.apply (choosing i) SubList.sublist-trivial-skip msubst) sublist) = (\lam i => Substitution.apply (MetaSubstitution.apply (choosing i) SubList.sublist-trivial-skip msubst) (weakening-as-substitution sublist)) => ext (\lam i => rewrite weakening-as-substitution-eq idp) \in rewrite induced (tlcr-over-substitution.commutation.subst-comm _ _ _))))
+          | idp, func f choosing => (pmap (func f) (ext (\lam index => rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) SubList.sublist-trivial-skip) (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) SubList.sublist-trivial-skip) (untransport2 idp (choosing index) msubst (SubList.extend-right-both sublist))))))
+      }
+
+    \func subst-extend-left-comm {env : FSignature} {context context' add-context : List Sort} {mc' mc'' : MetaContext Sort}
+                                 (msubst2 : MetaSubstitution env nil mc' mc'')
+                                 (sublist : SubList context' context)
+                                 (subst : Substitution add-context context mc')
+                                 (index : Fin (length (context' ++ add-context)))
+      : (extend-substitution-left
+        sublist (\lam (i : Fin (length add-context)) => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst2)) index = (MetaSubstitution.apply (extend-substitution-left sublist subst index) SubList.sublist-trivial-skip msubst2) =>
+      partial-fin-induction
+          (\lam fin => (extend-substitution-left
+              sublist (\lam (i : Fin (length add-context)) => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst2)) fin = (MetaSubstitution.apply (extend-substitution-left sublist subst fin) SubList.sublist-trivial-skip msubst2))
+          (\lam fin => repeat {2} (rewrite (extend-substitution-left.for-left-context)) idp)
+          (\lam fin => repeat {2} (rewrite (extend-substitution-left.for-right-context)) (untransport-2 _ (subst fin) msubst2))
+          index
+      \where {
+        \func ext' {env : FSignature} {context context' add-context : List Sort} {mc' mc'' : MetaContext Sort}
+                   (msubst2 : MetaSubstitution env nil mc' mc'')
+                   (sublist : SubList context' context)
+                   (subst : Substitution add-context context mc')
+          : (extend-substitution-left
+            sublist (\lam (i : Fin (length add-context)) => MetaSubstitution.apply (subst i) SubList.sublist-trivial-skip msubst2)) = (\lam i => MetaSubstitution.apply (extend-substitution-left sublist subst i) SubList.sublist-trivial-skip msubst2) =>
+          ext (subst-extend-left-comm msubst2 sublist subst)
+      }
+
+    \func untransport-2 {env : FSignature} {s s' : Sort} (eq : s = s') {mc mc' : MetaContext Sort} {context : List Sort}
+                        (t : Term env context s mc)
+                        (msubst : MetaSubstitution env nil mc mc'): transport (\lam (p0 : env.Sort) => Term env context p0 mc') (eq)
+        (MetaSubstitution.apply (t) SubList.sublist-trivial-skip msubst) = MetaSubstitution.apply
+                                                                               (transport (\lam (p0 : env.Sort) => Term env context p0 mc) (eq) (t))
+                                                                               SubList.sublist-trivial-skip msubst \elim eq
+      | idp => idp
   }
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}

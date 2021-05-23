@@ -16,7 +16,7 @@
 \open Confluence
 \open TheoremContext
 
-\func LinearDump {tc : TheoremContext} =>
+\type LinearDump {tc : TheoremContext} =>
   \Pi (point : L-rules.J `Or` R-rules.J) ->
       \Sigma (linear-pattern : LinearPattern (colored-env (color-of-idx point)) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
              (meta-eq : RewriteRule.meta-context {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetaContext {colored-env (color-of-idx point)} linear-pattern)

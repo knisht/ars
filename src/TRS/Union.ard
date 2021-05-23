@@ -876,10 +876,10 @@
         | func f choosing =>
           pmap (func f) (ext (\lam index => \let inductive => commutation (choosing index) subst metasubst \in rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite weakening-over-double-extend (rewrite weakening-over-double-extend-2 (rewrite double-append-context-right (inductive-step (choosing index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
         \where {
-          \lemma subst-comm  {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
-                             (t : Term env context-a s mc)
-                             (subst-a : Substitution context-a context-b mc)
-                             (subst-b : Substitution context-b context-c mc) :
+          \lemma subst-comm {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
+                            (t : Term env context-a s mc)
+                            (subst-a : Substitution context-a context-b mc)
+                            (subst-b : Substitution context-b context-c mc) :
             Substitution.apply (Substitution.apply t subst-a) subst-b = Substitution.apply t (\lam i => Substitution.apply (subst-a i) subst-b) \elim t
             | var index idp => idp
             | metavar m choosing => pmap (metavar m) (ext (\lam index => subst-comm (choosing index) subst-a subst-b))
