@@ -58,7 +58,7 @@
     })
   | blue, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw =>
     \let (lp, meq, lcoh) => all-rules-are-linear (inr idx)
-    \in rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?} {?}
+    \in {?}
   | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
@@ -545,7 +545,13 @@
   (idx-l-eq : RewriteRule.l {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) (i-sort-eq) i-meta-eq (LinearPattern.convert-to-injected-term color pattern))
   (ifx-r-eq : RewriteRule.r {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) i-sort-eq i-meta-eq (inject-monochrome-term color rule-r))
   : monochrome-reduction color l r \elim color, idx
-  | red, inl idx => rewrite-with-rule idx i-sort-eq (rewriteI i-meta-eq subst) (unembed-tlcr.untransport {envL} i-sort-eq i-meta-eq subst (LinearPattern.convert-to-term {envL} pattern) (RewriteRule.l {L-rules.get idx}) l l-eq {?}) {?}
+  | red, inl idx =>
+    rewrite-with-rule
+        idx
+        i-sort-eq
+        (rewriteI i-meta-eq subst)
+        (unembed-tlcr.untransport {envL} i-sort-eq i-meta-eq subst (LinearPattern.convert-to-term {envL} pattern) (RewriteRule.l {L-rules.get idx}) l l-eq (uninject-equality red _ _ (RewriteRule.l {L-rules.get idx}) (LinearPattern.convert-to-term {colored-env red} pattern) (rewrite (unwrap-injection red) idx-l-eq)))
+        (unembed-tlcr.untransport {envL} i-sort-eq i-meta-eq subst rule-r (RewriteRule.r {L-rules.get idx}) r r-eq (uninject-equality red _ _ (RewriteRule.r {L-rules.get idx}) (rule-r) (ifx-r-eq)))
   | blue, inr idx => {?}
   | red, inr b => \let | l-hcr => get-colored-root-for-l (inr b)
                        | lp-hcr => infer-hcr red pattern l-is-func \in \let q => contradictory _ _ _ _ idx-l-eq l-hcr lp-hcr \in contradiction
@@ -556,13 +562,56 @@
       | red, lp-func f choosing, T-has-functional-root => red-func-root
       | blue, lp-func f choosing, T-has-functional-root => blue-func-root
 
-    \func contradictory {tc : TheoremContext} {color : Color} {s s' : Sort'} {mc mc' : MetaContext Sort'} (eq1 : s = s') (eq2 : mc = mc') (t : Term env nil s' mc') (t2 : Term env nil s mc) (eqt : t = transport2 (Term env nil) eq1 eq2 t2)  (hcr1 : HasColoredRoot color t) (hcr2 : HasColoredRoot (Color.flip color) t2) : Empty \elim color, eq1, eq2, t, t2, hcr1, hcr2
+    \func contradictory {tc : TheoremContext} {color : Color} {s s' : Sort'} {mc mc' : MetaContext Sort'} (eq1 : s = s') (eq2 : mc = mc') (t : Term env nil s' mc') (t2 : Term env nil s mc) (eqt : t = transport2 (Term env nil) eq1 eq2 t2) (hcr1 : HasColoredRoot color t) (hcr2 : HasColoredRoot (Color.flip color) t2) : Empty \elim color, eq1, eq2, t, t2, hcr1, hcr2
       | red, idp, idp, func (inl s1) choosing, func (inr b) choosing1, red-func-root, blue-func-root => \let q => pmap (decompose-metasubstitution.unfunc {env} (inl s1)) eqt \in contradiction
       | blue, idp, idp, func (inr s1) choosing, func (inl a) choosing1, blue-func-root, hcr2 => \let q => pmap (decompose-metasubstitution.unfunc {env} (inr s1)) eqt \in contradiction
+
+    \lemma unwrap-injection {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} (t : LinearPattern (colored-env color) context s) :
+      inject-monochrome-term color (LinearPattern.convert-to-term {colored-env color} t) = LinearPattern.convert-to-injected-term color {context} {s} t \elim color, t
+      | red, lp-func f choosing => pmap (func {env} (inl f)) (ext (\lam index => rewriteI (unwrap-injection red (choosing index)) (swap red _ _)))
+      | red, lp-metavar => idp
+      | blue, lp-func f choosing => pmap (func {env} (inr f)) (ext (\lam index => rewriteI (unwrap-injection blue (choosing index)) (swap blue _ _)))
+      | blue, lp-metavar => idp
+      \where {
+        \lemma swap
+          {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {n : Nat} {i : Fin n} (msigs : \Pi (i : Fin n) -> MetaContext Sort')
+          (t : Term (colored-env color) context s (msigs i)) :
+          inject-monochrome-term color (LinearPattern.upgrade-metavariables-p {colored-env color} msigs t) =
+          LinearPattern.upgrade-metavariables-p {env} msigs (inject-monochrome-term color t) \elim color, t
+          | red, var index p => idp
+          | red, metavar m choosing =>
+            \let extt : (\lam i1 => Injections.inject-term-left envL envR (LinearPattern.upgrade-metavariables-p {envL} msigs (choosing i1))) = (\lam i1 => (LinearPattern.upgrade-metavariables-p {env} msigs (Injections.inject-term-left envL envR (choosing i1)))) => ext (\lam i => swap red msigs (choosing i))
+            \in rewrite extt idp
+          | red, func f choosing => pmap (func {env} (inl f)) (ext (\lam index => (swap red msigs (choosing index))))
+          | blue, var index p => idp
+          | blue, metavar m choosing =>
+            \let extt : (\lam i1 => Injections.inject-term-right envL envR (LinearPattern.upgrade-metavariables-p {envR} msigs (choosing i1))) = (\lam i1 => (LinearPattern.upgrade-metavariables-p {env} msigs (Injections.inject-term-right envL envR (choosing i1)))) => ext (\lam i => swap blue msigs (choosing i))
+            \in rewrite extt idp
+          | blue, func f choosing => pmap (func {env} (inr f)) (ext (\lam index => (swap blue msigs (choosing index))))
+      }
+
+    \func uninject-equality {tc : TheoremContext} (color : Color) {s s' : Sort'} {context : List Sort'} {mc mc' : MetaContext Sort'} (eq1 : s = s') (eq2 : mc = mc')
+                            (t : Term (colored-env color) context s' mc')
+                            (u : Term (colored-env color) context s mc)
+                            (ineq : inject-monochrome-term color t = transport2 (Term env context) eq1 eq2 (inject-monochrome-term color u))
+      : t = transport2 (Term (colored-env color) context) eq1 eq2 u \elim color, eq1, eq2, t, u
+      | red, idp, idp, var index p, var index1 p1 => {?}
+      | red, idp, idp, var index p, metavar m choosing => contradiction
+      | red, idp, idp, var index p, func f choosing => contradiction
+      | red, idp, idp, metavar m choosing, var index p => contradiction
+      | red, idp, idp, metavar m choosing, metavar m1 choosing1 => {?}
+      | red, idp, idp, metavar m choosing, func f choosing1 => contradiction
+      | red, idp, idp, func f choosing, var index p => contradiction
+      | red, idp, idp, func f choosing, metavar m choosing1 => contradiction
+      | red, idp, idp, func f choosing, func f1 choosing1 => {?}
+      | blue, idp, idp, var index p, var index1 p1 => {?}
+      | blue, idp, idp, metavar m choosing, u => {?}
+      | blue, idp, idp, func f choosing, u => {?}
   }
 
-\func inject-linear-pattern {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
-                            (l : LinearPattern (colored-env color) context s) : LinearPattern env context s \elim color, l
+\func inject-linear-pattern
+  {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color : Color)
+  (l : LinearPattern (colored-env color) context s) : LinearPattern env context s \elim color, l
   | red, lp-func f choosing => lp-func (inl f) (\lam i => inject-linear-pattern red (choosing i))
   | color, lp-metavar => lp-metavar {env}
   | blue, lp-func f choosing => lp-func (inr f) (\lam i => inject-linear-pattern blue (choosing i))

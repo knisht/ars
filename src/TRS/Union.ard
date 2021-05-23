@@ -140,14 +140,14 @@
     | Sort' : \Set
     | envL : FSignature Sort'
     | envR : FSignature Sort'
-    | L-rules : IndexedSet (LinearRewriteRule envL)
-    | R-rules : IndexedSet (LinearRewriteRule envR)
+    | L-rules : IndexedSet (RewriteRule envL)
+    | R-rules : IndexedSet (RewriteRule envR)
 
     \func colored-env (color : Color) : FSignature Sort' \elim color
       | red => envL
       | blue => envR
 
-    \func colored-set-of-rules (color : Color) : IndexedSet (LinearRewriteRule (colored-env color)) \elim color
+    \func colored-set-of-rules (color : Color) : IndexedSet (RewriteRule (colored-env color)) \elim color
       | red => L-rules
       | blue => R-rules
 
