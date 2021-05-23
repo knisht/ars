@@ -23,6 +23,7 @@
                  (A~>B : TClosure (TopLevelColoredReduction color {EmptyMetaContext {env}} {context} {s}) A B)
                  (A~>C : TClosure (TopLevelColoredReduction color {EmptyMetaContext {env}} {context} {s}) A C)
                  (monochrome-confluence : ConfluentialSystem (colored-env color) (colored-set-of-rules color))
+                 (all-rules-are-linear : LinearDump)
   : \Sigma (X : PureTerm env context s) (TClosure (TopLevelColoredReduction color) B X) (TClosure (TopLevelColoredReduction color) C X) =>
   \let | (a, subst, eq-a, root-colors) => decompose-term color A
        | inner-ms => LinearMetaContextT {colored-env color} a
@@ -30,8 +31,8 @@
        | (c, eq-c, a~>c) => unify-top.iterate-decomposition (LinearTerm.convert-to-term {colored-env color} a) subst C (rewrite unify-top.unwrap-injection eq-a) A~>C root-colors
        | join-b-c : StraightJoin b c (TClosure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd))) => join-monochrome-terms color {_} {_} {inner-ms} (LinearTerm.convert-to-term {colored-env color} a) b c (TClosure.lift (\lam t => t) (\lam rel => rel.1) _ _ a~>b) (TClosure.lift (\lam t => t) (\lam rel => rel.1) _ _ a~>c) monochrome-confluence
        | injected-reduct => MetaSubstitution.apply {env} {_} {_} {_} {inner-ms} (inject-monochrome-term color {_} {_} {inner-ms} join-b-c.common-reduct) SubList.sublist-trivial-skip subst
-       | lifted-b~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2) join-b-c.a common-reduct join-b-c.a~>cr
-       | lifted-c~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2) join-b-c.b common-reduct join-b-c.b~>cr
+       | lifted-b~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2 all-rules-are-linear) join-b-c.a common-reduct join-b-c.a~>cr
+       | lifted-c~>d => TClosure.lift (\lam x => (MetaSubstitution.apply {env} (inject-monochrome-term color x) SubList.sublist-trivial-skip subst)) (\lam rel => lift-relation color subst rel.1 rel.2 all-rules-are-linear) join-b-c.b common-reduct join-b-c.b~>cr
   \in (injected-reduct, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-b lifted-b~>d, transport (TClosure (TopLevelColoredReduction color) __ injected-reduct) eq-c lifted-c~>d)
 
 \func lift-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -40,21 +41,75 @@
                     {t u : Term (colored-env color) context s mc}
                     (t~>u : monochrome-reduction color t u)
                     (fw : FunctionalWitness {colored-env color} {colored-set-of-rules color} t~>u)
+                    (all-rules-are-linear : LinearDump)
   : TopLevelColoredReduction color {_} {context} {s}
     (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-skip subst)
     (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-skip subst) \elim color, t, u, t~>u, fw
-  | color, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw => rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?} {?}
+  | red, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw =>
+    \let | (lp, meq, lcoh) => all-rules-are-linear (inl idx)
+         | (uninjected-r, inject-uninj) => break-down-rule (inl idx)
+         | (new-lp, new-r, composed, new-lcoh) => untransport lp meq sort-eqs msubst subst _ _ t u msubst[l]=t msubst[r]=u lcoh
+    \in rewrite-with-rule-colored {?} new-lp new-r {?} composed new-lcoh {?} {?}
+  | blue, t, u, rewrite-with-rule idx sort-eqs msubst msubst[l]=t msubst[r]=u, fw =>
+    \let (lp, meq, lcoh) => all-rules-are-linear (inr idx)
+    \in rewrite-with-rule-colored {?} {?} {?} {?} {?} {?} {?} {?}
   | red, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
             (Injections.inject-term-left envL envR (choosing-A index)) SubList.sublist-trivial-skip subst)
             ((MetaSubstitution.apply {env}
                 (Injections.inject-term-left envL envR (choosing-B index)) (sl)
-                subst))) (decompose-along-reduction.any-nil-sublist-equate (SubList.sublist-trivial-skip) (SubList.extend-right-single SubList.sublist-trivial-skip) ) (lift-relation red subst rd fw)))
+                subst))) (decompose-along-reduction.any-nil-sublist-equate (SubList.sublist-trivial-skip) (SubList.extend-right-single SubList.sublist-trivial-skip) ) (lift-relation red subst rd fw all-rules-are-linear)))
         (\lam j _x => rewrite (eq j _x) idp)
   | blue, func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f p i rd eq, fw => {?}
   | red, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m idp i rd eq, ()
   | blue, metavar m-A choosing-A, metavar m-B choosing-B, rewrite-with-parameter-m p i rd eq, ()
+  \where {
+    \func untransport
+      {tc : TheoremContext} {context : List Sort'} {s rule-s : Sort'} {mc mc' mc'' : MetaContext Sort'}
+      (lp : LinearPattern envL nil rule-s)
+      (meq : mc = LinearMetaContext {envL} lp)
+      (sort-eqs : s = rule-s)
+      (msubst : MetaSubstitution envL context mc mc')
+      (outer-subst : MetaSubstitution env nil mc' mc'')
+      (l r : Term envL nil rule-s mc)
+      (t u : Term envL context s mc')
+      (ms-leq : MetaSubstitution.apply {envL} (weakening {envL} l SubList.sublist-trivial-skip) SubList.identity msubst = transport (Term envL context __ mc') sort-eqs t)
+      (ms-req : MetaSubstitution.apply {envL} (weakening {envL} r SubList.sublist-trivial-skip) SubList.identity msubst = transport (Term envL context __ mc') sort-eqs u)
+      (lcoh : LinearPattern.convert-to-injected-term red lp = transport (Term env nil rule-s) meq (inject-monochrome-term red l))
+      : \Sigma (new-lp : LinearPattern envL nil s)
+               (new-r : Term envL nil s (LinearMetaContext {envL} new-lp))
+               (composed : MetaSubstitution env context (LinearMetaContext {envL} new-lp) mc'')
+               (new-lcoh : MetaSubstitution.apply {env}
+                   (weakening {env} (LinearPattern.convert-to-injected-term red new-lp) SubList.sublist-trivial-skip) SubList.identity composed = MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR t) SubList.sublist-trivial-skip outer-subst)
+    \elim meq, sort-eqs
+      | idp, idp =>
+        (lp,
+         r,
+         \lam {s1} mvar => MetaSubstitution.apply {env} (inject-monochrome-term red (msubst mvar)) SubList.sublist-trivial-skip outer-subst,
+         rewrite lcoh (rewriteI ms-leq (unfold transport (rewrite (injection-weakening-commutation red) (rewrite (push-injection red) (metacommutation {env} (\lam m => Injections.inject-term-left envL envR (msubst m)) outer-subst  _ SubList.identity))))))
+
+    \func push-injection
+      {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {mc mc' : MetaContext Sort'} (color : Color)
+      (msubst : MetaSubstitution (colored-env color) context' mc mc')
+      (t : Term (colored-env color) context s mc)
+      (sublist : SubList context' context)
+      : inject-monochrome-term color (MetaSubstitution.apply {colored-env color} t sublist msubst) = MetaSubstitution.apply {env} (inject-monochrome-term color t) sublist (\lam m => inject-monochrome-term color (msubst m)) =>
+      {?}
+
+    \func metacommutation {env : FSignature} {context context' : List Sort} {s : Sort} {mc mc' mc'' : MetaContext Sort}
+                          (msubst : MetaSubstitution env context' mc mc')
+                          (msubst2 : MetaSubstitution env nil mc' mc'')
+                          (t : Term env context s mc)
+                          (sublist : SubList context' context)
+      :
+      MetaSubstitution.apply t sublist (\lam m => MetaSubstitution.apply (msubst m) SubList.sublist-trivial-skip msubst2)
+        =
+      MetaSubstitution.apply (MetaSubstitution.apply t sublist msubst) SubList.sublist-trivial-skip msubst2 \elim t
+      | var index p => idp
+      | metavar m choosing => {?}
+      | func f choosing => pmap (func f) (ext (\lam index => rewrite (decompose-along-reduction.any-nil-sublist-equate (SubList.extend-right-single SubList.sublist-trivial-skip) (SubList.sublist-trivial-skip)) (metacommutation msubst msubst2 (choosing index) (SubList.extend-right-single sublist))))
+  }
 
 \func decompose-term {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                      (color : Color)
@@ -296,19 +351,20 @@
       }
   }
 
-\func produce-monochrome-reduction {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (color : Color)
-                                   (pattern : LinearPattern (colored-env color) nil s)
-                                   (rule-r : Term (colored-env color) nil s (LinearMetaContext {colored-env color} pattern))
-                                   (subst : MetaSubstitution (colored-env color) context (LinearMetaContext {colored-env color} pattern) mc)
-                                   (l r : Term (colored-env color) context s mc)
-                                   (l-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern) SubList.sublist-trivial-skip) SubList.identity subst = l)
-                                   (r-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} rule-r SubList.sublist-trivial-skip) SubList.identity subst = r)
-                                   (l-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern))
-                                   (idx : J {JointRules {_} {envL} {envR} L-rules R-rules})
-                                   (i-sort-eq : s = RewriteRule.s {get {JointRules {_} {envL} {envR} L-rules R-rules} idx})
-                                   (i-meta-eq : (LinearMetaContext {colored-env color} pattern) = RewriteRule.meta-context {get {JointRules {_} {envL} {envR} L-rules R-rules} idx})
-                                   (idx-l-eq : RewriteRule.l {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) (i-sort-eq) i-meta-eq (LinearPattern.convert-to-injected-term color pattern))
-                                   (ifx-r-eq : RewriteRule.r {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) i-sort-eq i-meta-eq (inject-monochrome-term color rule-r))
+\func produce-monochrome-reduction
+  {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (color : Color)
+  (pattern : LinearPattern (colored-env color) nil s)
+  (rule-r : Term (colored-env color) nil s (LinearMetaContext {colored-env color} pattern))
+  (subst : MetaSubstitution (colored-env color) context (LinearMetaContext {colored-env color} pattern) mc)
+  (l r : Term (colored-env color) context s mc)
+  (l-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern) SubList.sublist-trivial-skip) SubList.identity subst = l)
+  (r-eq : MetaSubstitution.apply {colored-env color} (weakening {colored-env color} rule-r SubList.sublist-trivial-skip) SubList.identity subst = r)
+  (l-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} pattern))
+  (idx : J {JointRules {_} {envL} {envR} L-rules R-rules})
+  (i-sort-eq : s = RewriteRule.s {get {JointRules {_} {envL} {envR} L-rules R-rules} idx})
+  (i-meta-eq : (LinearMetaContext {colored-env color} pattern) = RewriteRule.meta-context {get {JointRules {_} {envL} {envR} L-rules R-rules} idx})
+  (idx-l-eq : RewriteRule.l {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) (i-sort-eq) i-meta-eq (LinearPattern.convert-to-injected-term color pattern))
+  (ifx-r-eq : RewriteRule.r {get {JointRules {_} {envL} {envR} L-rules R-rules} idx} = transport2 (\lam sort mc => Term env nil sort mc) i-sort-eq i-meta-eq (inject-monochrome-term color rule-r))
   : monochrome-reduction color l r \elim color, idx
   | red, inl idx => rewrite-with-rule idx i-sort-eq (rewriteI i-meta-eq subst) (unembed-tlcr.untransport {envL} i-sort-eq i-meta-eq subst (LinearPattern.convert-to-term {envL} pattern) (RewriteRule.l {L-rules.get idx}) l l-eq {?}) {?}
   | blue, inr idx => {?}

@@ -16,6 +16,12 @@
 \open Confluence
 \open TheoremContext
 
+\func LinearDump {tc : TheoremContext} =>
+  \Pi (point : L-rules.J `Or` R-rules.J) ->
+      \Sigma (linear-pattern : LinearPattern (colored-env (color-of-idx point)) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
+             (meta-eq : RewriteRule.meta-context {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetaContext {colored-env (color-of-idx point)} linear-pattern)
+             (LinearPattern.convert-to-injected-term (color-of-idx point) linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)}))
+
 \func fill-confluence
   {tc : TheoremContext} {context : List Sort'} {s : Sort'}
   (A B C : Term env context s (EmptyMetaContext {env}))
@@ -23,12 +29,7 @@
   (A~>C : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A C)
   (l-confluential : ConfluentialSystem envL L-rules)
   (r-confluential : ConfluentialSystem envR R-rules)
-  (all-rules-are-linear :
-  \Pi (point : L-rules.J `Or` R-rules.J) ->
-      \Sigma (color : Color)
-             (linear-pattern : LinearPattern (colored-env color) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
-             (meta-eq : RewriteRule.meta-context {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetaContext {colored-env color} linear-pattern)
-                                 (LinearPattern.convert-to-injected-term color linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})))
+  (all-rules-are-linear : LinearDump)
   : StraightJoin B C (Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))) =>
   \let | lifted-a => Closure.lift
       {Term env context s (EmptyMetaContext {env})}
@@ -44,7 +45,7 @@
            {TrichromaticParallelReduction}
            (\lam t => t)
            (\lam {x} {y} rel => embed-rewrite-relation x y rel all-rules-are-linear) A C A~>C
-       | joins => unify-reduction A B C lifted-a lifted-b (\lam a b c a->b a->c => \let (D, m1, m2, b->D, c->D) => bpr-confluence a->b.2 a->c.2 a->b.3 a->c.3 l-confluential r-confluential \in (D, (a->c.1, m1, b->D), (a->b.1, m2, c->D)))
+       | joins => unify-reduction A B C lifted-a lifted-b (\lam a b c a->b a->c => \let (D, m1, m2, b->D, c->D) => bpr-confluence a->b.2 a->c.2 a->b.3 a->c.3 l-confluential r-confluential all-rules-are-linear \in (D, (a->c.1, m1, b->D), (a->b.1, m2, c->D)))
        | long-closure-b-w => Closure.lift {_} {_}
            {TrichromaticParallelReduction}
            {Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules))}
@@ -90,30 +91,24 @@
 \func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'}
                              (A B : Term env context s (EmptyMetaContext {env}))
                              (A~>B : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B)
-                             (all-rules-are-linear :
-                             \Pi (point : L-rules.J `Or` R-rules.J) ->
-                                 \Sigma (color : Color)
-                                        (linear-pattern : LinearPattern (colored-env color) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
-                                        (meta-eq : RewriteRule.meta-context {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetaContext {colored-env color} linear-pattern)
-                                        (LinearPattern.convert-to-injected-term color linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})))
+                             (all-rules-are-linear : LinearDump)
   : TrichromaticParallelReduction A B \elim A, B, A~>B
   | var index p, B, rewrite-with-rule idx sort-eqs msubst l-coherence r-coherence => \let q => contradicting {env} index p msubst sort-eqs (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) l-coherence (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) \in contradiction
   | func f choosing1, B, rewrite-with-rule idx sort-eq msubst l-coherence r-coherence
   =>
-    \let | (color, lp, meta-eq, lp=l) => all-rules-are-linear idx
-         | lp-is-func : FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} lp) => extract-functional-root color lp meta-eq _ lp=l (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx})
-         | (color-eq, hcr-l')  => coloring-lemma sort-eq color lp (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) meta-eq lp=l msubst f choosing1 l-coherence
+    \let | (lp, meta-eq, lp=l) => all-rules-are-linear idx
+         | lp-is-func : FunctionalRoot {colored-env (color-of-idx idx)} (LinearPattern.convert-to-term {colored-env (color-of-idx idx)} lp) => extract-functional-root (color-of-idx idx) lp meta-eq _ lp=l (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx})
+         | (color-eq, hcr-l')  => coloring-lemma sort-eq (color-of-idx idx) lp (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) meta-eq lp=l msubst f choosing1 l-coherence
          | (uninjected-r, inject-uninj) => break-down-rule idx
          | hcr-l => get-colored-root-for-l idx
-         | decomp-color : color-of-idx idx = color => equate-colors _ _ _ hcr-l hcr-l'
-         | unified => unify-tlcr color (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.r {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (sort-eq) lp lp-is-func (meta-eq) lp=l msubst (func f choosing1) B l-coherence r-coherence uninjected-r inject-uninj (inv decomp-color)
+         | unified => unify-tlcr (color-of-idx idx) (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.r {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (sort-eq) lp lp-is-func (meta-eq) lp=l msubst (func f choosing1) B l-coherence r-coherence uninjected-r inject-uninj
     \in
       (color-of-root f,
-       just color,
+       just (color-of-idx idx),
        parallelization-f
            choosing1
            (\lam i1 => (nothing, inl idp, equal-trees idp))
-           (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr color f choosing1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 (\new Inherited {
+           (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f choosing1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 (\new Inherited {
              | idx => idx
              | i-sort-eq => unified.8
              | i-meta-eq => unified.7
@@ -172,10 +167,8 @@
       (A B : Term env context s' mc)
       (l-coherence : MetaSubstitution.apply {env} (weakening {env} (old-l) SubList.sublist-trivial-skip) SubList.identity subst = transport (Term env context __ mc) eq A)
       (r-coherence : MetaSubstitution.apply {env} (weakening {env} (old-r) SubList.sublist-trivial-skip) SubList.identity subst = transport (Term env context __ mc) eq B)
-      {color' : Color}
-      (decomposed-r : Term (TheoremContext.colored-env color') nil rule-s inner-mc)
-      (inject-r : TheoremContext.inject-monochrome-term color' decomposed-r = old-r)
-      (eq-color : color = color')
+      (decomposed-r : Term (TheoremContext.colored-env color) nil rule-s inner-mc)
+      (inject-r : TheoremContext.inject-monochrome-term color decomposed-r = old-r)
       : \Sigma (new-lp : LinearPattern (colored-env color) nil s')
                (new-r : Term (colored-env color) nil s' (LinearMetaContext {colored-env color} new-lp))
                (new-subst : MetaSubstitution env context (LinearMetaContext {colored-env color} new-lp) mc)
@@ -186,8 +179,8 @@
                (new-sort-eq : s' = rule-s)
                (old-l = transport2 (Term env nil) new-sort-eq new-ms-eq (LinearPattern.convert-to-injected-term color new-lp))
                (old-r = transport2 (Term env nil) new-sort-eq new-ms-eq (TheoremContext.inject-monochrome-term color new-r))
-    \elim eq, eq-color
-      | idp, idp => \case \elim inner-mc, \elim old-l, \elim old-r, \elim new-l-is-func, \elim ms-eq, \elim lp=l, \elim subst, \elim l-coherence, \elim r-coherence, \elim decomposed-r, \elim inject-r \with {
+    \elim eq
+      | idp => \case \elim inner-mc, \elim old-l, \elim old-r, \elim new-l-is-func, \elim ms-eq, \elim lp=l, \elim subst, \elim l-coherence, \elim r-coherence, \elim decomposed-r, \elim inject-r \with {
         | inner-mc, old-l, old-r, new-l-is-func, idp, idp, subst, l-coherence, r-coherence, decomposed-r, inject-r => (new-l, decomposed-r, subst, l-coherence, rewrite inject-r r-coherence, new-l-is-func, idp, idp, idp, inv inject-r)
       }
 

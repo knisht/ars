@@ -38,11 +38,13 @@
            (context : List Sort)
            (termSort : Sort)
            (mc : MetaContext Sort): \Set
-  | var (index : Fin (length context)) (termSort = context !! index) -- | Bound variable
-  | metavar (m : mc.metaname termSort) -- | Metavariable
-            (choosing : \Pi (index : Fin (length (mc.m-domain m))) -> Term env context (mc.m-domain m !! index) mc)
-  | func (f : symbol termSort) -- | Functional symbol
-         (choosing : \Pi (index : Fin (length (domain f))) -> Term env (context ++ (f !!param index)) (f !!sort index) mc)
+  | var (index : Fin (length context)) (termSort = context !! index)
+  | metavar (m : mc.metaname termSort)
+            (choosing : \Pi (index : Fin (length (mc.m-domain m))) ->
+                        Term env context (mc.m-domain m !! index) mc)
+  | func (f : symbol termSort)
+         (choosing : \Pi (index : Fin (length (domain f))) ->
+                     Term env (context ++ (f !!param index)) (f !!sort index) mc)
 
 -- | Substitution of regular variables
 \func Substitution {env : FSignature} (c c' : List Sort) (mc : MetaContext Sort) : \Set =>

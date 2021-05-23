@@ -57,11 +57,14 @@
 
 
 -- \x.\y.x
-\func K : PureTerm LC-FSignature nil lc-term =>
-  func abstraction (\lam 0 => func abstraction (\lam 0 => var 0 idp))
+\func K : Term LC-FSignature nil lc-term (EmptyMetaContext {LC-FSignature})
+  => func abstraction
+      (\lam 0 => func abstraction (\lam 0 => var 0 idp))
 
 -- \x.x
-\func I : PureTerm LC-FSignature nil lc-term => func abstraction (\lam 0 => var 0 idp)
+\func I : Term LC-FSignature nil lc-term (EmptyMetaContext {LC-FSignature})
+  => func abstraction
+      (\lam 0 => var 0 idp)
 
 -- (\x.x) (\x.x)
 \func I_I : PureTerm LC-FSignature nil lc-term =>
@@ -73,13 +76,9 @@
     | metavar-b => I
   }
 
-\func rewrite-step : RewriteStep I_I I \cowith
-  | rule => beta-reduction
-  | substitution => suitable-substitution
-  | left-coherence => pmap (func application) (ext (\lam index => \case \elim index \with {
+\func I_I~>I : RewriteRelation LC-rules I_I I =>
+  rewrite-with-rule () idp suitable-substitution (pmap (func application) (ext (\lam index => \case \elim index \with {
     | 0 => pmap (func abstraction) (ext (\lam 0 => idp))
     | 1 => pmap (func abstraction) (ext (\lam 0 => idp))
   }))
-  | right-coherence => pmap (func abstraction) (ext (\lam 0 => idp))
-
-\func I_I~>I : RewriteRelation LC-rules I_I I => rewrite-with-rule rewrite-step ((), idp)
+  ) (pmap (func abstraction) (ext (\lam 0 => idp)))

@@ -75,8 +75,13 @@
 \data LinearPattern (env : FSignature)
                     (context : List Sort)
                     (termSort : Sort)
-  | lp-func (f : symbol termSort)
-            (choosing : \Pi (index : Fin (length (domain f))) -> LinearPattern env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index))
+  | lp-func
+    (f : symbol termSort)
+    (choosing : \Pi (index : Fin (length (domain f))) ->
+        LinearPattern
+            env
+            (context ++ (f FSignature.!!param index))
+            (f FSignature.!!sort index))
   | lp-metavar
   \where {
     \func upgrade-metavariables-p {env : FSignature} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
@@ -111,9 +116,14 @@
   \override rule : LinearRewriteRule env {s}
 }
 
-\func LinearMetaContext {env : FSignature} {context : List Sort} {s : Sort} (pattern : LinearPattern env context s) : MetaContext Sort \elim pattern
+\func LinearMetaContext
+  {env : FSignature}
+  {context : List Sort}
+  {s : Sort}
+  (pattern : LinearPattern env context s) : MetaContext Sort \elim pattern
   | lp-func f choosing => \new MetaContext {
-    | metaname s => \Sigma (i : Fin (length (domain f))) (metaname {LinearMetaContext (choosing i)} s)
+    | metaname s => \Sigma (i : Fin (length (domain f)))
+                           (metaname {LinearMetaContext (choosing i)} s)
     | m-domain m => m-domain {LinearMetaContext (choosing m.1)} m.2
   }
   | lp-metavar => \new MetaContext {
