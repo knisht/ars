@@ -108,13 +108,7 @@
        parallelization-f
            choosing1
            (\lam i1 => (nothing, inl idp, equal-trees idp))
-           (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f choosing1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 (\new Inherited {
-             | idx => idx
-             | i-sort-eq => unified.8
-             | i-meta-eq => unified.7
-             | idx-l-eq => unified.9
-             | ifx-r-eq => unified.10
-           }))) color-eq))
+           (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f choosing1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 idx unified.8 unified.7 unified.9 unified.10)) color-eq))
   | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq =>
     \let | (global-color, color, bpr) => embed-rewrite-relation (choosing-A index) (choosing-B index) rd all-rules-are-linear
          | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A choosing-A choosing-B (\lam i => \case (FinDec i index) \with {
@@ -270,13 +264,10 @@
                    {A B : Term env context s mc}
                    (A=>B : TopLevelColoredReduction color A B)
   : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
-  | A, B, rewrite-with-rule-colored h linear-pattern r l-is-func substitution left-coherence right-coherence ((idx, seq', meq, lcoh, rcoh) ) =>
-    \let | weird-sort-eq =>
-      (i-sort-eq {\new Inherited color s linear-pattern r { | idx => idx | i-meta-eq => meq | i-sort-eq => seq' | idx-l-eq => lcoh | ifx-r-eq => rcoh }})
-    \in
-      rewrite-with-rule idx weird-sort-eq (rewriteI meq substitution)
-          (untransport {env {tc}} weird-sort-eq meq substitution _ _ A left-coherence lcoh)
-          (untransport {env {tc}} weird-sort-eq meq substitution _ _ B right-coherence rcoh)
+  | A, B, rewrite-with-rule-colored h linear-pattern r l-is-func substitution left-coherence right-coherence idx seq' meq lcoh rcoh =>
+      rewrite-with-rule idx seq' (rewriteI meq substitution)
+          (untransport {env {tc}} seq' meq substitution _ _ A left-coherence lcoh)
+          (untransport {env {tc}} seq' meq substitution _ _ B right-coherence rcoh)
   | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f-colored idp p1 index A=>B eq =>
     rewrite-with-parameter-f idp index (unembed-tlcr color A=>B) eq
   \where {
