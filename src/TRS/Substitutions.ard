@@ -830,20 +830,19 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
 \func weakening-extend-left {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
                             (subst : Substitution context-a context-b ms)
                             (t : Term env context-c s ms)
-  : Substitution.apply (weakening t (SubList.extend-left-single SubList.identity {context-a})) (append-context-right subst) = weakening (t) (SubList.extend-left-single SubList.identity) \elim t
-  | var index idp => rewrite weakening-extend-right.reapply (rewrite weakening.recalculate-index-over-left-extension' (rewrite append-context-right-end (unifying-lemma subst _ _)))
-  | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-extend-left subst (choosing index)))
-  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+  : Substitution.apply (weakening t (SubList.extend-left-single SubList.identity {context-a})) (append-context-right subst) = weakening (t) (SubList.extend-left-single SubList.identity)
+  => rewrite weakening-as-substitution-eq (rewrite weakening-as-substitution-eq (rewriteI apply-composition (pmap (Substitution.apply t) (ext (\lam index => rewrite weakening-extend-right.reapply (rewrite (weakening.recalculate-index-over-left-extension-generic index {_}).2 (rewrite append-context-right-end (unifying-lemma subst index _ _))))))))
   \where {
     \func unifying-lemma {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
                          (subst : Substitution context-a context-b ms)
                          (index : Fin (length context-c))
-                         (eq : s = context-c !! index)
-      : transport (\lam (p0 : env.Sort) => Term env (context-b ++ context-c) p0 ms) (inv (inv (eq)))
-        (var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq)).1
-            (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq)).2) = var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index idp).1
+                         (eq : context-c !! index = s)
+                         (eq' : s = context-c !! index)
+      : transport (\lam (p0 : env.Sort) => Term env (context-b ++ context-c) p0 ms) (inv ((eq)))
+        (var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq')).1
+            (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index (eq')).2) = var (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index idp).1
                                                                                                                                   (weakening.recalculate-index (SubList.extend-left-single SubList.identity) index idp).2 \elim eq
-      | idp => idp
+      | idp => var-extensionality _ _ (repeat {2} (rewrite weakening.recalculate-index-to-fpr) idp) _ _
   }
 
 \func weakening-append-left {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
@@ -853,10 +852,7 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   Substitution.apply (weakening t (SubList.extend-right-single SubList.identity)) (extend-substitution-left (SubList.extend-right-single SubList.identity) subst)
     =
   weakening t (SubList.extend-right-single SubList.identity)
-\elim t
-  | var index idp => rewrite weakening-extend-right.reapply (rewrite (weakening.recalculate-index-over-right-extension index).2 (rewrite extend-substitution-left.for-left-context (unifying-lemma subst index _ _ _)))
-  | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-append-left subst (choosing index)))
-  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+  => repeat {2} (rewrite weakening-as-substitution-eq) (rewriteI apply-composition (pmap (Substitution.apply t) (ext (\lam index => rewrite weakening-extend-right.reapply (rewrite (weakening.recalculate-index-over-right-extension index).2 (rewrite extend-substitution-left.for-left-context (unifying-lemma subst index _ _ _)))))))
     \where {
       \func unifying-lemma
         {env : FSignature} {context-a context-b context-c : List Sort} {s s' : Sort} {ms : MetaContext Sort}
@@ -879,10 +875,7 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
   Substitution.apply (weakening t (SubList.extend-left-single SubList.identity)) (extend-substitution-left (SubList.extend-right-single SubList.identity) subst)
     =
   Substitution.apply t subst
-\elim t
-  | var index idp => rewrite weakening-extend-right.reapply (rewrite weakening.recalculate-index-over-left-extension' (rewrite extend-substitution-left.for-right-context (rewrite transport_inv_id idp)))
-  | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-append-right subst (choosing index)))
-  | func f choosing => pmap (func f) (ext (\lam index => {?}))
+ => rewrite (weakening-as-substitution-eq) (rewriteI apply-composition (pmap (Substitution.apply t) (ext (\lam index => rewrite weakening-extend-right.reapply (rewrite weakening.recalculate-index-over-left-extension' (rewrite extend-substitution-left.for-right-context (rewrite transport_inv_id idp)))))))
 
 \func weakening-over-identity {env : FSignature} {context : List Sort} {s : Sort} {mc : MetaContext Sort} (t : Term env context s mc) : weakening t SubList.identity = t \elim t
   | var index idp => var-extensionality _ _ (rewrite weakening.recalculate-index-over-identity idp) _ _
@@ -917,66 +910,8 @@ weakening (var index (expand-fin-eq-late index)) (SubList.extend-left-single Sub
           (\lam i1 => rewrite append-context-right-begin (unfold subst-composition (rewrite append-context-right-begin (Jl (\lam s eq => weakening (transport (Term env context-c __ mc) (eq) (Substitution.apply (subst-a i1) subst-b))
               (SubList.extend-right-single SubList.identity) = Substitution.apply
                                                                    (weakening (transport (Term env context-b __ mc) (eq) (subst-a i1))
-                                                                       (SubList.extend-right-single SubList.identity)) (append-context-right subst-b)) (unfold transport (rewrite weakening-as-substitution-eq (rewrite weakening-as-substitution-eq ({?})))) (inv (expand-fin-eq i1))))))
-          (\lam i1 => rewrite append-context-right-end (unfold subst-composition (rewrite append-context-right-end {?})))
+                                                                       (SubList.extend-right-single SubList.identity)) (append-context-right subst-b)) (unfold transport (inv (weakening-extend-right subst-b _))) (inv (expand-fin-eq i1))))))
+          (\lam i1 => rewrite append-context-right-end (unfold subst-composition (rewrite append-context-right-end (inv (rewrite weakening-extend-right.wsubst-over-right-extension.local-untransport (rewrite ((weakening.recalculate-index-over-left-extension-generic i1 {(expand-fin-eq-late {env.Sort} {context-a} {context-add} i1)}).2) (rewrite append-context-right-end (rewrite ((weakening.recalculate-index-over-left-extension-generic i1 {(expand-fin-eq-late {env.Sort} {context-a} {context-add} i1)}).2) (rewrite ((weakening.recalculate-index-over-left-extension-generic i1 {_}).2) (weakening-extend-right.wsubst-over-right-extension.local-untransport-2 _ i1 _ _))))))))))
           i
-
-    \func untransport {env : FSignature} {context-b context-c context-add : List Sort} {s s' : Sort} {mc : MetaContext Sort}
-                      (eq : s = s')
-                      (t : Term env context-b s mc)
-                      (subst-b : Substitution context-b context-c mc)
-      :
-      Substitution.apply
-          (weakening (transport (\lam (p0 : env.Sort) => Term env context-b p0 mc) (eq) (t))
-              (SubList.extend-right-single SubList.identity {context-add})) (append-context-right subst-b) = weakening (transport (\lam (p0 : env.Sort) => Term env context-c p0 mc) (eq) (Substitution.apply (t) subst-b))
-                                                                                                                 (SubList.extend-right-single SubList.identity) \elim eq
-      | idp => {?}
   }
 
-\func equating-lemma {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
-                     (subst : Substitution context-a context-b ms) (i : Fin (length context-c))
-  : Substitution.apply ((weakening-as-substitution (SubList.extend-left-single SubList.identity {context-a})) i) (append-context-right subst) =
-(weakening-as-substitution (SubList.extend-left-single SubList.identity)) i => {?}
-
-\func double-apply {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
-                   (subst : Substitution context-a context-b ms) (subst2 : Substitution context-b context-c ms)
-                   (t : Term env context-a s ms) : Term env context-c s ms =>
-  Substitution.apply (Substitution.apply t subst) subst2
-
-\func double-apply-ext {env : FSignature} {context-a context-b context-c context-d : List Sort} {s : Sort} {ms : MetaContext Sort}
-                       (subst : Substitution context-a context-b ms) (subst2 : Substitution context-b context-c ms)
-                       (subst3 : Substitution context-a context-d ms) (subst4 : Substitution context-d context-c ms)
-                       (ext' : \Pi (i : Fin (length (context-a))) -> Substitution.apply (subst i) subst2 = Substitution.apply (subst3 i) subst4)
-                       (t : Term env context-a s ms)
-  : double-apply subst subst2 t = double-apply subst3 subst4 t \elim t
-  | var index idp => unfold double-apply (ext' index)
-  | metavar m choosing => {?}
-  | func f choosing => unfold double-apply (pmap (func f)
-      (ext (\lam index => double-apply-ext (append-context-right subst) (append-context-right subst2) (append-context-right subst3) (append-context-right subst4) (\lam i => {?}) (choosing index))))
-  \where {
-    \func double-apply-lemma {env : FSignature} {context-a context-b context-c context-d context-add : List Sort} {s : Sort} {ms : MetaContext Sort}
-                             (subst : Substitution context-a context-b ms) (subst2 : Substitution context-b context-c ms)
-                             (subst3 : Substitution context-a context-d ms) (subst4 : Substitution context-d context-c ms)
-                             (ext' :  \Pi (i : Fin (length (context-a))) -> Substitution.apply (subst i) subst2 = Substitution.apply (subst3 i) subst4)
-                             (i : Fin (length (context-a ++ context-add))) : Substitution.apply (append-context-right subst i) (append-context-right subst2) = Substitution.apply (append-context-right subst3 i) (append-context-right subst4) =>
-      partial-fin-induction
-          (\lam fin => Substitution.apply (append-context-right subst fin) (append-context-right subst2) = Substitution.apply (append-context-right subst3 fin) (append-context-right subst4))
-          (\lam i1 => \let fromext => ext' i1 \in rewrite append-context-right-begin (rewrite append-context-right-begin {?}))
-          {?}
-          i
-
-    \func untransport {env : FSignature} {context-b context-c context-d context-add : List Sort} {s s' : Sort} {mc : MetaContext Sort}
-                      (subst2 : Substitution context-b context-c mc)
-                      (subst4 : Substitution context-d context-c mc)
-                      (eq : s = s')
-                      (t : Term env context-b s mc)
-                      (t' : Term env context-d s mc)
-      :
-      Substitution.apply
-          (weakening (transport (\lam (p0 : env.Sort) => Term env context-b p0 mc) (eq) (t))
-              (SubList.extend-right-single SubList.identity {context-add})) (append-context-right subst2) =
-      Substitution.apply
-          (weakening (transport (\lam (p0 : env.Sort) => Term env context-d p0 mc) (eq) (t'))
-              (SubList.extend-right-single SubList.identity)) (append-context-right subst4) \elim eq
-      | idp => unfold transport (rewrite weakening-as-substitution-eq (rewrite weakening-as-substitution-eq {?}))
-  }
