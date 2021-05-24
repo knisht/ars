@@ -236,6 +236,10 @@
     | inl a => red
     | inr b => blue
 
+  \func or-by-color {A : \Type} (c : Color) (a : A) : Or A A \elim c
+    | red => inl a
+    | blue => inr a
+
   \record Inherited {tc : TheoremContext} (color : Color) (s : Sort') (lp : LinearPattern (colored-env color) nil s) (r : Term (colored-env color) nil s (LinearMetaContext {colored-env color} lp))
     | idx : J {JointRules {_} {envL} {envR} L-rules R-rules}
     | i-sort-eq : s = RewriteRule.s {get {JointRules {_} {envL} {envR} L-rules R-rules} idx}
