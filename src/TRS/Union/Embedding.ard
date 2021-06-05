@@ -235,7 +235,7 @@
                           {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
                           {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
                           (collect-reductions-together-tlcr.insert-term {env} f modular delim)
-                          (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite collect-reductions-together-tlcr.pointed-at-index (rewrite collect-reductions-together-tlcr.pointed-at-index a->b)) (\lam j _x1 => rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ _ _ _ j _x1) (rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ _ _ _ j _x1) idp)))
+                          (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite collect-reductions-together-tlcr.pointed-at-index (rewrite collect-reductions-together-tlcr.pointed-at-index a->b)) (\lam j _x1 => rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ modular _ _ j _x1) (rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ modular _ _ j _x1) idp)))
                           (choosing delim)
                           (mediator delim)
                           curmodular

@@ -1197,7 +1197,7 @@
                  {TopLevelColoredReduction gc {mc} {context ++ f env.!!param index} {f env.!!sort index}}
                  {TopLevelColoredReduction gc {mc} {context} {s}}
                  (insert-term {env} f modular index)
-                 (\lam rel => rewrite-with-parameter-f-colored idp eq index (rewrite pointed-at-index (rewrite pointed-at-index rel)) (\lam j j-not-index => rewrite (pointed-not-at-index _ _ index _ j (j-not-index)) (rewrite (pointed-not-at-index _ _ index _ j (j-not-index)) idp)))
+                 (\lam rel => rewrite-with-parameter-f-colored idp eq index (rewrite pointed-at-index (rewrite pointed-at-index rel)) (\lam j j-not-index => rewrite (pointed-not-at-index _ modular index _ j (j-not-index)) (rewrite (pointed-not-at-index _ modular index _ j (j-not-index)) idp)))
                  (choosing-B index) (choosing-A index)
                  rd
         \in rewrite (pointed-with-modular-1.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) (rewrite {2} (pointed-with-modular-2.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) mapped)
