@@ -701,7 +701,7 @@
         | func f1 choosing1 => inr (f1, choosing1)
 
       \func sigma-set-equalizer {A : \Set} (B : A -> \Type) {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b' =>
-        pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (\lam t => B t.1) __.2 p
+        pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (__.2) p
 
       \lemma apply-modularity {env : FSignature} {context subst-context pattern-context : List Sort} {s : Sort} {mc : MetaContext Sort} {n : Nat} {index : Fin n}
                               (producer : Fin n -> MetaContext Sort)
