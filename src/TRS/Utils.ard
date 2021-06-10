@@ -8,7 +8,6 @@
 \import Set.Fin
 \import TRS.Data.Fin
 \import TRS.HRS
-\import TRS.List
 
 \func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set => Index (fs.domain f)
 

@@ -11,8 +11,8 @@
 \import Paths.Meta
 \import Set
 \import TRS.Data.Fin
+\import TRS.Data.SubList
 \import TRS.HRS
-\import TRS.List
 \import TRS.Substitutions
 \import TRS.Utils
 
@@ -113,10 +113,10 @@
     (sort-eq : s = RewriteRule.s {set-of-rules.get idx})
     (substitution : MetaSubstitution env context (RewriteRule.meta-context {set-of-rules.get idx}) mc)
     (left-coherence :
-    MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution =
+    MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-free) SubList.identity substitution =
     transport (Term env context __ mc) sort-eq A)
     (right-coherence :
-    MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution =
+    MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-free) SubList.identity substitution =
     transport (Term env context __ mc) sort-eq B)
 
   | func f-A choosing-A, func f-B choosing-B =>

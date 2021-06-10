@@ -7,13 +7,15 @@
 \import Paths.Meta
 \import Set
 \import TRS.Data.Fin
+\import TRS.Data.SubList
 \import TRS.HRS
 \import TRS.Linearity
-\import TRS.List
 \import TRS.Maybe
 \import TRS.Substitutions
 \import TRS.Union
 \import TRS.Utils
+
+
 \open Confluence
 \open TheoremContext
 
@@ -146,7 +148,7 @@
 
     \func contradicting {env : FSignature} {context : List Sort} {s s' : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
                         (eq' : s = s')
-                        (t : Term env nil s' mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-skip) (SubList.identity) msubst = transport (Term env context __ mc') eq' (var index p)) (rt : FunctionalRoot t) : Empty \elim eq', t, rt
+                        (t : Term env nil s' mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free) (SubList.identity) msubst = transport (Term env context __ mc') eq' (var index p)) (rt : FunctionalRoot t) : Empty \elim eq', t, rt
       | idp, func f choosing, T-has-functional-root => contradiction
 
     \func unify-tlcr
@@ -160,15 +162,15 @@
       (lp=l : LinearPattern.convert-to-injected-term color new-l = transport (Term env nil rule-s) ms-eq (old-l))
       (subst : MetaSubstitution env context inner-mc mc)
       (A B : Term env context s' mc)
-      (l-coherence : MetaSubstitution.apply {env} (weakening {env} (old-l) SubList.sublist-trivial-skip) SubList.identity subst = transport (Term env context __ mc) eq A)
-      (r-coherence : MetaSubstitution.apply {env} (weakening {env} (old-r) SubList.sublist-trivial-skip) SubList.identity subst = transport (Term env context __ mc) eq B)
+      (l-coherence : MetaSubstitution.apply {env} (weakening {env} (old-l) SubList.sublist-trivial-free) SubList.identity subst = transport (Term env context __ mc) eq A)
+      (r-coherence : MetaSubstitution.apply {env} (weakening {env} (old-r) SubList.sublist-trivial-free) SubList.identity subst = transport (Term env context __ mc) eq B)
       (decomposed-r : Term (TheoremContext.colored-env color) nil rule-s inner-mc)
       (inject-r : TheoremContext.inject-monochrome-term color decomposed-r = old-r)
       : \Sigma (new-lp : LinearPattern (colored-env color) nil s')
                (new-r : Term (colored-env color) nil s' (LinearMetaContext {colored-env color} new-lp))
                (new-subst : MetaSubstitution env context (LinearMetaContext {colored-env color} new-lp) mc)
-               (new-l-coherence : MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-injected-term color new-lp) SubList.sublist-trivial-skip) SubList.identity new-subst = A)
-               (new-r-coherence : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color new-r) SubList.sublist-trivial-skip) SubList.identity new-subst = B)
+               (new-l-coherence : MetaSubstitution.apply {env} (weakening {env} (LinearPattern.convert-to-injected-term color new-lp) SubList.sublist-trivial-free) SubList.identity new-subst = A)
+               (new-r-coherence : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color new-r) SubList.sublist-trivial-free) SubList.identity new-subst = B)
                (FunctionalRoot {colored-env color} (LinearPattern.convert-to-term {colored-env color} new-lp))
                (new-ms-eq : LinearMetaContext {colored-env color} new-lp = inner-mc)
                (new-sort-eq : s' = rule-s)
@@ -193,7 +195,7 @@
       (f : env.symbol s)
       (choosing : \Pi (index : Index (env.domain f)) ->
           Term TheoremContext.env (context ++ f FSignature.!!param {env} index) (f FSignature.!!sort {env} index) mc')
-      (eq2 : MetaSubstitution.apply {env} (weakening {env} t SubList.sublist-trivial-skip) SubList.identity msubst = transport (Term env context __ mc') s-eq (func f choosing)) : \Sigma  (TheoremContext.color-of-root f = color) (TheoremContext.HasColoredRoot color t) \elim s-eq, color, lp, t, froot, mc-eq, f
+      (eq2 : MetaSubstitution.apply {env} (weakening {env} t SubList.sublist-trivial-free) SubList.identity msubst = transport (Term env context __ mc') s-eq (func f choosing)) : \Sigma  (TheoremContext.color-of-root f = color) (TheoremContext.HasColoredRoot color t) \elim s-eq, color, lp, t, froot, mc-eq, f
       | idp, red, lp-func f choosing1, func (inl a1) choosing2, T-has-functional-root, idp, inl a => (idp, TheoremContext.red-func-root)
       | idp, red, lp-func f choosing1, func (inr b) choosing2, T-has-functional-root, idp, inl a => contradiction
       | idp, red, lp-func f choosing1, func (inl a) choosing2, T-has-functional-root, idp, inr b => contradiction
@@ -278,9 +280,9 @@
                       (t : Term env nil s mc)
                       (u : Term env nil s' mc')
                       (A : Term env context s mc'')
-                      (coh : MetaSubstitution.apply (weakening t SubList.sublist-trivial-skip)  SubList.identity msubst = A)
+                      (coh : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free)  SubList.identity msubst = A)
                       (c2 : u = transport2 (\lam sort mcont => Term env nil sort mcont) eq1 eq2 t)
-      : MetaSubstitution.apply (weakening u SubList.sublist-trivial-skip) SubList.identity (transport (MetaSubstitution env context __ mc'') eq2 msubst) = transport (Term env context __ mc'') eq1 A \elim eq1, eq2, c2
+      : MetaSubstitution.apply (weakening u SubList.sublist-trivial-free) SubList.identity (transport (MetaSubstitution env context __ mc'') eq2 msubst) = transport (Term env context __ mc'') eq1 A \elim eq1, eq2, c2
       | idp, idp, idp => coh
   }
 

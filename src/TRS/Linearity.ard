@@ -5,8 +5,8 @@
 \import Paths
 \import Paths.Meta
 \import TRS.Data.Fin
+\import TRS.Data.SubList
 \import TRS.HRS
-\import TRS.List
 \import TRS.Substitutions
 \import TRS.Union
 \import TRS.Union.TopLevel
@@ -147,7 +147,7 @@
   (rho : MetaSubstitution env nil old-msig new-msig)
   (sublist sublist' : SubList nil (context ++ context'))
   (term : Term env (context ++ context') s old-msig)
-  : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho => lemma rho sublist sublist' term (decompose-along-reduction.any-nil-sublist-equate _ _)
+  : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho => lemma rho sublist sublist' term (trivial-sublist-contractible _ _)
   \where {
     \lemma lemma
       {env : FSignature} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaContext Sort}

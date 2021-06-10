@@ -8,8 +8,8 @@
 \import Paths
 \import Paths.Meta
 \import TRS.Data.Fin
+\import TRS.Data.SubList
 \import TRS.HRS
-\import TRS.List
 \import TRS.Union
 \import TRS.Union.TopLevel
 \import TRS.Utils
@@ -134,11 +134,6 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
       \Sigma (eq2 : (point = (a ++ b) !! expand-fin-right ind)) (recalculate-index {A} {b} {a ++ b} (SubList.extend-left-single SubList.identity {a}) ind (point-eq) = (expand-fin-right ind, eq2)) \elim a, point-eq
       | nil, idp => (idp, recalculate-index-over-identity ind)
       | :: a a1, idp => \let (new-eq, new-ind) => recalculate-index-over-left-extension-generic {_} {a1} {b} ind {idp} \in (new-eq, rewrite recalculate-over-skip (rewrite new-ind idp))
-    --      \elim a
---      | nil => (recalculate-index-over-identity ind)
---      | :: a a1 => \let | b-eq => recalculate-index-over-left-extension {_} {a1} {b} ind
---                   \in (rewrite (recalculate-over-skip {A} {b} {a1 ++ b} {_} {a} (SubList.extend-left-single SubList.identity) ind (expand-fin-eq-late ind)) (rewrite b-eq idp))
-
 
     \lemma recalculate-index-over-left-extension' {A : \Set} {a b : List A} (ind : Index b) :
       (recalculate-index {A} {b} {a ++ b} (SubList.extend-left-single SubList.identity {a}) ind (idp) = (expand-fin-right ind, inv (expand-fin-right-eq {_} {a} ind))) \elim a
@@ -402,13 +397,7 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
               : weakening t (SubList.extend-right-single SubList.identity) =
             transport (Term env __ a mc) ++-assoc
                 (weakening (weakening t (SubList.extend-right-single SubList.identity {context-b})) (SubList.extend-right-single SubList.identity {context-c})) =>
-              rewrite weakening-composition (rewrite transport-over-weakening (pmap (weakening t) (sublist-equation)))
-
-            \func sublist-equation {A : \Type} {a b c : List A} :
-              SubList.extend-right-single SubList.identity =
-              transport (SubList a) ++-assoc (sublist-compose (SubList.extend-right-single (SubList.identity {_} {a}) {b}) (SubList.extend-right-single SubList.identity {c})) \elim a, b, c
-              | nil, b, c => decompose-along-reduction.any-nil-sublist-equate _ _
-              | :: a a1, b, c => \let inductive => sublist-equation {_} {a1} {b} {c} \in (rewrite inductive (rewrite (decompose-along-reduction.different-weakening.equate-sublists-2.commute-match-straight) idp))
+              rewrite weakening-composition (rewrite transport-over-weakening (pmap (weakening t) (Transports.rs-rs-to-rs.inv'2)))
 
             \func transport-over-weakening
               {env : FSignature} {context-a big-context big-context' : List Sort} {mc : MetaContext Sort}
@@ -423,57 +412,20 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
                                     (t : Term env context-a a mc)
                                     (sl : SubList context-a context-b)
                                     (sl' : SubList context-b context-c)
-          : weakening (weakening t sl) sl' = weakening t (sublist-compose sl sl') \elim t
+          : weakening (weakening t sl) sl' = weakening t (SubList.compose sl sl') \elim t
           | var index p => var-extensionality _ _ (repeat {3} (rewrite weakening.recalculate-index-to-fpr) (lemma _ _ _)) _ _
           | metavar m choosing => pmap (metavar m) (ext (\lam index => weakening-composition (choosing index) _ _))
-          | func f choosing => pmap (func f) (ext (\lam index => rewrite (weakening-composition (choosing index) _ _) (pmap (weakening (choosing index)) (lemma2 _ _))))
-            \where {
-              \func lemma {A : \Set} {a b c : List A} (sl : SubList a b) (sl' : SubList b c) (ind : Index a) :
-                weakening.recalculate-index-fpr sl' (weakening.recalculate-index-fpr sl ind) = weakening.recalculate-index-fpr (sublist-compose sl sl') ind \elim a, b, c, sl, sl', ind
-                | :: x a, :: x1 b, :: y c, sublist-match p sl, sublist-match p1 sl', 0       => idp
-                | :: x a, :: x1 b, :: y c, sublist-match p sl, sublist-match p1 sl', suc ind => pmap (fsuc) (lemma _ _ _)
-                | :: x a, :: y b, :: y1 c, sublist-match p sl, sublist-skip sl', 0           => pmap (fsuc) (lemma _ _ _)
-                | :: x a, :: y b, :: y1 c, sublist-match p sl, sublist-skip sl', suc ind     => pmap (fsuc) (lemma _ _ _)
-                | nil, :: x b, :: y c, sublist-skip sl, sublist-match p sl', ind             => pmap (fsuc) (lemma _ _ _)
-                | :: a a1, :: x b, :: y c, sublist-skip sl, sublist-match p sl', ind         => pmap (fsuc) (lemma _ _ _)
-                | :: a a1, :: y b, :: y1 c, sublist-skip sl, sublist-skip sl', ind           => pmap (fsuc) (lemma _ _ _)
-
-              \func lemma2 {A : \Set} {a b c d : List A} (sl : SubList a b) (sl' : SubList b c)
-                : sublist-compose (SubList.extend-right-both sl) (SubList.extend-right-both sl') = SubList.extend-right-both (sublist-compose sl sl') {d} \elim a, b, c, d, sl, sl'
-                | nil, nil, nil, d, sublist-trivial, sublist-trivial => sublist-compose.identity
-                | nil, nil, :: y c, nil, sublist-trivial, sublist-skip sl' => pmap sublist-skip (lemma2 _ _)
-                | nil, nil, :: y c, :: a d, sublist-trivial, sublist-skip sl' => pmap sublist-skip (lemma2 _ _)
-                | :: x a, :: x1 b, :: y c, d, sublist-match p sl, sublist-match p1 sl' => pmap (sublist-match (p *> p1)) (lemma2 _ _)
-                | :: x a, :: y b, :: y1 c, d, sublist-match p sl, sublist-skip sl' => pmap sublist-skip (lemma2 _ _)
-                | nil, :: x b, :: y c, nil, sublist-skip sl, sublist-match p sl' => pmap sublist-skip (lemma2 _ _)
-                | nil, :: x b, :: y c, :: a d, sublist-skip sl, sublist-match p sl' => pmap sublist-skip (lemma2 _ _)
-                | :: a a1, :: x b, :: y c, d, sublist-skip sl, sublist-match p sl' => pmap sublist-skip (lemma2 _ _)
-                | nil, :: y b, :: y1 c, nil, sublist-skip sl, sublist-skip sl' => pmap sublist-skip (transport (\lam slx => sublist-compose (SubList.extend-right-both sl) slx = SubList.extend-right-both (sublist-compose sl (SubList.shrink sl'))) (inv (extend-right-commute-with-shrink sl')) (lemma2 _ _))
-                | nil, :: y b, :: y1 c, :: a d, sublist-skip sl, sublist-skip sl' => pmap sublist-skip (lemma2 (sublist-skip sl) (sl') *> (rewrite (decompose-along-reduction.any-nil-sublist-equate {_} {_} (sublist-compose (sublist-skip sl) sl') (sublist-compose sl (SubList.shrink sl'))) idp))
-                | :: a a1, :: y b, :: y1 c, d, sublist-skip sl, sublist-skip sl' => pmap sublist-skip (lemma2 _ _)
-
-              \func extend-right-commute-with-skip {A : \Set} {x : A} {a b c : List A} (sl : SubList a b) : sublist-skip {_} {_} {x} (SubList.extend-right-both sl {c})  = SubList.extend-right-both (sublist-skip sl) \elim a, b, sl
-                | nil, nil, sublist-trivial => idp
-                | :: x1 a, :: y b, sublist-match p sl => idp
-                | nil, :: y b, sublist-skip sl => idp
-                | :: a a1, :: y b, sublist-skip sl => idp
-
-              \func extend-right-commute-with-shrink {A : \Set} {x : A} {a b c : List A} (sl : SubList (x :: a) b) : SubList.shrink (SubList.extend-right-both sl {c})  = SubList.extend-right-both (SubList.shrink sl) \elim a, b, sl
-                | a, :: y b, sublist-match p sl => rewriteI extend-right-commute-with-skip (pmap sublist-skip idp)
-                | a, :: y b, sublist-skip sl => rewriteI extend-right-commute-with-skip (pmap sublist-skip (extend-right-commute-with-shrink _))
-            }
-
-        \func sublist-compose {A : \Type} {a b c : List A} (sl : SubList a b) (sl' : SubList b c) : SubList a c \elim a, b, c, sl, sl'
-          | nil, nil, nil, sublist-trivial, sublist-trivial => sublist-trivial
-          | nil, nil, :: y c, sublist-trivial, sublist-skip sl' => sublist-skip (sublist-compose sublist-trivial sl')
-          | :: x a, :: x1 b, :: y c, sublist-match p sl, sublist-match p1 sl' => sublist-match (p *> p1) (sublist-compose sl sl')
-          | :: x a, :: y b, :: y1 c, sl, sublist-skip sl' => sublist-skip (sublist-compose sl sl')
-          | a, :: x b, :: y c, sublist-skip sl, sublist-match p sl' => sublist-skip (sublist-compose sl sl')
-          | a, :: y b, :: y1 c, sublist-skip sl, sublist-skip sl' => sublist-skip (sublist-compose sl (SubList.shrink sl'))
-            \where {
-              \func identity {A : \Type} {a : List A} : sublist-compose SubList.identity SubList.identity = SubList.identity {_} {a} \elim a
-                | nil => idp
-                | :: a a1 => pmap (sublist-match idp) identity
+          | func f choosing => pmap (func f) (ext (\lam index => rewrite (weakening-composition (choosing index) _ _) (pmap (weakening (choosing index)) (SubList.compose.over-right-both _ _))))
+          \where {
+            \func lemma {A : \Set} {a b c : List A} (sl : SubList a b) (sl' : SubList b c) (ind : Index a) :
+              weakening.recalculate-index-fpr sl' (weakening.recalculate-index-fpr sl ind) = weakening.recalculate-index-fpr (SubList.compose sl sl') ind \elim a, b, c, sl, sl', ind
+              | :: x a, :: x1 b, :: y c, sublist-match p sl, sublist-match p1 sl', 0 => idp
+              | :: x a, :: x1 b, :: y c, sublist-match p sl, sublist-match p1 sl', suc ind => pmap (fsuc) (lemma _ _ _)
+              | :: x a, :: y b, :: y1 c, sublist-match p sl, sublist-skip sl', 0 => pmap (fsuc) (lemma _ _ _)
+              | :: x a, :: y b, :: y1 c, sublist-match p sl, sublist-skip sl', suc ind => pmap (fsuc) (lemma _ _ _)
+              | nil, :: x b, :: y c, sublist-skip sl, sublist-match p sl', ind => pmap (fsuc) (lemma _ _ _)
+              | :: a a1, :: x b, :: y c, sublist-skip sl, sublist-match p sl', ind => pmap (fsuc) (lemma _ _ _)
+              | :: a a1, :: y b, :: y1 c, sublist-skip sl, sublist-skip sl', ind => pmap (fsuc) (lemma _ _ _)
             }
       }
   }
@@ -486,11 +438,7 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
     \func unext {env : FSignature} {context-a context-b : List Sort} {mc : MetaContext Sort}
                 (subst : Substitution context-a context-b mc) (i : Index (context-a)) : subst i = transport2 (\lam ctx ctx' => Substitution ctx ctx' mc) ++_nil ++_nil (append-context-right subst) i =>
       rewriteI decompose-transport2 (rewrite move-under-transport
-          (rewrite transport-move (rewrite append-ctr-lemma (rewrite transport_id_inv (rewrite weakening-comm (rewrite sublist-eq (rewrite transport_id_inv (inv (weakening-over-identity (subst i))))))))))
-
-    \func sublist-eq {A : \Type} {a : List A} : (SubList.extend-right-single (SubList.identity {_} {a})) = transport (SubList a __) (inv ++_nil) (SubList.identity) \elim a
-      | nil => idp
-      | :: a a1 => rewriteI decompose-along-reduction.different-weakening.equate-sublists-2.commute-match (pmap (sublist-match idp) (sublist-eq))
+          (rewrite transport-move (rewrite append-ctr-lemma (rewrite transport_id_inv (rewrite weakening-comm (rewrite Transports.extension-to-nil-right (rewrite transport_id_inv (inv (weakening-over-identity (subst i))))))))))
 
     \func weakening-comm {env : FSignature} {context context' context'' : List Sort} {s : Sort} {mc : MetaContext Sort} {t : Term env context s mc}
       (sublist : SubList context context')
@@ -654,7 +602,7 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
                              (subst : Substitution context-a context-b ms)
                              (t : Term env context-a s ms)
   : Substitution.apply (weakening t (SubList.extend-right-single SubList.identity {context-c})) (append-context-right subst) = weakening (Substitution.apply t subst) (SubList.extend-right-single SubList.identity) =>
-  rewrite weakening-as-substitution-eq (rewrite weakening-as-substitution-eq (rewrite subst-comm-for-weakening (rewrite subst-comm-for-weakening-2 (pmap (Substitution.apply t) (ext (\lam i => rewriteI weakening-as-substitution-eq ((untransport subst (SubList.sublist-trivial-skip) (var i idp) var-witness idp))))))))
+  rewrite weakening-as-substitution-eq (rewrite weakening-as-substitution-eq (rewrite subst-comm-for-weakening (rewrite subst-comm-for-weakening-2 (pmap (Substitution.apply t) (ext (\lam i => rewriteI weakening-as-substitution-eq ((untransport subst (SubList.sublist-trivial-free) (var i idp) var-witness idp))))))))
   \where {
     \func subst-comm-for-weakening
       {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
@@ -737,18 +685,8 @@ weakening (var index (expand-fin-right-eq index)) (SubList.extend-left-single Su
             (SubList.extend-right-single SubList.identity {context-add})) (SubList.extend-right-both sublist) =
         weakening (transport (\lam (p0 : env.Sort) => Term env context' p0 mc) (eq) (weakening (t) sublist))
             (SubList.extend-right-single SubList.identity) \elim eq, t
-          | idp, t => unfold transport (rewrite double-append-context-right.end-over-transport-3.weakening-composition (rewrite double-append-context-right.end-over-transport-3.weakening-composition (pmap (weakening t) (composition-lemma sublist))))
-
-        \func composition-lemma {A : \Set} {a b c : List A} (sublist : SubList a b)
-          : double-append-context-right.end-over-transport-3.sublist-compose
-            (SubList.extend-right-single SubList.identity {c}) (SubList.extend-right-both sublist) = double-append-context-right.end-over-transport-3.sublist-compose sublist (SubList.extend-right-single SubList.identity) \elim a, b, c, sublist
-          | nil, nil, nil, sublist-trivial => idp
-          | nil, nil, :: a c, sublist-trivial => pmap sublist-skip (composition-lemma sublist-trivial)
-          | :: x a, :: y b, c, sublist-match p sublist => rewrite idp_*> (pmap (sublist-match p) (composition-lemma sublist))
-          | :: a a2, :: y b, c, sublist-skip sublist => \let inductive => composition-lemma {_} {_} {_} {c} sublist \in pmap (sublist-skip) inductive
-          | nil, :: y b, nil, sublist-skip sublist => pmap (sublist-skip) (decompose-along-reduction.any-nil-sublist-equate _ _)
-          | nil, :: y b, :: a1 c, sublist-skip sublist => \let inductive => composition-lemma {_} {_} {_} {:: a1 c} sublist \in pmap (sublist-skip) (decompose-along-reduction.any-nil-sublist-equate _ _ *> inductive)
-      }
+          | idp, t => unfold transport (rewrite double-append-context-right.end-over-transport-3.weakening-composition (rewrite double-append-context-right.end-over-transport-3.weakening-composition (pmap (weakening t) (SubList.compose.over-right-single sublist))))
+        }
 
     \func untransport {env : FSignature} {context-a context-b context-c context-add : List Sort} {s s' : Sort} {ms : MetaContext Sort}
                       (subst : Substitution context-b context-c ms)

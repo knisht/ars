@@ -6,7 +6,6 @@
 \import Paths.Meta
 \import TRS.HRS
 \import TRS.Linearity
-\import TRS.List
 
 \data SingularSort | lc-term
 
