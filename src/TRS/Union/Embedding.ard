@@ -137,12 +137,12 @@
       | red, lp-metavar, idp, func f choosing1, T-has-functional-root => contradiction
       | blue, lp-metavar, idp, func f choosing1, T-has-functional-root => contradiction
 
-    \func infer-color-from-hcr {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : env.symbol s) (choosing : \Pi (index : Fin (length (env.domain f))) ->
+    \func infer-color-from-hcr {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : env.symbol s) (choosing : \Pi (index : Index (env.domain f)) ->
         Term TheoremContext.env (context ++ f FSignature.!!param {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})) (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (func {env} f choosing) \elim color, f, eq-color
       | red, inl a, eq-color => TheoremContext.red-func-root
       | blue, inr b, eq-color => TheoremContext.blue-func-root
 
-    \func contradicting {env : FSignature} {context : List Sort} {s s' : Sort} {mc mc' : MetaContext Sort} (index : Fin (length context)) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
+    \func contradicting {env : FSignature} {context : List Sort} {s s' : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
                         (eq' : s = s')
                         (t : Term env nil s' mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-skip) (SubList.identity) msubst = transport (Term env context __ mc') eq' (var index p)) (rt : FunctionalRoot t) : Empty \elim eq', t, rt
       | idp, func f choosing, T-has-functional-root => contradiction
@@ -189,7 +189,7 @@
       (eq : LinearPattern.convert-to-injected-term color lp = transport (Term env nil s') mc-eq t)
       (msubst : MetaSubstitution env context mc mc')
       (f : env.symbol s)
-      (choosing : \Pi (index : Fin (length (env.domain f))) ->
+      (choosing : \Pi (index : Index (env.domain f)) ->
           Term TheoremContext.env (context ++ f FSignature.!!param {env} index) (f FSignature.!!sort {env} index) mc')
       (eq2 : MetaSubstitution.apply {env} (weakening {env} t SubList.sublist-trivial-skip) SubList.identity msubst = transport (Term env context __ mc') s-eq (func f choosing)) : \Sigma  (TheoremContext.color-of-root f = color) (TheoremContext.HasColoredRoot color t) \elim s-eq, color, lp, t, froot, mc-eq, f
       | idp, red, lp-func f choosing1, func (inl a1) choosing2, T-has-functional-root, idp, inl a => (idp, TheoremContext.red-func-root)

@@ -15,8 +15,8 @@
   | m-domain m => m-domain {(producer (m.1))} m.2
 
 \func PointedModularMetaContext {env : FSignature} (point : Sort) (pointed-list : List Sort)
-                                (producer : \Pi (Fin (length pointed-list)) -> MetaContext Sort) : MetaContext Sort \cowith
-  | metaname s => (s = point) `Or` (\Sigma (i : Fin (length pointed-list)) (metaname {producer i} s))
+                                (producer : \Pi (Index pointed-list) -> MetaContext Sort) : MetaContext Sort \cowith
+  | metaname s => (s = point) `Or` (\Sigma (i : Index pointed-list) (metaname {producer i} s))
   | m-domain m => \case \elim m \with {
     | inl eq => pointed-list
     | inr m => m-domain {(producer (m.1))} m.2
@@ -38,11 +38,12 @@
                  (context : List Sort)
                  (termSort : Sort)
   | lt-func (f : symbol termSort)
-            (choosing : \Pi (index : Fin (length (domain f))) -> LinearTerm env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index))
+            (choosing : \Pi (index : Index (domain f)) -> LinearTerm env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index))
   | lt-full-metavar
-  | lt-var (index : Fin (length context)) (termSort = context !! index)
+  | lt-var (index : Index context) (termSort = context !! index)
   \where {
-    \func upgrade-metavariables-t {env : FSignature} {context : List Sort} {s : Sort} {n : Nat} {index : Fin n}
+    \func upgrade-metavariables-t {env : FSignature} {context : List Sort} {s : Sort} {n : Nat}
+                                  {index : Fin n}
                                   (metas : \Pi (Fin n) -> MetaContext Sort)
                                   (A : Term env context s (metas index))
       : Term env context s (ModularMetaContext metas) \elim A
@@ -53,8 +54,8 @@
     \func upgrade-metavariables-mt {env : FSignature} {context : List Sort} {s : Sort}
                                    (point : Sort)
                                    (pointed-context : List Sort)
-                                   {index : Fin (length pointed-context)}
-                                   (metas : \Pi (Fin (length pointed-context)) -> MetaContext Sort)
+                                   {index : Index pointed-context}
+                                   (metas : \Pi (Index pointed-context) -> MetaContext Sort)
                                    (A : Term env context s (metas index))
       : Term env context s (PointedModularMetaContext point pointed-context metas) \elim A
       | var index p => var index p
@@ -77,7 +78,7 @@
                     (termSort : Sort)
   | lp-func
     (f : symbol termSort)
-    (choosing : \Pi (index : Fin (length (domain f))) ->
+    (choosing : \Pi (index : Index (domain f)) ->
         LinearPattern
             env
             (context ++ (f FSignature.!!param index))
@@ -122,7 +123,7 @@
   {s : Sort}
   (pattern : LinearPattern env context s) : MetaContext Sort \elim pattern
   | lp-func f choosing => \new MetaContext {
-    | metaname s => \Sigma (i : Fin (length (domain f)))
+    | metaname s => \Sigma (i : Index (domain f))
                            (metaname {LinearMetaContext (choosing i)} s)
     | m-domain m => m-domain {LinearMetaContext (choosing m.1)} m.2
   }
