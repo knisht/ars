@@ -3,6 +3,7 @@
 \import Confluence
 \import Data.Bool
 \import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
+\import Data.Maybe
 \import Data.Or
 \import Function.Meta (repeat)
 \import Logic
@@ -13,6 +14,7 @@
 \import Relation
 \import Set
 \import Set.Fin
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.Linearity
 \import TRS.List
@@ -499,7 +501,7 @@
         | nothing, inl a, func f choosing, parallelization-f mediator _x (cr-skip p) => parallelization-f mediator _x (cr-rewrite (rewrite p lr~>X) idp)
         | just a1, inl a, func f choosing, parallelization-f mediator _x c => contradiction
         | nothing, inr b, func f choosing, parallelization-f mediator _x c => contradiction
-        | just a, inr b, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => parallelization-f mediator _x (cr-rewrite (TClosure.compose (rewriteI (Maybe.unjust-eq b) t) lr~>X) idp)
+        | just a, inr b, func f choosing, parallelization-f mediator _x (cr-rewrite t p) => parallelization-f mediator _x (cr-rewrite (TClosure.compose (rewriteI (unjust-eq b) t) lr~>X) idp)
 
       \func twist-colors {c1 c2 c3 : Maybe Color} (c1or : Or (c1 = nothing) (c1 = c2)) (c2or : Or (c2 = nothing) (c2 = c3)) : Or (c1 = nothing) (c1 = c3) \elim c1or
         | inl a => inl a
@@ -673,7 +675,7 @@
     \where {
       \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
         | inl a1 => contradiction
-        | inr b1 => Maybe.unjust-eq b1
+        | inr b1 => unjust-eq b1
 
       \func unify-reduction {tc : TheoremContext} {gc : Color} {someColor : Maybe Color} {context : List Sort'} {s s' : Sort'} {mc : MetaContext Sort'}
                             (rho :  MetaSubstitution env nil (SingularMetaContext {env} s context) mc)
@@ -802,7 +804,7 @@
     : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index)) =>
     partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
         (\lam i => rewrite (extend-substitution-left.for-left-context {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.for-left-context {env}) idp))))
-        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {env}) (inner.1, lemma inner.1 (inv (expand-fin-eq-late i)) inner.2)))
+        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
         index
     \where {
       \func lemma {tc : TheoremContext} {context : List Sort'}
@@ -927,7 +929,7 @@
                 partial-fin-induction
                     (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) ind)
                     (\lam i1 => repeat {2} (rewrite append-context-right-begin) (rewrite weakening-extend-right (equating-lemma subst-a subst-b i1 _)))
-                    (\lam i1 => repeat {2} (rewrite append-context-right-end) (rewrite (weakening-extend-left subst-b (var i1 (expand-fin-eq-late i1))) idp))
+                    (\lam i1 => repeat {2} (rewrite append-context-right-end) (rewrite (weakening-extend-left subst-b (var i1 (expand-fin-right-eq i1))) idp))
                     i
                 \where {
                   \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
@@ -952,7 +954,7 @@
             partial-fin-induction (\lam i => Substitution.apply (append-context-right subst i) (extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam j => Substitution.apply (subst2 j) (append-context-right subst)))
               = Substitution.apply (extend-substitution-left (SubList.extend-right-single SubList.identity) subst2 i) (append-context-right subst))
                 (\lam i => rewrite append-context-right-begin (rewrite extend-substitution-left.for-left-context (rewrite weakening-append-left (inductive-step subst i _))))
-                (\lam i => rewrite append-context-right-end (rewrite extend-substitution-left.for-right-context (rewrite (weakening-append-right (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-eq-late i))) (inductive-step-2 subst subst2 i (expand-fin-eq-late i)))))
+                (\lam i => rewrite append-context-right-end (rewrite extend-substitution-left.for-right-context (rewrite (weakening-append-right (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-right-eq i))) (inductive-step-2 subst subst2 i (expand-fin-right-eq i)))))
                 index
             \where {
               \func inductive-step-2 {env : FSignature} {context-a context-b context-c context-d : List Sort} {s : Sort} {mc : MetaContext Sort}
@@ -1137,7 +1139,7 @@
     (ColorwiseReduction gc someColor (func f mediator) (C)) =>
     \let | common-reduction i => unfold-bpr (color-of-root f) (choosing-A i) (choosing-B i) (tlcrs i).2
          | ind-last =>
-           progressive-induction
+           modular-induction
                (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc)
                (\lam curmed => \Sigma (someColor : Maybe Color) (ColorwiseReduction gc someColor (func f curmed) C))
                (choosing-B)
@@ -1166,14 +1168,14 @@
             (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc)
             choosing-B midterms (suc delim))) C) \elim prev-rd-cl, pred-rd-cwr, point-rd-cl, point-coherence, point-rd-cwr
         | nothing, cr-skip p, nothing, point-coherence, cr-skip p1
-        => (nothing, cr-skip ((pmap (func {env} f) (inv (modular-function.modular-jump.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-B midterms delim (inv p1)))) *> p))
+        => (nothing, cr-skip ((pmap (func {env} f) (inv (modular-function.modular-bridge (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-B midterms delim (inv p1)))) *> p))
         | nothing, cr-skip p, just color, inl (), _
-        | nothing, cr-skip idp, just color, inr b, cr-rewrite ind1~>ind' idp => (just gc, cr-rewrite (upgrade-iterated-reduction f (Maybe.unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') idp)
+        | nothing, cr-skip idp, just color, inr b, cr-rewrite ind1~>ind' idp => (just gc, cr-rewrite (upgrade-iterated-reduction f (unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') idp)
         | just color, cr-rewrite tlcr p, nothing, point-coherence, cr-skip p1
-        => (just color, cr-rewrite (rewrite (inv (modular-function.modular-jump.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-B midterms delim (inv p1))) tlcr) p)
+        => (just color, cr-rewrite (rewrite (inv (modular-function.modular-bridge (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-B midterms delim (inv p1))) tlcr) p)
         | just color, cr-rewrite before~>C idp, just color1, inl (), _
         | just color, cr-rewrite before~>C idp, just color1, inr b, cr-rewrite ind1~>ind' idp =>
-          (just gc, cr-rewrite (TClosure.compose (upgrade-iterated-reduction f (Maybe.unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') before~>C) idp)
+          (just gc, cr-rewrite (TClosure.compose (upgrade-iterated-reduction f (unjust-eq (inv b)) choosing-B midterms delim ind1~>ind') before~>C) idp)
 
       \func upgrade-iterated-reduction
         {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -1197,92 +1199,11 @@
                  {TopLevelColoredReduction gc {mc} {context ++ f env.!!param index} {f env.!!sort index}}
                  {TopLevelColoredReduction gc {mc} {context} {s}}
                  (insert-term {env} f modular index)
-                 (\lam rel => rewrite-with-parameter-f-colored idp eq index (rewrite pointed-at-index (rewrite pointed-at-index rel)) (\lam j j-not-index => rewrite (pointed-not-at-index _ modular index _ j (j-not-index)) (rewrite (pointed-not-at-index _ modular index _ j (j-not-index)) idp)))
+                 (\lam rel => rewrite-with-parameter-f-colored idp eq index (rewrite pointed-function.at-index (rewrite pointed-function.at-index rel)) (\lam j j-not-index => rewrite (pointed-function.not-at-index _ modular index _ j (j-not-index)) (rewrite (pointed-function.not-at-index _ modular index _ j (j-not-index)) idp)))
                  (choosing-B index) (choosing-A index)
                  rd
-        \in rewrite (pointed-with-modular-1.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) (rewrite {2} (pointed-with-modular-2.ext' (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) mapped)
+        \in rewrite (modular-to-pointed-forward (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) (rewrite {2} (modular-to-pointed (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc) choosing-A choosing-B) mapped)
 
-      \func pointed-function {n : Nat} (C : Fin n -> \Type)
-                             (f : \Pi (i : Fin n) -> C i)
-                             (index : Fin n)
-                             (point : C index)
-                             (j : Fin n)
-        : C j \elim n, index, j
-        | suc n, 0, 0 => point
-        | suc n, 0, suc j => f (suc j)
-        | suc n, suc index, 0 => f 0
-        | suc n, suc index, suc j => pointed-function (\lam i => C (suc i)) (\lam i => f (suc i)) index point j
-
-      \func pointed-induction {n : Nat} (C : Fin n -> \Type)
-                              (Q : \Pi (i : Fin n) -> (C i) -> \Type)
-                              (f : \Pi (i : Fin n) -> C i)
-                              (index : Fin n)
-                              (point : C index)
-                              (eq1 : Q index point)
-                              (eq2 : \Pi (j : Fin n) (Not (j = index)) -> (Q j (f j)))
-                              (i : Fin n) : Q i (pointed-function C f index point i) \elim n, index, i
-        | suc n, 0, 0 => eq1
-        | suc n, 0, suc i => eq2 (suc i) (\lam ())
-        | suc n, suc index, 0 => eq2 0 (\lam ())
-        | suc n, suc index, suc i => pointed-induction (\lam i => C (suc i)) (\lam i ci => Q (suc i) ci) (\lam i => f (suc i)) index point eq1 (\lam j ne => eq2 (suc j) (\lam p => ne (FinSet.suc-isInj _ _ p))) i
-
-        \func unsuc {n : Nat} (a : Nat) : Nat \elim a
-          | 0 => 0
-          | suc a => a
-
-      \func pointed-at-index
-        {n : Nat} (C : Fin n -> \Type)
-        (f : \Pi (i : Fin n) -> C i)
-        (index : Fin n)
-        (point : C index)
-        : pointed-function C f index point index = point \elim n, index
-        | suc n, 0 => idp
-        | suc n, suc index => pointed-at-index (\lam i => C (suc i)) (\lam i => f (suc i)) index point
-
-      \func pointed-not-at-index
-        {n : Nat} (C : Fin n -> \Type)
-        (f : \Pi (i : Fin n) -> C i)
-        (index : Fin n)
-        (point : C index)
-        (j : Fin n)
-        (j-not-index : j = index -> Empty)
-        : pointed-function C f index point j = f j \elim n, index, j
-        | suc n, 0, 0 => \let contra => j-not-index idp \in contradiction
-        | suc n, 0, suc j => idp
-        | suc n, suc index, 0 => idp
-        | suc n, suc index, suc j => pointed-not-at-index (\lam i => C (suc i)) (\lam i => f (suc i)) index point j (\lam p => j-not-index (pmap fsuc p))
-
-      \func pointed-with-modular-1 {n : Nat} (C : Fin n -> \Type)
-                                   (f g : \Pi (i : Fin n) -> C i)
-                                   (delim : Fin n)
-                                   (i : Fin n)
-        : modular-function C f g (suc delim) i = pointed-function C (modular-function C f g delim) delim (g delim) i \elim n, delim, i
-        | suc n, 0, 0 => idp
-        | suc n, 0, suc i => rewrite modular-function.left-eq idp
-        | suc n, suc delim, 0 => idp
-        | suc n, suc delim, suc i => pointed-with-modular-1 (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
-        \where {
-          \func ext'  {n : Nat} (C : Fin n -> \Type)
-                      (f g : \Pi (i : Fin n) -> C i)
-                      (delim : Fin n)
-            : modular-function C f g (suc delim) = pointed-function C (modular-function C f g delim) delim (g delim) => ext (pointed-with-modular-1 C f g delim)
-        }
-
-      \func pointed-with-modular-2 {n : Nat} (C : Fin n -> \Type)
-                                   (f g : \Pi (i : Fin n) -> C i)
-                                   (delim : Fin n)
-                                   (i : Fin n)
-        : modular-function C f g delim i = pointed-function C (modular-function C f g delim) delim (f delim) i \elim n, delim, i
-        | suc n, 0, 0 => idp
-        | suc n, 0, suc i => idp
-        | suc n, suc delim, 0 => idp
-        | suc n, suc delim, suc i => pointed-with-modular-2 (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
-        \where {
-          \func ext'  {n : Nat} (C : Fin n -> \Type)
-                      (f g : \Pi (i : Fin n) -> C i)
-                      (delim : Fin n)
-            : modular-function C f g delim = pointed-function C (modular-function C f g delim) delim (f delim) => ext (pointed-with-modular-2 C f g delim)
-        }
 
       \func insert-term {env : FSignature} {context : List Sort} {s : Sort} {ms : MetaContext Sort} (f : symbol s)
                         (choosing : \Pi (index : Index (env.domain f)) -> Term env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index) ms)
@@ -1319,86 +1240,7 @@
         }
     }
 
-  \func modular-function
-    {n : Nat}
-    (C : Fin n -> \Type)
-    (f g : \Pi (i : Fin n) -> C i)
-    (delim : Fin (suc n))
-    (i : Fin n)
-    : C i
-  \elim n, delim, i
-    | suc n, 0, i => f i
-    | suc n, suc delim, 0 => g 0
-    | suc n, suc delim, suc i => modular-function (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) delim i
-    \where {
-      \func left-eq {n : Nat}
-                    (C : Fin (n) -> \Type)
-                    (f g : \Pi (i : Fin (n)) -> C i)
-                    (i : Fin n) : modular-function C f g 0 i = f i \elim n, i
-        | suc n, i => idp
 
-      \func left-eq-ext {n : Nat}
-                        (C : Fin (n) -> \Type)
-                        (f g : \Pi (i : Fin (n)) -> C i) :  modular-function C f g 0 = f => ext (left-eq C f g)
-
-      \func inject-nat (n : Nat) : Fin (suc n) \elim n
-        | 0 => 0
-        | suc n => suc (inject-nat n)
-
-      \func right-eq {n : Nat}
-                     (C : Fin (n) -> \Type)
-                     (f g : \Pi (i : Fin (n)) -> C i)
-                     (i : Fin n)
-        : modular-function C f g (inject-nat n) i = g i \elim n, i
-        | suc n, 0 => idp
-        | suc n, suc i => (right-eq (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) i)
-
-      \func modular-jump {n : Nat}
-                         (C : Fin (n) -> \Type)
-                         (f g : \Pi (i : Fin (n)) -> C i)
-                         (delim : Fin n)
-                         (eq : f delim = g delim)
-                         (j : Fin n)
-        : modular-function C f g delim j = modular-function C f g (suc delim) j \elim n, delim, j
-        | suc n, 0, 0 => eq
-        | suc n, 0, suc j => rewrite left-eq idp
-        | suc n, suc delim, 0 => idp
-        | suc n, suc delim, suc j => modular-jump (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) delim eq j
-        \where {
-          \func ext' {n : Nat}
-                     (C : Fin (n) -> \Type)
-                     (f g : \Pi (i : Fin (n)) -> C i)
-                     (delim : Fin n)
-                     (eq : f delim = g delim) : modular-function C f g delim = modular-function C f g (suc delim) =>
-            ext (modular-jump C f g delim eq)
-        }
-
-      \func right-eq-ext
-        {n : Nat}
-        (C : Fin (n) -> \Type)
-        (f g : \Pi (i : Fin (n)) -> C i) : modular-function C f g (inject-nat n) = g => ext (right-eq C f g)
-    }
-
-  \func progressive-induction
-    {n : Nat} (C : Fin n -> \Type)
-    (Q : (\Pi (i : Fin n) -> C i) -> \Type)
-    (f g : \Pi (i : Fin n) -> C i)
-    (start : Q f)
-    (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
-    : Q g => transport Q (modular-function.right-eq-ext C f g) (progressive-induction-lemma {n} C Q f g step (modular-function.inject-nat n) start)
-    \where {
-      \func progressive-induction-lemma
-        {n : Nat} (C : Fin n -> \Type)
-        (Q : (\Pi (i : Fin n) -> C i) -> \Type)
-        (f g : \Pi (i : Fin n) -> C i)
-        (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
-        (delim : Fin (suc n))
-        (start : Q f)
-        : Q (modular-function C f g delim) \elim n, delim
-        | 0, 0 => transportInv (Q) (modular-function.left-eq-ext C f g) start
-        | suc n, 0 => start
-        | suc n, suc delim => step delim (progressive-induction-lemma {suc n} C Q f g step delim start)
-    }
 
   \func collect-reductions-together-raw
     {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}

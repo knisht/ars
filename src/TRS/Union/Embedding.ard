@@ -1,10 +1,12 @@
 \import Data.List (!!, ++, List, length, nil)
+\import Data.Maybe
 \import Data.Or
 \import Logic
 \import Logic.Meta
 \import Paths
 \import Paths.Meta
 \import Set
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.Linearity
 \import TRS.List
@@ -110,7 +112,7 @@
            (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f choosing1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 idx unified.8 unified.7 unified.9 unified.10)) color-eq))
   | func f-A choosing-A, func f-B choosing-B, rewrite-with-parameter-f idp index rd eq =>
     \let | (global-color, color, bpr) => embed-rewrite-relation (choosing-A index) (choosing-B index) rd all-rules-are-linear
-         | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A choosing-A choosing-B (\lam i => \case (FinDec i index) \with {
+         | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A choosing-A choosing-B (\lam i => \case (fin-dec i index) \with {
            | yes e => rewrite e (color, bpr)
            | no n => (nothing, equal-trees (eq i n))
          })
@@ -220,7 +222,7 @@
   | color, A, equal-trees p => c-trivial p
   | color, func f choosing, parallelization-f mediator _x c =>
     \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
-         | joined => progressive-induction
+         | joined => modular-induction
              (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc)
              (\lam curmed => Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f choosing) (func f curmed))
              choosing
@@ -235,14 +237,14 @@
                           {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
                           {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
                           (collect-reductions-together-tlcr.insert-term {env} f modular delim)
-                          (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite collect-reductions-together-tlcr.pointed-at-index (rewrite collect-reductions-together-tlcr.pointed-at-index a->b)) (\lam j _x1 => rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ modular _ _ j _x1) (rewrite (collect-reductions-together-tlcr.pointed-not-at-index _ modular _ _ j _x1) idp)))
+                          (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite pointed-function.at-index (rewrite pointed-function.at-index a->b)) (\lam j _x1 => rewrite (pointed-function.not-at-index _ modular _ _ j _x1) (rewrite (pointed-function.not-at-index _ modular _ _ j _x1) idp)))
                           (choosing delim)
                           (mediator delim)
                           curmodular
                  \in Closure.concat prev-result (rewrite
-                     (collect-reductions-together-tlcr.pointed-with-modular-1.ext' (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) choosing mediator)
+                     (modular-to-pointed-forward (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) choosing mediator)
                      (rewrite {1}
-                         (collect-reductions-together-tlcr.pointed-with-modular-2.ext' (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) choosing mediator delim)
+                         (modular-to-pointed (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) choosing mediator delim)
                          lifted)))
          | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => unwrap-cwr color c
     \in Closure.concat joined from-cwr

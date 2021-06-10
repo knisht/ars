@@ -6,34 +6,11 @@
 \import Paths.Meta
 \import Set
 \import Set.Fin
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.List
 
-\func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set =>
-  Index (fs.domain f)
-
-\func promote-fin {x : Nat} {y : Fin x} (z : Fin y) : Fin x \elim x, y, z
-  | suc x, suc y, 0 => 0
-  | suc x, suc y, suc z => suc (promote-fin {x} {y} z)
-
-\func Fin-neq {x : Nat} (y z : Fin x) : \Prop \elim x, y, z
-  | suc n, zero, zero => \Sigma
-  | suc n, zero, suc z => Empty
-  | suc n, suc y, zero => Empty
-  | suc n, suc y, suc z => Fin-neq y z
-
-\func minusOne {n : Nat} (a : Fin n) : Fin n \elim n, a
-  | suc n, zero => zero
-  | suc n, suc a => a
-
-\func FinDec {n : Nat} (x y : Fin n) : Dec (x = y) \elim n, x, y
-  | suc n, 0, 0 => yes idp
-  | suc n, 0, suc y => no contradiction
-  | suc n, suc x, 0 => no contradiction
-  | suc n, suc x, suc y => \case (FinDec x y) \with {
-    | yes e => yes (pmap fsuc e)
-    | no n1 => no (\lam p => n1 (FinSet.suc-isInj x y p))
-  }
+\func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set => Index (fs.domain f)
 
 \func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
   | idp => idp
@@ -46,45 +23,6 @@
   | in1 A
   | in2 B
   | in3 C
-
-
-
-
-\func expand-fin {A : \Type} {a b : List A} (i : Fin (length a)) : Fin (length (a ++ b)) \elim a, i
-  | :: a _, 0 => 0
-  | :: _ _, suc i => suc (expand-fin i)
-
-\func expand-fin-late {A : \Type} {a b : List A} (i : Fin (length b)) : Fin (length (a ++ b)) \elim a
-  | nil => i
-  | :: a a1 => suc (expand-fin-late i)
-
-\func expand-fin-eq {A : \Type} {a b : List A} (i : Index a) : (a ++ b) !! (expand-fin i) = a !! i \elim a, i
-  | :: a a1, 0 => idp
-  | :: a a1, suc i => expand-fin-eq i
-
-\func expand-fin-eq-late {A : \Type} {a b : List A} (i : Index b) : (a ++ b) !! (expand-fin-late i) = b !! i \elim a
-  | nil => idp
-  | :: a a1 => expand-fin-eq-late i
-
-\func partial-fin-induction
-  {A : \Type} {a b : List A} (C : Index (a ++ b) -> \Type)
-  (prefix : \Pi (i : Index a) -> C (expand-fin i))
-  (suffix : \Pi (i : Index b) -> C (expand-fin-late i))
-  (index : Index (a ++ b)) : C index =>
-  \let decomposed => fin-decide index \in \case \elim decomposed \with {
-    | inl (i, p) => rewrite p (prefix i)
-    | inr (j, p) => rewrite p (suffix j)
-  }
-
-\func fin-decide {A : \Type} {a b : List A} (index : Index (a ++ b)) : (\Sigma (i : Index a) (index = expand-fin i)) `Or` (\Sigma (j : Index b) (index = expand-fin-late j)) \elim a, index
-  | nil, index => inr (index, idp)
-  | :: a a1, 0 => inl (0, idp)
-  | :: a a1, suc index => \case (fin-decide index) \with {
-    | inl (i, eq) => inl (suc i, pmap fsuc eq)
-    | inr (j, eq) => inr (j, pmap fsuc eq)
-  }
-
-\func fsuc {n : Nat} (x : Fin n) : Fin (suc n) => suc x
 
 \func unor {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
   | inl a => a

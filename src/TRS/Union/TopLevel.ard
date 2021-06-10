@@ -7,6 +7,7 @@
 \import Paths
 \import Paths.Meta
 \import Set \hiding (#)
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.Linearity \hiding (linear-pattern)
 \import TRS.List
@@ -506,9 +507,9 @@
                 (rd : monochrome-reduction red (func f choosing) u)
                 (FunctionalWitness {colored-env red} {L-rules} rd)\elim eq
       | idp => \let inductive-step => (decompose-along-reduction red (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)) \in
-        (func f (collect-reductions-together-tlcr.pointed-function (\lam index => Term envL (context ++ f FSignature.!!param {envL} index) (f FSignature.!!sort {envL} index) inner-mc) choosing i (inductive-step).1),
+        (func f (pointed-function (\lam index => Term envL (context ++ f FSignature.!!param {envL} index) (f FSignature.!!sort {envL} index) inner-mc) choosing i (inductive-step).1),
          pmap (func {env} (inl f))
-             (ext (\lam index => collect-reductions-together-tlcr.pointed-induction
+             (ext (\lam index => pointed-induction
                  (\lam index => Term envL (context ++ f FSignature.!!param {envL} index) (f FSignature.!!sort {envL} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR
                      (fx)) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' j)
                  choosing
@@ -517,7 +518,7 @@
                  (rewrite any-nil-sublist-equate inductive-step.2)
                  (\lam j n => eq' j n)
                  index)),
-         rewrite-with-parameter-f idp i (rewrite collect-reductions-together-tlcr.pointed-at-index (inductive-step.3)) (\lam j _x => inv (collect-reductions-together-tlcr.pointed-not-at-index _ choosing _ _ j _x)),
+         rewrite-with-parameter-f idp i (rewrite pointed-function.at-index (inductive-step.3)) (\lam j _x => inv (pointed-function.not-at-index _ choosing _ _ j _x)),
          param-rewriting (unifying-lemma _ _ _ _ _ inductive-step.4))
       \where {
         \func unifying-lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -550,9 +551,9 @@
                 (rd : monochrome-reduction blue (func f choosing) u)
                 (FunctionalWitness {colored-env blue} {R-rules} rd) \elim eq
       | idp => \let inductive-step => (decompose-along-reduction blue (choosing i) (choosing' i) subst root-colors (rewrite any-nil-sublist-equate tlcr)) \in
-        (func f (collect-reductions-together-tlcr.pointed-function (\lam index => Term envR (context ++ f FSignature.!!param {envR} index) (f FSignature.!!sort {envR} index) inner-mc) choosing i (inductive-step).1),
+        (func f (pointed-function (\lam index => Term envR (context ++ f FSignature.!!param {envR} index) (f FSignature.!!sort {envR} index) inner-mc) choosing i (inductive-step).1),
          pmap (func {env} (inr f))
-             (ext (\lam index => collect-reductions-together-tlcr.pointed-induction
+             (ext (\lam index => pointed-induction
                  (\lam index => Term envR (context ++ f FSignature.!!param {envR} index) (f FSignature.!!sort {envR} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (Injections.inject-term-right tc.envL tc.envR
                      (fx)) (SubList.extend-right-single SubList.sublist-trivial-skip) subst = choosing' j)
                  choosing
@@ -561,7 +562,7 @@
                  (rewrite any-nil-sublist-equate inductive-step.2)
                  (\lam j n => eq' j n)
                  index)),
-         rewrite-with-parameter-f idp i (rewrite collect-reductions-together-tlcr.pointed-at-index (inductive-step.3)) (\lam j _x => inv (collect-reductions-together-tlcr.pointed-not-at-index _ choosing _ _ j _x)),
+         rewrite-with-parameter-f idp i (rewrite pointed-function.at-index (inductive-step.3)) (\lam j _x => inv (pointed-function.not-at-index _ choosing _ _ j _x)),
          param-rewriting (unifying-lemma _ _ _ _ _ inductive-step.4))
       \where {
         \func unifying-lemma {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -1324,11 +1325,11 @@
           plain-identity {_} {_} {mc} i)
       (\lam i1 => \let | q => extend-substitution-left.for-left-context (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
                        | (right-eq, big-eq) => weakening.recalculate-index-over-right-extension' {Sort} {left-context} {right-context} i1
-                       | q' : right-eq = (expand-fin-eq i1) => Path.inProp _ _
+                       | q' : right-eq = (expand-fin-left-eq i1) => Path.inProp _ _
                   \in q *> (rewriteI q' (pmap to-var big-eq)))
       (\lam i1 => \let | q => extend-substitution-left.for-right-context (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
                        | big-eq => weakening.recalculate-index-over-left-extension' {Sort} {left-context} {right-context} i1
-                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right-to-identity.lem2 (expand-fin-late i1) (inv (expand-fin-eq-late i1)) idp (inv (expand-fin-eq-late i1)))))
+                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right-to-identity.lem2 (expand-fin-right i1) (inv (expand-fin-right-eq i1)) idp (inv (expand-fin-right-eq i1)))))
       i
 
 \func weakening-over-double-extend {A : \Type} {context-a context-b context-c : List A}

@@ -75,11 +75,3 @@
       | :: a a1 => pmap (sublist-match idp) (extend-right-identity-eq)
   }
 
-\data DescendingVector (n limit : Nat) \elim n
-  | 0 => dv-nil
-  | suc n => dv-cons (x : Fin limit) (DescendingVector n x)
-
-\func \infix 4 dv!! {n limit : Nat} (vec : DescendingVector n limit) (index : Fin n) : Fin limit \elim n, vec, index
-  | suc n, dv-cons x dvec, zero => x
-  | suc n, dv-cons x dvec, suc index => promote-fin (dvec dv!! index)
-

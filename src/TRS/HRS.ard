@@ -10,12 +10,12 @@
 \import Paths
 \import Paths.Meta
 \import Set
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.List
 \import TRS.Substitutions
 \import TRS.Utils
 
-\func Index {A : \Type} (list : List A) : \Type => Fin (length list)
 
 -- | Family of functional term symbols
 \class FSignature {
@@ -35,16 +35,18 @@
   | metaname : Sort -> \Set
   | m-domain : \Pi {s : Sort} (metaname s) -> List Sort
 
--- | Term of High-order TRS
+-- | Term of higher-order TRS
 \data Term (env : FSignature)
            (context : List Sort)
            (termSort : Sort)
            (mc : MetaContext Sort): \Set
   | var (index : Index context) (termSort = context !! index)
-  | metavar (m : mc.metaname termSort)
-            (choosing : \Pi (index : Index (mc.m-domain m)) -> Term env context (mc.m-domain m !! index) mc)
-  | func (f : symbol termSort)
-         (choosing : \Pi (index : Index (domain f)) -> Term env (context ++ (f !!param index)) (f !!sort index) mc)
+  | metavar
+    (m : mc.metaname termSort)
+    (arguments : \Pi (index : Index (mc.m-domain m)) -> Term env context (mc.m-domain m !! index) mc)
+  | func
+    (f : symbol termSort)
+    (arguments : \Pi (index : Index (domain f)) -> Term env (context ++ f !!param index) (f !!sort index) mc)
 
 -- | Substitution of regular variables
 \func Substitution {env : FSignature} (c c' : List Sort) (mc : MetaContext Sort) : \Set =>
@@ -56,11 +58,8 @@
                 (map : Substitution c c' mc)
       : Term env c' s mc \elim t
       | var index idp => map index
-      | metavar m choosing => metavar m (\lam i => Substitution.apply (choosing i) map)
-      | func f choosing => func f (\lam i => Substitution.apply (choosing i) (append-context-right map))
-
-    \func adjustContext {env : FSignature} {s : Sort} {mc : MetaContext Sort} (t : Term env nil s mc) {new-context : List Sort} : Term env new-context s mc =>
-      apply t (\lam i => contradiction)
+      | metavar m arguments => metavar m (\lam i => Substitution.apply (arguments i) map)
+      | func f arguments => func f (\lam i => Substitution.apply (arguments i) (append-context-right map))
   }
 
 \record RewriteRule (env : FSignature) {s : Sort} {meta-context : MetaContext Sort}
@@ -72,11 +71,6 @@
                      (T : Term env context s mc) \elim T
   | func _ _ => T-has-functional-root
 
---\record PatternRewriteRule \extends RewriteRule {
---  | pattern : PatternTerm env nil s mc
---  | l => PatternTerm.convertToTerm pattern
---}
-
 -- | Substitution of metavariables
 \func MetaSubstitution (env : FSignature) (new-context : List Sort) (mc mc' : MetaContext Sort): \Set =>
   \Pi {s : Sort} (mvar : mc.metaname s) -> Term env (new-context ++ (mc.m-domain mvar)) s mc'
@@ -86,15 +80,9 @@
                 (sublist : SubList core-context context)
                 (subst : MetaSubstitution env core-context mc mc') : Term env context s mc' \elim t
       | var index p => var index p
-      | metavar m choosing => Substitution.apply (subst m) (extend-substitution-left sublist (\lam i => apply (choosing i) sublist subst))
-      | func f choosing => func f (\lam i => apply (choosing i) (SubList.extend-right-single sublist) subst)
+      | metavar m arguments => Substitution.apply (subst m) (extend-substitution-left sublist (\lam i => apply (arguments i) sublist subst))
+      | func f arguments => func f (\lam i => apply (arguments i) (SubList.extend-right-single sublist) subst)
   }
-
-\record RewriteStep {env : FSignature} {context : List Sort} {s : Sort} {meta-context : MetaContext Sort} (L R : Term env context s meta-context)
-  | rule : RewriteRule env {s}
-  | substitution : MetaSubstitution env context rule.meta-context meta-context
-  | left-coherence : MetaSubstitution.apply (weakening rule.l SubList.sublist-trivial-skip) SubList.identity substitution = L
-  | right-coherence : MetaSubstitution.apply (weakening rule.r SubList.sublist-trivial-skip) SubList.identity substitution = R
 
 \record IndexedSet (A : \Type)
   | J : \Set
@@ -120,23 +108,30 @@
   {context : List Sort} {s : Sort}
   (A B : Term env context s mc) \elim A, B
   | A, B =>
-  rewrite-with-rule (idx : set-of-rules.J)
-                    (sort-eq : s = (RewriteRule.s {set-of-rules.get idx}))
-                    (substitution : MetaSubstitution env context (RewriteRule.meta-context {set-of-rules.get idx}) mc)
-                    (left-coherence : MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution = transport (Term env context __ mc) sort-eq A)
-                    (right-coherence : MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution = transport (Term env context __ mc) sort-eq B)
+  rewrite-with-rule
+    (idx : set-of-rules.J)
+    (sort-eq : s = RewriteRule.s {set-of-rules.get idx})
+    (substitution : MetaSubstitution env context (RewriteRule.meta-context {set-of-rules.get idx}) mc)
+    (left-coherence :
+    MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution =
+    transport (Term env context __ mc) sort-eq A)
+    (right-coherence :
+    MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-skip) SubList.identity substitution =
+    transport (Term env context __ mc) sort-eq B)
 
   | func f-A choosing-A, func f-B choosing-B =>
-  rewrite-with-parameter-f (p : f-A = f-B)
-                           (i : Index (domain f-A))
-                           (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-f p choosing-B i))
-                           (eq : \Pi (j : Index (domain f-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-f p choosing-B j))
+  rewrite-with-parameter-f
+    (p : f-A = f-B)
+    (i : Index (domain f-A))
+    (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-f p choosing-B i))
+    (other-unchanged : \Pi (j : Index (domain f-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-f p choosing-B j))
 
   | metavar (m-A : mc.metaname s) choosing-A, metavar (m-B : mc.metaname s) choosing-B =>
-  rewrite-with-parameter-m (p : m-A = m-B)
-                           (i : Index (m-domain m-A))
-                           (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-m p choosing-B i))
-                           (eq : \Pi (j : Index (m-domain m-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-m p choosing-B j))
+  rewrite-with-parameter-m
+    (p : m-A = m-B)
+    (i : Index (m-domain m-A))
+    (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-m p choosing-B i))
+    (other-unchanged : \Pi (j : Index (m-domain m-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-m p choosing-B j))
 
 \class HigherOrderTermRewritingSystem \noclassifying (env : FSignature) (meta-context : MetaContext Sort) (set-of-rules : IndexedSet (RewriteRule env))  \extends AbstractReductionSystem
   | A => \Sigma (context : List Sort) (sort : Sort) (Term env context sort meta-context)

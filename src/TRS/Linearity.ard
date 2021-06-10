@@ -4,6 +4,7 @@
 \import Logic.Meta
 \import Paths
 \import Paths.Meta
+\import TRS.Data.Fin
 \import TRS.HRS
 \import TRS.List
 \import TRS.Substitutions
@@ -111,10 +112,6 @@
   | linear-pattern : LinearPattern env nil s
   | meta-context => LinearMetaContext linear-pattern
   | l => LinearPattern.convert-to-term linear-pattern
-}
-
-\record LinearRewriteStep \extends RewriteStep {
-  \override rule : LinearRewriteRule env {s}
 }
 
 \func LinearMetaContext

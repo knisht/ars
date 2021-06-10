@@ -1,13 +1,10 @@
+\import Data.Maybe
 \import Logic
 \import Paths
 
-\data Maybe (A : \Type)
-  | nothing
-  | just (a : A)
-  \where {
-    \func unjust {A : \Type} (a : A) (q : Maybe A) : A \elim q
-      | nothing => a
-      | just a1 => a1
 
-    \func unjust-eq {A : \Type} {a b : A} (eq : just a = just b) : a = b => pmap (unjust a) eq
-  }
+\func unjust {A : \Type} (a : A) (q : Maybe A) : A \elim q
+  | nothing => a
+  | just a1 => a1
+
+\func unjust-eq {A : \Type} {a b : A} (eq : just a = just b) : a = b => pmap (unjust a) eq
