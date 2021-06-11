@@ -18,8 +18,8 @@
       : Term env context s (ModularMetaContext meta-contexts)
     \elim A
       | var index p => var index p
-      | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables meta-contexts (choosing i))
-      | func f choosing => func f (\lam i => upgrade-metavariables meta-contexts (choosing i))
+      | metavar m arguments => metavar (index, m) (\lam i => upgrade-metavariables meta-contexts (arguments i))
+      | func f arguments => func f (\lam i => upgrade-metavariables meta-contexts (arguments i))
   }
 
 \func PointedModularMetaContext {env : FSignature} {n : Nat} (point : Sort) (context-for-point : List Sort)
@@ -41,8 +41,8 @@
       : Term env context s (PointedModularMetaContext point pointed-context metas)
     \elim A
       | var index p => var index p
-      | metavar m choosing => metavar (inr (index, m)) (\lam i => upgrade-metavariables point pointed-context metas (choosing i))
-      | func f choosing => func f (\lam i => upgrade-metavariables point pointed-context metas (choosing i))
+      | metavar m arguments => metavar (inr (index, m)) (\lam i => upgrade-metavariables point pointed-context metas (arguments i))
+      | func f arguments => func f (\lam i => upgrade-metavariables point pointed-context metas (arguments i))
   }
 
 \func SingularMetaContext {env : FSignature} (point : Sort) (context : List Sort)

@@ -60,6 +60,9 @@
       | :: y list', sublist-match p sublist => sublist-skip sublist
       | :: y list', sublist-skip sublist => sublist-skip (shrink sublist)
 
+    \func id+right {A : \Type} {i r : List A} : SubList i (i ++ r) => SubList.extend-right-single SubList.identity
+    \func id+left {A : \Type} {i l : List A} : SubList i (l ++ i) => SubList.extend-left-single SubList.identity
+
     \func compose
       {A : \Type} {a b c : List A}
       (sl : SubList a b)

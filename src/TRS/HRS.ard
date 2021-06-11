@@ -92,14 +92,14 @@
   }
 
 \func transport-chooser-f {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort} {f-A f-B : symbol s} (p : f-A = f-B)
-                          (choosing-B : \Pi (index : F-param-index f-B) -> Term env (context ++ (f-B !!param index)) (f-B !!sort index) mc)
+                          (arguments-B : \Pi (index : F-param-index f-B) -> Term env (context ++ (f-B !!param index)) (f-B !!sort index) mc)
   :  \Pi (index : Index (domain f-A)) -> Term env (context ++ (f-A !!param index)) (f-A !!sort index) mc =>
-  transport (\lam f => \Pi (index : Index (domain f)) -> Term env (context ++ f !!param index) (f !!sort index) mc) (inv p) choosing-B
+  transport (\lam f => \Pi (index : Index (domain f)) -> Term env (context ++ f !!param index) (f !!sort index) mc) (inv p) arguments-B
 
 \func transport-chooser-m {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort} {m-A m-B : mc.metaname s} (p : m-A = m-B)
-                          (choosing-B : \Pi (index : Index (mc.m-domain m-B)) -> Term env context ((mc.m-domain m-B) !! index) mc)
+                          (arguments-B : \Pi (index : Index (mc.m-domain m-B)) -> Term env context ((mc.m-domain m-B) !! index) mc)
   : \Pi (index : Index (mc.m-domain m-A)) -> Term env context ((mc.m-domain m-A) !! index) mc =>
-  transport (\lam (m : mc.metaname s) => \Pi (index : Index (mc.m-domain m)) -> Term env context ((mc.m-domain m) !! index) mc) (inv p) choosing-B
+  transport (\lam (m : mc.metaname s) => \Pi (index : Index (mc.m-domain m)) -> Term env context ((mc.m-domain m) !! index) mc) (inv p) arguments-B
 
 \data RewriteRelation
   {env : FSignature}
@@ -119,19 +119,19 @@
     MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-free) SubList.identity substitution =
     transport (Term env context __ mc) sort-eq B)
 
-  | func f-A choosing-A, func f-B choosing-B =>
+  | func f-A arguments-A, func f-B arguments-B =>
   rewrite-with-parameter-f
     (p : f-A = f-B)
     (i : Index (domain f-A))
-    (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-f p choosing-B i))
-    (other-unchanged : \Pi (j : Index (domain f-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-f p choosing-B j))
+    (reduction : RewriteRelation set-of-rules (arguments-A i) (transport-chooser-f p arguments-B i))
+    (other-unchanged : \Pi (j : Index (domain f-A)) (j = i -> Empty) -> (arguments-A j) = (transport-chooser-f p arguments-B j))
 
-  | metavar (m-A : mc.metaname s) choosing-A, metavar (m-B : mc.metaname s) choosing-B =>
+  | metavar (m-A : mc.metaname s) arguments-A, metavar (m-B : mc.metaname s) arguments-B =>
   rewrite-with-parameter-m
     (p : m-A = m-B)
     (i : Index (m-domain m-A))
-    (reduction : RewriteRelation set-of-rules (choosing-A i) (transport-chooser-m p choosing-B i))
-    (other-unchanged : \Pi (j : Index (m-domain m-A)) (j = i -> Empty) -> (choosing-A j) = (transport-chooser-m p choosing-B j))
+    (reduction : RewriteRelation set-of-rules (arguments-A i) (transport-chooser-m p arguments-B i))
+    (other-unchanged : \Pi (j : Index (m-domain m-A)) (j = i -> Empty) -> (arguments-A j) = (transport-chooser-m p arguments-B j))
 
 \class HigherOrderTermRewritingSystem \noclassifying (env : FSignature) (meta-context : MetaContext Sort) (set-of-rules : IndexedSet (RewriteRule env))  \extends AbstractReductionSystem
   | A => \Sigma (context : List Sort) (sort : Sort) (Term env context sort meta-context)
