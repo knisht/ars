@@ -78,7 +78,7 @@
   | c-basic x->y => unify-line x y z x->y x->z unifier
   | c-connect c x->c c->y => \let | (w, c->w, z->w) => unify-line x c z x->c x->z unifier
                                   | (w', y->w', w->w') => unify-reduction c y w c->y c->w unifier
-                             \in (w', y->w', Closure.concat z->w w->w')
+                             \in (w', y->w', Closure.compose z->w w->w')
   \where {
     \func unify-line
       {A : \Type} {Rel : A -> A -> \Type} (x y z : A)
@@ -113,7 +113,7 @@
        parallelization-f
            arguments1
            (\lam i1 => (nothing, inl idp, equal-trees idp))
-           (cr-rewrite (tc-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f arguments1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 idx unified.8 unified.7 unified.9 unified.10)) color-eq))
+           (cr-rewrite (c-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f arguments1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 idx unified.8 unified.7 unified.9 unified.10)) color-eq))
   | func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq =>
     \let | (global-color, color, bpr) => embed-rewrite-relation (arguments-A index) (arguments-B index) rd all-rules-are-linear
          | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A arguments-A arguments-B (\lam i => \case (fin-dec i index) \with {
@@ -246,13 +246,13 @@
                           (arguments delim)
                           (mediator delim)
                           curmodular
-                 \in Closure.concat prev-result (rewrite
+                 \in Closure.compose prev-result (rewrite
                      (modular-to-pointed-forward (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) arguments mediator)
                      (rewrite {1}
                          (modular-to-pointed (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) arguments mediator delim)
                          lifted)))
          | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => unwrap-cwr color c
-    \in Closure.concat joined from-cwr
+    \in Closure.compose joined from-cwr
 
 \func unwrap-cwr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                  {gc : Color}
@@ -262,8 +262,7 @@
   : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) A B \elim color, A=>B
   | nothing, cr-skip idp => c-trivial idp
   | just color, cr-rewrite A->B p =>
-    TClosure.to-closure
-        (TClosure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B)
+        (Closure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B)
 
 \func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                    (color : Color)

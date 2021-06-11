@@ -17,12 +17,12 @@
   (env : FSignature)
   (context : List Sort)
   (termSort : Sort)
-  (allowVariables : \Prop)
+  (allow-variables : \Prop)
   | l-func
     (f : symbol termSort)
-    (arguments : \Pi (index : Index (domain f)) -> GenericLinearTerm env (context ++ (f !!param index)) (f !!sort index) allowVariables)
+    (arguments : \Pi (index : Index (domain f)) -> GenericLinearTerm env (context ++ (f !!param index)) (f !!sort index) allow-variables)
   | l-full-metavar
-  | l-var (index : Index context) (termSort = context !! index) allowVariables
+  | l-var (index : Index context) (termSort = context !! index) allow-variables
 
 \module Linear \where {
   \func convert-to-term
