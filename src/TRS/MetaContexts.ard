@@ -1,0 +1,57 @@
+\import Data.List (List)
+\import Data.Or
+\import Logic
+\import Logic.Meta
+\import TRS.Data.Fin
+\import TRS.HRS
+
+\func ModularMetaContext {env : FSignature} {n : Nat} (meta-contexts : Fin n -> MetaContext Sort) : MetaContext Sort
+\cowith
+  | metaname s => \Sigma (i : Fin n) (metaname {meta-contexts i} s)
+  | m-domain m => m-domain {(meta-contexts (m.1))} m.2
+  \where {
+    \func upgrade-metavariables
+      {env : FSignature} {context : List Sort} {s : Sort} {n : Nat}
+      {index : Fin n}
+      (meta-contexts : Fin n -> MetaContext Sort)
+      (A : Term env context s (meta-contexts index))
+      : Term env context s (ModularMetaContext meta-contexts)
+    \elim A
+      | var index p => var index p
+      | metavar m choosing => metavar (index, m) (\lam i => upgrade-metavariables meta-contexts (choosing i))
+      | func f choosing => func f (\lam i => upgrade-metavariables meta-contexts (choosing i))
+  }
+
+\func PointedModularMetaContext {env : FSignature} {n : Nat} (point : Sort) (context-for-point : List Sort)
+                                (meta-contexts : Fin n -> MetaContext Sort) : MetaContext Sort
+\cowith
+  | metaname s => (s = point) `Or` (metaname {ModularMetaContext meta-contexts} s)
+  | m-domain m => \case \elim m \with {
+    | inl eq => context-for-point
+    | inr m => m-domain {ModularMetaContext meta-contexts} m
+  }
+  \where {
+    \func upgrade-metavariables
+      {env : FSignature} {context : List Sort} {s : Sort}
+      (point : Sort)
+      (pointed-context : List Sort)
+      {index : Index pointed-context}
+      (metas : \Pi (Index pointed-context) -> MetaContext Sort)
+      (A : Term env context s (metas index))
+      : Term env context s (PointedModularMetaContext point pointed-context metas)
+    \elim A
+      | var index p => var index p
+      | metavar m choosing => metavar (inr (index, m)) (\lam i => upgrade-metavariables point pointed-context metas (choosing i))
+      | func f choosing => func f (\lam i => upgrade-metavariables point pointed-context metas (choosing i))
+  }
+
+\func SingularMetaContext {env : FSignature} (point : Sort) (context : List Sort)
+  : MetaContext Sort \cowith
+  | metaname s => s = point
+  | m-domain eq => context
+
+\func EmptyMetaContext {env : FSignature} : MetaContext Sort \cowith
+  | metaname m => Empty
+  | m-domain e => contradiction
+
+\func PureTerm (env : FSignature) (context : List Sort) (s : Sort) : \Type => Term env context s EmptyMetaContext

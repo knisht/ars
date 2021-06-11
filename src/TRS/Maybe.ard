@@ -2,8 +2,7 @@
 \import Logic
 \import Paths
 
-
-\func unjust {A : \Type} (a : A) (q : Maybe A) : A \elim q
+\func unjust {A : \Type} (a : A) (maybe : Maybe A) : A \elim maybe
   | nothing => a
   | just a1 => a1
 
