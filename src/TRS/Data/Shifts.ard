@@ -123,5 +123,4 @@
     | :: a a2, :: y b, :: a1 c, sublist-skip sublist, 0 => pmap fsuc (right-both-after-expand-right sublist 0)
     | nil, :: y b, :: a1 c, sublist-skip sublist, suc index => pmap fsuc (right-both-after-expand-right {A} {nil} {b} {:: a1 c} sublist (suc index))
     | :: a a2, :: y b, :: a1 c, sublist-skip sublist, suc index => pmap fsuc (right-both-after-expand-right {A} {:: a a2} {b} {:: a1 c} sublist (suc index))
-
 }
