@@ -15,6 +15,7 @@
 \import Set
 \import Set.Fin
 \import TRS.Data.Fin
+\import TRS.Data.Shifts
 \import TRS.Data.SubList
 \import TRS.HRS
 \import TRS.Linearity
@@ -796,8 +797,8 @@
     (index : Index (left-context ++ right-context))
     : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index)) =>
     partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
-        (\lam i => rewrite (extend-substitution-left.for-left-context {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.for-left-context {env}) idp))))
-        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
+        (\lam i => rewrite (extend-substitution-left.on-begin {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.on-begin {env}) idp))))
+        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
         index
     \where {
       \func lemma {tc : TheoremContext} {context : List Sort'}
@@ -854,8 +855,8 @@
           r
           lf
           (\lam m => Substitution.apply {env} (msubst m) (append-context-right {env} subst))
-          (rewrite (inv msubst[l]=A) (((rewrite (trivial-sublist-contractible _ _)) ((rewrite (trivial-sublist-contractible {_} {context})) (rewrite (identity-sublist-contractible {_} {new-context}) (rewrite (identity-sublist-contractible {_} {context}) (rewrite {2} (append-context-right-to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (Linear.convert-to-injected-term color lp) subst msubst)))))))))
-          (rewrite (inv msubst[r]=B) (((rewrite (trivial-sublist-contractible _ _)) ((rewrite (trivial-sublist-contractible {_} {context})) (rewrite (identity-sublist-contractible {_} {new-context}) (rewrite (identity-sublist-contractible {_} {context}) (rewrite {2} (append-context-right-to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (inject-monochrome-term color r) subst msubst)))))))))
+          (rewrite (inv msubst[l]=A) (((rewrite (trivial-sublist-contractible _ _)) ((rewrite (trivial-sublist-contractible {_} {context})) (rewrite (identity-sublist-contractible {_} {new-context}) (rewrite (identity-sublist-contractible {_} {context}) (rewrite {2} (append-context-right.to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (Linear.convert-to-injected-term color lp) subst msubst)))))))))
+          (rewrite (inv msubst[r]=B) (((rewrite (trivial-sublist-contractible _ _)) ((rewrite (trivial-sublist-contractible {_} {context})) (rewrite (identity-sublist-contractible {_} {new-context}) (rewrite (identity-sublist-contractible {_} {context}) (rewrite {2} (append-context-right.to-nil {env} subst) (untransport {env} _ ++_nil ++_nil (\lam {s1 : Sort'} (m : metaname {LinearMetaContext {colored-env color} lp} s1) => Substitution.apply {env} (msubst m) (append-context-right {env} subst)) _ _ _ _ _ _ (commutation {env} (inject-monochrome-term color r) subst msubst)))))))))
           inh1 inh2 inh3 inh4 inh5
     | func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f-colored idp p1 i tlcr eq => rewrite-with-parameter-f-colored idp p1 i (tlcr-over-substitution (append-context-right {env} subst) tlcr) (\lam j _x => rewrite (eq j _x) idp)
     \where {
@@ -892,7 +893,7 @@
         Substitution.apply (MetaSubstitution.apply
             (weakening term (SubList.extend-left-single SubList.identity))
             (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst) \elim term
-        | var index idp => inv (weakening-extend-left _ (var index idp))
+        | var index idp => inv (weakening.combine-with-append-left _ (var index idp))
         | metavar m arguments => repeat {2} (rewrite subst-comm) (cong (ext (\lam i =>
             \let inductive : (\lam j => MetaSubstitution.apply
                 (weakening (arguments j) (SubList.extend-left-single SubList.identity))
@@ -903,7 +904,7 @@
                 (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst)) => ext (\lam j => commutation (arguments j) subst metasubst)
             \in rewrite inductive (subst-comm-different subst _ i))))
         | func f arguments =>
-          pmap (func f) (ext (\lam index => \let inductive => commutation (arguments index) subst metasubst \in rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite double-append-context-right (inductive-step (arguments index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
+          pmap (func f) (ext (\lam index => \let inductive => commutation (arguments index) subst metasubst \in rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite append-context-right.composition (inductive-step (arguments index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
         \where {
           \lemma subst-comm {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
                             (t : Term env context-a s mc)
@@ -921,8 +922,8 @@
                 : Substitution.apply (append-context-right subst-a i) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) i =>
                 partial-fin-induction
                     (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) ind)
-                    (\lam i1 => repeat {2} (rewrite append-context-right.on-begin) (rewrite weakening-extend-right (equating-lemma subst-a subst-b i1 _)))
-                    (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening-extend-left subst-b (var i1 (expand-fin-right-eq i1))) idp))
+                    (\lam i1 => repeat {2} (rewrite append-context-right.on-begin) (rewrite weakening.combine-with-append-right (equating-lemma subst-a subst-b i1 _)))
+                    (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening.combine-with-append-left subst-b (var i1 (expand-fin-right-eq i1))) idp))
                     i
                 \where {
                   \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
@@ -946,8 +947,8 @@
             = Substitution.apply (extend-substitution-left (SubList.extend-right-single SubList.identity) subst2 index) (append-context-right subst) =>
             partial-fin-induction (\lam i => Substitution.apply (append-context-right subst i) (extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam j => Substitution.apply (subst2 j) (append-context-right subst)))
               = Substitution.apply (extend-substitution-left (SubList.extend-right-single SubList.identity) subst2 i) (append-context-right subst))
-                (\lam i => rewrite append-context-right.on-begin (rewrite extend-substitution-left.for-left-context (rewrite weakening-append-left (inductive-step subst i _))))
-                (\lam i => rewrite append-context-right.on-end (rewrite extend-substitution-left.for-right-context (rewrite (weakening-append-right (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-right-eq i))) (inductive-step-2 subst subst2 i (expand-fin-right-eq i)))))
+                (\lam i => rewrite append-context-right.on-begin (rewrite extend-substitution-left.on-begin (rewrite weakening.combine-with-extend-right (inductive-step subst i _))))
+                (\lam i => rewrite append-context-right.on-end (rewrite extend-substitution-left.on-end (rewrite (weakening.combine-with-extend-left (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-right-eq i))) (inductive-step-2 subst subst2 i (expand-fin-right-eq i)))))
                 index
             \where {
               \func inductive-step-2 {env : FSignature} {context-a context-b context-c context-d : List Sort} {s : Sort} {mc : MetaContext Sort}
@@ -960,16 +961,18 @@
                                                                                                                    (append-context-right subst) \elim eq
                 | idp => idp
 
-              \func inductive-step  {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {mc : MetaContext Sort}
-                                    (subst : Substitution context-a context-b mc)
-                                    (index : Index context-a)
-                                    (eq : s = context-a !! index)
+              \func inductive-step
+                {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {mc : MetaContext Sort}
+                (subst : Substitution context-a context-b mc)
+                (index : Index context-a)
+                (eq : s = context-a !! index)
                 : weakening (coe (\lam (i1 : I) => Term env context-b (inv (eq) @ i1) mc) (subst index) right)
-                  (SubList.extend-right-single SubList.identity {context-c}) = Substitution.apply
-                                                                                   (var (weakening.recalculate-index (SubList.extend-right-single SubList.identity) index)
-                                                                                       (weakening.recalculate-index-proof (SubList.extend-right-single SubList.identity) index (eq)))
-                                                                                   (append-context-right subst) \elim eq
-                | idp => rewrite (weakening-extend-right subst (var index idp)) idp
+                  (SubList.extend-right-single SubList.identity {context-c}) =
+              Substitution.apply
+                  (var (shift-index (SubList.extend-right-single SubList.identity) index)
+                      (Shifts.proof (SubList.extend-right-single SubList.identity) index (eq)))
+                  (append-context-right subst) \elim eq
+                | idp => rewrite (weakening.combine-with-append-right subst (var index idp)) idp
             }
 
           \lemma inductive-step
@@ -1072,9 +1075,9 @@
     (tlcr : TopLevelColoredReduction color A B)
     (sublist : SubList context new-context)
     : TopLevelColoredReduction color (weakening {env} A sublist) (weakening {env} B sublist) =>
-    \let | weakening-subst => weakening-as-substitution {env} sublist
+    \let | weakening-subst => weakening.substitution {env} sublist
          | substed-tlcr => tlcr-over-substitution weakening-subst tlcr
-    \in repeat {2} (rewrite (weakening-as-substitution-eq {env})) substed-tlcr
+    \in repeat {2} (rewrite (weakening.substitution-eq {env})) substed-tlcr
 
   \func distributed-reduction-for-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
                                                (A : PureTerm env context s)

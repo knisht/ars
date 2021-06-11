@@ -8,6 +8,7 @@
 \import Paths.Meta
 \import Set \hiding (#)
 \import TRS.Data.Fin
+\import TRS.Data.Shifts
 \import TRS.Data.SubList
 \import TRS.HRS
 \import TRS.Linearity
@@ -179,14 +180,14 @@
           | red => partial-fin-induction (\lam fin => extend-substitution-left {env} sublist (\lam i => inject-monochrome-term red (subst i)) fin
             =
           inject-monochrome-term red (extend-substitution-left {colored-env red} sublist subst fin))
-              (\lam i1 => rewrite (extend-substitution-left.for-left-context {env}) (rewrite (extend-substitution-left.for-left-context {colored-env red}) idp))
-              (\lam i1 => rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {colored-env red}) (untransport red _ _)))
+              (\lam i1 => rewrite (extend-substitution-left.on-begin {env}) (rewrite (extend-substitution-left.on-begin {colored-env red}) idp))
+              (\lam i1 => rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {colored-env red}) (untransport red _ _)))
               i
           | blue => partial-fin-induction (\lam fin => extend-substitution-left {env} sublist (\lam i => inject-monochrome-term blue (subst i)) fin
             =
           inject-monochrome-term blue (extend-substitution-left {colored-env blue} sublist subst fin))
-              (\lam i1 => rewrite (extend-substitution-left.for-left-context {env}) (rewrite (extend-substitution-left.for-left-context {colored-env blue}) idp))
-              (\lam i1 => rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {colored-env blue}) (untransport blue _ _)))
+              (\lam i1 => rewrite (extend-substitution-left.on-begin {env}) (rewrite (extend-substitution-left.on-begin {colored-env blue}) idp))
+              (\lam i1 => rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {colored-env blue}) (untransport blue _ _)))
               i
           \where {
             \func untransport {tc : TheoremContext} {context : List Sort'} {s s' : Sort'}
@@ -304,8 +305,8 @@
           | idp, metavar m arguments => \let inductive-ext : (\lam i => weakening ((MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst)) sublist) =
               (\lam i => MetaSubstitution.apply
               (weakening (arguments i)
-                  (sublist)) SubList.sublist-trivial-free msubst) => ext (\lam i => untransport2 idp (arguments i) msubst sublist) \in unfold transport (rewriteI inductive-ext (rewrite weakening-as-substitution-eq (\let induced : (\lam (i : Index (mc.m-domain m)) =>
-              weakening (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) sublist) = (\lam i => Substitution.apply (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) (weakening-as-substitution sublist)) => ext (\lam i => rewrite weakening-as-substitution-eq idp) \in rewrite induced (tlcr-over-substitution.commutation.subst-comm _ _ _))))
+                  (sublist)) SubList.sublist-trivial-free msubst) => ext (\lam i => untransport2 idp (arguments i) msubst sublist) \in unfold transport (rewriteI inductive-ext (rewrite weakening.substitution-eq (\let induced : (\lam (i : Index (mc.m-domain m)) =>
+              weakening (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) sublist) = (\lam i => Substitution.apply (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) (weakening.substitution sublist)) => ext (\lam i => rewrite weakening.substitution-eq idp) \in rewrite induced (tlcr-over-substitution.commutation.subst-comm _ _ _))))
           | idp, func f arguments => (pmap (func f) (ext (\lam index => rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (untransport2 idp (arguments index) msubst (SubList.extend-right-both sublist))))))
       }
 
@@ -319,8 +320,8 @@
       partial-fin-induction
           (\lam fin => (extend-substitution-left
               sublist (\lam (i : Index add-context) => MetaSubstitution.apply (subst i) SubList.sublist-trivial-free msubst2)) fin = (MetaSubstitution.apply (extend-substitution-left sublist subst fin) SubList.sublist-trivial-free msubst2))
-          (\lam fin => repeat {2} (rewrite (extend-substitution-left.for-left-context)) idp)
-          (\lam fin => repeat {2} (rewrite (extend-substitution-left.for-right-context)) (untransport-2 _ (subst fin) msubst2))
+          (\lam fin => repeat {2} (rewrite (extend-substitution-left.on-begin)) idp)
+          (\lam fin => repeat {2} (rewrite (extend-substitution-left.on-end)) (untransport-2 _ (subst fin) msubst2))
           index
       \where {
         \func ext' {env : FSignature} {context context' add-context : List Sort} {mc' mc'' : MetaContext Sort}
@@ -367,14 +368,14 @@
   | red, func (inr f) arguments =>
     (l-full-metavar {colored-env red},
      \lam {s1} mvar => transport (PureTerm env context __) (inv mvar) (func (inr f) arguments),
-     pmap (func {env} (inr f)) (ext (\lam index => rewrite (append-context-right-to-identity.ext' {env}) (rewrite (plain-identity-effect {env}) idp))),
+     pmap (func {env} (inr f)) (ext (\lam index => rewrite (append-context-right.to-identity {env}) (rewrite (plain-identity-effect {env}) idp))),
      \lam {s1} m => \case \elim s1, \elim m \with {
        | s1, idp => blue-func-root
      })
   | blue, func (inl f) arguments =>
     (l-full-metavar {colored-env blue},
      \lam {s1} mvar => transport (PureTerm env context __) (inv mvar) (func (inl f) arguments),
-     pmap (func {env} (inl f)) (ext (\lam index => rewrite (append-context-right-to-identity.ext' {env}) (rewrite (plain-identity-effect {env}) idp))),
+     pmap (func {env} (inl f)) (ext (\lam index => rewrite (append-context-right.to-identity {env}) (rewrite (plain-identity-effect {env}) idp))),
      \lam {s1} m => \case \elim s1, \elim m \with {
        | s1, idp => red-func-root
      })
@@ -914,14 +915,14 @@
       | red => \let color => red \in partial-fin-induction (\lam fin => (MetaSubstitution.apply {env} (inject-monochrome-term color (extend-substitution-left {colored-env color} sublist subst fin))
           SubList.sublist-trivial-free msubst) = extend-substitution-left {env} sublist (\lam (j : Index (context-b)) => MetaSubstitution.apply {env}
           (inject-monochrome-term color (subst j)) SubList.sublist-trivial-free msubst) fin)
-          (\lam i1 => rewrite (extend-substitution-left.for-left-context {env}) (rewrite (extend-substitution-left.for-left-context {colored-env color}) idp))
-          (\lam i1 => rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {colored-env color}) (untransport red sublist msubst _ _)))
+          (\lam i1 => rewrite (extend-substitution-left.on-begin {env}) (rewrite (extend-substitution-left.on-begin {colored-env color}) idp))
+          (\lam i1 => rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {colored-env color}) (untransport red sublist msubst _ _)))
           i
       | blue => \let color => blue \in partial-fin-induction (\lam fin => (MetaSubstitution.apply {env} (inject-monochrome-term color (extend-substitution-left {colored-env color} sublist subst fin))
           SubList.sublist-trivial-free msubst) = extend-substitution-left {env} sublist (\lam (j : Index (context-b)) => MetaSubstitution.apply {env}
           (inject-monochrome-term color (subst j)) SubList.sublist-trivial-free msubst) fin)
-          (\lam i1 => rewrite (extend-substitution-left.for-left-context {env}) (rewrite (extend-substitution-left.for-left-context {colored-env color}) idp))
-          (\lam i1 => rewrite (extend-substitution-left.for-right-context {env}) (rewrite (extend-substitution-left.for-right-context {colored-env color}) (untransport blue sublist msubst _ _)))
+          (\lam i1 => rewrite (extend-substitution-left.on-begin {env}) (rewrite (extend-substitution-left.on-begin {colored-env color}) idp))
+          (\lam i1 => rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {colored-env color}) (untransport blue sublist msubst _ _)))
           i
       \where {
       \func ext' {tc : TheoremContext} {context-a context-b context-c : List Sort'} {mc mc' : MetaContext Sort'}
@@ -1001,7 +1002,7 @@
               | metavar m arguments, idp => \let | inductive i => untransport (arguments i) metasubst sublist idp
                                            | inductive-ext : (\lam i => MetaSubstitution.apply
                                                (weakening ((arguments i)) sublist)
-                                               SubList.sublist-trivial-free metasubst) = (\lam i => weakening ((MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free metasubst)) sublist) => ext inductive \in unfold transport (rewrite (weakening-as-substitution-eq sublist ((Substitution.apply (metasubst m)
+                                               SubList.sublist-trivial-free metasubst) = (\lam i => weakening ((MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free metasubst)) sublist) => ext inductive \in unfold transport (rewrite (weakening.substitution-eq sublist ((Substitution.apply (metasubst m)
                   (\lam (j : Index (nil ++ ms.m-domain m)) => MetaSubstitution.apply (arguments j) SubList.sublist-trivial-free metasubst)))) (rewrite inductive-ext (rewrite (internal-lemma arguments sublist metasubst) (inv (tlcr-over-substitution.commutation.subst-comm _ _ _)))))
               | func f arguments, idp => pmap (func f) (ext (\lam index => repeat {2} (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) (SubList.sublist-trivial-free))) (untransport (arguments index) metasubst (SubList.extend-right-both sublist) idp)))
 
@@ -1011,7 +1012,7 @@
                                  (metasubst : MetaSubstitution env nil ms ms')
               : (\lam (j : Index (nil ++ ms.m-domain m)) =>
                 weakening (MetaSubstitution.apply (arguments j) SubList.sublist-trivial-free metasubst) sublist) = (\lam (j : Index (nil ++ ms.m-domain m)) =>
-                Substitution.apply (MetaSubstitution.apply (arguments j) SubList.sublist-trivial-free metasubst) (weakening-as-substitution sublist)) => ext (\lam j => rewrite weakening-as-substitution-eq idp)
+                Substitution.apply (MetaSubstitution.apply (arguments j) SubList.sublist-trivial-free metasubst) (weakening.substitution sublist)) => ext (\lam j => rewrite weakening.substitution-eq idp)
           }
       }
 
@@ -1295,11 +1296,11 @@
           extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i
             =
           plain-identity {_} {_} {mc} i)
-      (\lam i1 => \let | q => extend-substitution-left.for-left-context (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
-                  \in q *> (var-extensionality _ _ (weakening.rright _) _ _))
-      (\lam i1 => \let | q => extend-substitution-left.for-right-context (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
-                       | big-eq => weakening.recalculate-index-over-left-extension' {Sort} {left-context} {right-context} i1
-                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right-to-identity.lem2 (expand-fin-right i1) (expand-fin-right i1) (inv (expand-fin-right-eq i1)) idp (inv (expand-fin-right-eq i1)) idp)))
+      (\lam i1 => \let | q => extend-substitution-left.on-begin (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
+                  \in q *> (var-extensionality (Shifts.over-right-single _)))
+      (\lam i1 => \let | q => extend-substitution-left.on-end (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
+                       | big-eq => Shifts.left-extension {Sort} {left-context} {right-context} i1
+                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right.to-identity.lem2 (expand-fin-right i1) (expand-fin-right i1) (inv (expand-fin-right-eq i1)) idp (inv (expand-fin-right-eq i1)) idp)))
       i
 
 \lemma expand-substitution-3 {env : FSignature} {term-context ms-context big-context big-context' : List Sort} {s : Sort} {ms ms' : MetaContext Sort}
