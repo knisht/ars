@@ -8,6 +8,7 @@
 \import Meta
 \import Paths
 \import Paths.Meta
+\import Relation
 \import TRS.Data.Fin
 \import TRS.Data.Shifts
 \import TRS.Data.SubList
@@ -101,7 +102,7 @@
   (global-color : Color)
   (color : Maybe Color) (A B : Term env context s mc) \elim color
   | nothing => cr-skip (A = B)
-  | just color => cr-rewrite (Closure (TopLevelColoredReduction color) A B) (global-color = color) -- (HasColoredRoot color A)
+  | just color => cr-rewrite (Closure (TopLevelColoredReduction color) A B) (global-color = color)
 
 \func TrichromaticParallelReduction
   {tc : TheoremContext} {mc : MetaContext Sort'} {context : List Sort'} {s : Sort'}
@@ -118,11 +119,7 @@
   | A, B, rewrite-with-rule _ _ _ _ _ => rule-rewriting
   | func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f _ _ rd _ => param-rewriting (FunctionalWitness rd)
 
-\record StraightJoin {A : \Type} (a b : A) (rel : A -> A -> \Type)
-  | common-reduct : A
-  | a~>cr : rel a common-reduct
-  | b~>cr : rel b common-reduct
-
+-- | Main function for joining two BorderedParallelReductions. Performs high-level dissection of incoming types.
 \func bpr-confluence
   {tc : TheoremContext} {gc1 gc2 : Color} (color1 color2 : Maybe Color) {context : List Sort'} {s : Sort'}
   {A B C : PureTerm env context s}
@@ -222,16 +219,19 @@
     \func unwrap-cwr
       {tc : TheoremContext} {gc1 gc2 : Color} {color3 color4 : Maybe Color} {context : List Sort'} {s : Sort'}
       (T1 T2 A B C : PureTerm env context s) {color-2 : Maybe Color}
-      (cwr : SwitchingReduction gc1 color-2 A B) (A~>*C : Closure (TopLevelColoredReduction gc2) A C)
-      (T1=>B : BorderedParallelReduction gc2 color3 T1 B) (T2=>C : BorderedParallelReduction gc1 color4 T2 C)
+      (cwr : SwitchingReduction gc1 color-2 A B)
+      (A~>*C : Closure (TopLevelColoredReduction gc2) A C)
+      (T1=>B : BorderedParallelReduction gc2 color3 T1 B)
+      (T2=>C : BorderedParallelReduction gc1 color4 T2 C)
       (left-confluence : ConfluentialSystem envL L-rules)
       (right-confluence : ConfluentialSystem envR R-rules)
       (all-rules-are-linear : LinearDump)
       :
-      \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc2 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, cwr
+      \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc2 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X)
+    \elim color-2, cwr
       | nothing, cr-skip p => \let (cl-1, t1=>X) => BorderedParallelReduction.append-tlcr T1 B T1=>B C (rewriteI p A~>*C) \in (C, cl-1, t1=>X, color4, T2=>C)
       | just color, cr-rewrite A~>*B p =>
-        \let | (X, B~>*X, C~>*X) => join-different-tlcrs color gc2 A~>*B A~>*C left-confluence right-confluence all-rules-are-linear
+        \let | (X, B~>*X, C~>*X) => join-multicolor-tlcrs color gc2 A~>*B A~>*C left-confluence right-confluence all-rules-are-linear
              | (cl-1, t1=>X) => BorderedParallelReduction.append-tlcr T1 B T1=>B X B~>*X
              | (cl-2, t2=>X) => BorderedParallelReduction.append-tlcr T2 C T2=>C X (rewrite p C~>*X)
         \in (X, cl-1, t1=>X, cl-2, t2=>X)
@@ -249,44 +249,39 @@
       (right-confluence : ConfluentialSystem envR R-rules)
       (all-rules-are-linear : LinearDump)
       :
-      \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc1 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X) \elim color-2, color-1, cwr-1, cwr-2
+      \Sigma (X : PureTerm env context s) (c1 : Maybe Color) (BorderedParallelReduction gc1 c1 T1 X) (c2 : Maybe Color) (BorderedParallelReduction gc1 c2 T2 X)
+    \elim color-2, color-1, cwr-1, cwr-2
       | nothing, nothing, cr-skip p, cr-skip p1 =>
-        \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 A~>*B (rewrite {1} (p *> inv p1) A'~>*C) left-confluence right-confluence all-rules-are-linear
+        \let | (X, B~>*X, C~>*X) => join-multicolor-tlcrs gc1 gc1 A~>*B (rewrite {1} (p *> inv p1) A'~>*C) left-confluence right-confluence all-rules-are-linear
              | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
              | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
         \in (X, c1, T1=>X, c2, T2=>X)
       | nothing, just color, cr-skip p, cr-rewrite A'~>*E p1 =>
-        \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 (Closure.compose (transport (\lam cl => Closure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) (rewrite {1} (inv p) A~>*B)) A'~>*C left-confluence right-confluence all-rules-are-linear
+        \let | (X, B~>*X, C~>*X) => join-multicolor-tlcrs gc1 gc1 (Closure.compose (transport (\lam cl => Closure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) (rewrite {1} (inv p) A~>*B)) A'~>*C left-confluence right-confluence all-rules-are-linear
              | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
              | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
         \in (X, c1, T1=>X, c2, T2=>X)
       | just color, nothing, cr-rewrite A~>*E p, cr-skip p1 =>
-        \let | (X, B~>*X, C~>*X) => join-different-tlcrs gc1 gc1 A~>*B (Closure.compose ((transport (\lam cl => Closure (TopLevelColoredReduction cl) A E) (inv p) A~>*E)) (rewrite {1} (inv p1) A'~>*C)) left-confluence right-confluence all-rules-are-linear
+        \let | (X, B~>*X, C~>*X) => join-multicolor-tlcrs gc1 gc1 A~>*B (Closure.compose ((transport (\lam cl => Closure (TopLevelColoredReduction cl) A E) (inv p) A~>*E)) (rewrite {1} (inv p1) A'~>*C)) left-confluence right-confluence all-rules-are-linear
              | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X B~>*X
              | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X C~>*X
         \in (X, c1, T1=>X, c2, T2=>X)
       | just color, just color1, cr-rewrite A~>*E p, cr-rewrite A'~>*E p1 =>
-        \let | (M1, B~>*M1, E~>*M1) => join-different-tlcrs gc1 gc1 (A~>*B) (rewrite p A~>*E) left-confluence right-confluence all-rules-are-linear
-             | (M2, E~>*M2, C~>*M2) => join-different-tlcrs gc1 gc1 (transport (\lam cl => Closure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) A'~>*C left-confluence right-confluence all-rules-are-linear
-             | (X, M1~>*X, M2~>*X) => join-different-tlcrs gc1 gc1 E~>*M1 E~>*M2 left-confluence right-confluence all-rules-are-linear
+        \let | (M1, B~>*M1, E~>*M1) => join-multicolor-tlcrs gc1 gc1 (A~>*B) (rewrite p A~>*E) left-confluence right-confluence all-rules-are-linear
+             | (M2, E~>*M2, C~>*M2) => join-multicolor-tlcrs gc1 gc1 (transport (\lam cl => Closure (TopLevelColoredReduction cl) A' E) (inv p1) A'~>*E) A'~>*C left-confluence right-confluence all-rules-are-linear
+             | (X, M1~>*X, M2~>*X) => join-multicolor-tlcrs gc1 gc1 E~>*M1 E~>*M2 left-confluence right-confluence all-rules-are-linear
              | (c1, T1=>X) => BorderedParallelReduction.append-tlcr _ _ T1=>B X (Closure.compose B~>*M1 M1~>*X)
              | (c2, T2=>X) => BorderedParallelReduction.append-tlcr _ _ T2=>C X (Closure.compose C~>*M2 M2~>*X)
         \in (X, c1, T1=>X, c2, T2=>X)
 
-    \func reorganize-colors-here {tc : TheoremContext} {gc : Color} {someColor : Maybe Color} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-                                 {A B : Term env context s mc} (A~>B : BorderedParallelReduction gc someColor A B)
-      : \Sigma (someColor' : Maybe Color) (Or (someColor' = nothing) (someColor' = just gc)) (BorderedParallelReduction gc someColor' A B) \elim someColor, A, A~>B
-      | _, A, equal-trees p => (nothing, inl idp, equal-trees p)
-      | nothing, func f arguments, rd => (nothing, inl idp, rd)
-      | just a, func f arguments, parallelization-f mediator _x (cr-rewrite t p) => (just a, rewrite p (inr idp), parallelization-f mediator _x (cr-rewrite t p))
-
-    \func join-different-tlcrs {tc : TheoremContext} (color1 color2 : Color) {context : List Sort'} {s : Sort'}
-                               {A B C : PureTerm env context s}
-                               (A~>B : Closure (TopLevelColoredReduction color1) A B)
-                               (A~>C : Closure (TopLevelColoredReduction color2) A C)
-                               (left-confluence : ConfluentialSystem envL L-rules)
-                               (right-confluence : ConfluentialSystem envR R-rules)
-                               (all-rules-are-linear : LinearDump)
+    \func join-multicolor-tlcrs
+      {tc : TheoremContext} (color1 color2 : Color) {context : List Sort'} {s : Sort'}
+      {A B C : PureTerm env context s}
+      (A~>B : Closure (TopLevelColoredReduction color1) A B)
+      (A~>C : Closure (TopLevelColoredReduction color2) A C)
+      (left-confluence : ConfluentialSystem envL L-rules)
+      (right-confluence : ConfluentialSystem envR R-rules)
+      (all-rules-are-linear : LinearDump)
       : \Sigma (X : PureTerm env context s) (Closure (TopLevelColoredReduction color2) B X) (Closure (TopLevelColoredReduction color1) C X)
     \elim color1, color2
       | red, red => join-tlcrs red A B C A~>B A~>C left-confluence all-rules-are-linear
@@ -307,47 +302,20 @@
           }
       }
       | blue, blue => join-tlcrs blue A B C A~>B A~>C right-confluence all-rules-are-linear
-
-    \func gather-reduction {tc : TheoremContext}
-                           (color : Color)
-                           (sclr : Maybe Color)
-                           (eq : (sclr = nothing) `Or` (sclr = just color))
-                           {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} {B lr X : Term env context s mc}
-                           (B=>lr : BorderedParallelReduction color sclr B lr)
-                           (lr~>X : Closure (TopLevelColoredReduction color) lr X)
-      : BorderedParallelReduction color (just color) B X
-    \elim sclr, eq, B, B=>lr
-      | sclr, _, B, equal-trees idp => \case Closure.extract lr~>X \with {
-        | inl a => rewriteI a (equal-trees idp)
-        | inr (_, rd) => \let x : HasColoredRoot color lr => TopLevelColoredReduction.extract-root-coloring rd \in \case \elim color, \elim lr, \elim x, \elim lr~>X \with {
-          | red, func (inl f) arguments, red-func-root, lr~>X => (parallelization-f arguments (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite lr~>X idp))
-          | blue, func (inr f) arguments, blue-func-root, lr~>X => (parallelization-f arguments (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite lr~>X idp))
-        }
-      }
-      | nothing, inl a, func f arguments, parallelization-f mediator _x (cr-skip p) => parallelization-f mediator _x (cr-rewrite (rewrite p lr~>X) idp)
-      | just a1, inl a, func f arguments, parallelization-f mediator _x c => contradiction
-      | nothing, inr b, func f arguments, parallelization-f mediator _x c => contradiction
-      | just a, inr b, func f arguments, parallelization-f mediator _x (cr-rewrite t p) => parallelization-f mediator _x (cr-rewrite (Closure.compose (rewriteI (unjust-eq b) t) lr~>X) idp)
-
-    \func twist-colors {c1 c2 c3 : Maybe Color} (c1or : Or (c1 = nothing) (c1 = c2)) (c2or : Or (c2 = nothing) (c2 = c3)) : Or (c1 = nothing) (c1 = c3) \elim c1or
-      | inl a => inl a
-      | inr b => rewrite b c2or
-
-    \func twist-colors' {c1 c2 c3 : Maybe Color} (c1or : Or (c1 = c2) (c1 = nothing)) (c2or : Or (c2 = nothing) (c2 = c3)) : Or (c1 = nothing) (c1 = c3) \elim c1or
-      | inl a => rewrite a c2or
-      | inr b => inl b
   }
 
-\func unify-top {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color color' : Color)
-                (f : env.symbol s)
-                (arguments-A arguments-C : \Pi (index : Index (env.domain f)) -> PureTerm env (context ++ (f env.!!param index)) (f env.!!sort index))
-                (B : PureTerm env context s)
-                (A~>B : Closure (TopLevelColoredReduction color) (func {env} f arguments-A) B)
-                (inner-reductions : \Pi (i : F-param-index {env} f) ->
-                    \Sigma (someColor : Maybe Color)
-                           ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
-                           (BorderedParallelReduction color' someColor (arguments-A i) (transport-chooser-f {env} idp arguments-C i)))
-                (all-rules-are-linear : LinearDump)
+-- | Unifies delayed parallel reduction and top-level single-color reduction.
+\func unify-top
+  {tc : TheoremContext} {context : List Sort'} {s : Sort'} (color color' : Color)
+  (f : env.symbol s)
+  (arguments-A arguments-C : \Pi (index : Index (env.domain f)) -> PureTerm env (context ++ (f env.!!param index)) (f env.!!sort index))
+  (B : PureTerm env context s)
+  (A~>B : Closure (TopLevelColoredReduction color) (func {env} f arguments-A) B)
+  (inner-reductions : \Pi (i : F-param-index {env} f) ->
+      \Sigma (someColor : Maybe Color)
+             ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
+             (BorderedParallelReduction color' someColor (arguments-A i) (transport-chooser-f {env} idp arguments-C i)))
+  (all-rules-are-linear : LinearDump)
   : \Sigma (X : PureTerm env context s)
            (Closure (TopLevelColoredReduction color) (func {env} f arguments-C) X)
            (mcolor : Maybe Color)
@@ -356,44 +324,47 @@
     | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f arguments-A)
     | (u, lu[rho]=B, t~>*u) => iterate-decomposition (Linear.convert-to-term {colored-env color} t) rho B (rewrite unwrap-injection t[rho]=A) A~>B root-colors
     | injected-u : Term env context s (LinearMetaContext {colored-env color} (t)) => inject-monochrome-term color u
-    | eqs3 : (func {env} f arguments-A) = (MetaSubstitution.apply {env} (convert-to-injected-term color t) SubList.sublist-trivial-free rho) => inv t[rho]=A
-    | witnesses => inject-linear-term.generate-injection-witness color t
-    | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f arguments-C) t rho (root-colors) nothing (inl idp) (rewriteI eqs3 (parallelization-f arguments-C inner-reductions (cr-skip idp)))
-    | uni-right => Closure.lift {_} {_} {\lam x y => \Sigma (rrd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rrd) } {TopLevelColoredReduction color} (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) SubList.sublist-trivial-free sigma)) (\lam tlcr => lift-relation color sigma tlcr.1 tlcr.2 all-rules-are-linear) (Linear.convert-to-term {colored-env color} t) u t~>*u
-    | (mcl, uni-left) => unify-left color' color injected-u (inject-monochrome-term.generate-injection-witness color u) SubList.sublist-trivial-free rho sigma reds
+    | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f arguments-C) t rho (root-colors) nothing (inl idp) (rewriteI (inv t[rho]=A) (parallelization-f arguments-C inner-reductions (cr-skip idp)))
+    | uni-right => Closure.lift {_} {_}
+        {\lam x y => \Sigma (rrd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rrd)}
+        {TopLevelColoredReduction color}
+        (\lam trm => (MetaSubstitution.apply {env} (inject-monochrome-term color trm) SubList.sublist-trivial-free sigma))
+        (\lam tlcr => lift-relation color sigma tlcr.1 tlcr.2 all-rules-are-linear)
+        (Linear.convert-to-term {colored-env color} t)
+        u
+        t~>*u
+    | (mcl, uni-left) =>
+      unify-left color' color injected-u (inject-monochrome-term.generate-injection-witness color u) SubList.sublist-trivial-free rho sigma reds
   \in ((MetaSubstitution.apply {env} injected-u SubList.sublist-trivial-free sigma),
        (rewrite C=t[sigma] (rewriteI unwrap-injection uni-right)),
        mcl,
        (rewriteI lu[rho]=B uni-left))
-  \where {
-    \func iterate-decomposition
-      {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-mc mc : MetaContext Sort'}
-      {color : Color}
-      (t : Term (colored-env color) context s inner-mc)
-      (rho : MetaSubstitution env nil inner-mc mc)
-      {A : Term env context s mc}
-      (B : Term env context s mc)
-      (teq : (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-free rho) = A)
-      (A~>*B : Closure (TopLevelColoredReduction color) A B)
-      (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip color) (rho m))
-      : \Sigma (u : Term (colored-env color) context s inner-mc)
-               (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-free rho = B)
-               (Closure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd)) (t) u) \elim A~>*B
-      | c-basic A~>B =>
-        \let | (u, lu[rho]=B, t~>u, fw) => decompose-along-reduction color t B rho root-colors (rewrite teq A~>B)
-        \in (u, lu[rho]=B, c-basic (t~>u, fw))
-      | c-connect C A->C C~>*B =>
-        \let | (c, meq, rd, fw) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
-             | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, c-connect c (rd, fw) tcl)
-      | c-trivial idp => (t, teq, c-trivial idp)
 
-    \lemma recreate-coloring-for-root {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} {color : Color} {f : env.symbol s}
-                                      {arguments-A arguments-C : \Pi (index : Index (env.domain f)) -> Term env (context ++ (f env.!!param index)) (f env.!!sort index) mc}
-                                      (h : HasColoredRoot color (func f arguments-A)) : HasColoredRoot color (func f arguments-C) \elim color, f, h
-      | red, inl s1, red-func-root => red-func-root
-      | blue, inr s1, blue-func-root => blue-func-root
-  }
+-- | Converts a sequence of TopLevelColoredReductions to another sequence of regular RewriteRelations
+\func iterate-decomposition
+  {tc : TheoremContext} {context : List Sort'} {s : Sort'} {inner-mc mc : MetaContext Sort'}
+  {color : Color}
+  (t : Term (colored-env color) context s inner-mc)
+  (rho : MetaSubstitution env nil inner-mc mc)
+  {A : Term env context s mc}
+  (B : Term env context s mc)
+  (teq : (MetaSubstitution.apply {env} (inject-monochrome-term color t) SubList.sublist-trivial-free rho) = A)
+  (A~>*B : Closure (TopLevelColoredReduction color) A B)
+  (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip color) (rho m))
+  : \Sigma
+  (u : Term (colored-env color) context s inner-mc)
+  (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-free rho = B)
+  (Closure (\lam x y => \Sigma (rd : monochrome-reduction color x y) (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd)) t u)
+\elim A~>*B
+  | c-basic A~>B =>
+    \let | (u, lu[rho]=B, t~>u, fw) => decompose-along-reduction color t B rho root-colors (rewrite teq A~>B)
+    \in (u, lu[rho]=B, c-basic (t~>u, fw))
+  | c-connect C A->C C~>*B =>
+    \let | (c, meq, rd, fw) => decompose-along-reduction color t C rho root-colors (rewrite teq A->C)
+         | (u, mu, tcl) => iterate-decomposition c rho B (meq) (C~>*B) root-colors \in (u, mu, c-connect c (rd, fw) tcl)
+  | c-trivial idp => (t, teq, c-trivial idp)
 
+-- | Given rho[t] => C, generates sigma, s.t. sigma[t] = C and forall m, rho(m) => sigma(m)
 \func alternate-subst
   {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
   (gc rcolor : Color)
@@ -435,17 +406,17 @@
                    (modular-commutation {env} (\lam j => LinearMetaContext {envL} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term red (arguments index)) (\lam {s1} mvar => (induc (mvar.1)).1 mvar.2))
                    (rewrite (invariant-through-empty-subst {env}) (induc index).2)))),
            \lam {s1} m => (induc (m.1)).3 m.2)
-    )    | inr (_, rd) => \let
+    )
+    | inr (_, rd) => \let
       | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd)
-      | extracted => coloring-from-tlcr *> extract-from-or some-color-diff
-                          \in contradiction
+      | extracted => coloring-from-tlcr *> extract-from-or some-color-diff \in contradiction
   }
 
   | gc, l-func f arguments, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
   | red, l-full-metavar, someColor, rd =>
-    ( \lam {s1} mvar => transport (Term env context __ mc) (inv mvar) C,
-      (inv (plain-identity-effect {env} C)),
-      \lam {s1} m => \let | unified => unify-reduction rho C rd m  \in (someColor, unified))
+    (\lam {s1} mvar => transport (Term env context __ mc) (inv mvar) C,
+     (inv (plain-identity-effect {env} C)),
+     \lam {s1} m => (someColor, unify-reduction rho C rd m))
   | red, lt-var index p, someColor, equal-trees p1 => (\lam {s1} mvar => contradiction, inv p1, \lam {s1} m => contradiction)
   | blue, l-func f arguments, nothing, parallelization-f mediator inner-reductions (cr-skip p) =>
     \let
@@ -473,35 +444,18 @@
                    (modular-commutation {env} (\lam j => LinearMetaContext {envR} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term blue (arguments index)) (\lam {s1} mvar => (induc (mvar.1)).1 mvar.2))
                    (rewrite (invariant-through-empty-subst {env}) (induc index).2)))),
            \lam {s1} m => (induc (m.1)).3 m.2)
-    )    | inr (_, rd) => \let
+    )
+    | inr (_, rd) => \let
       | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd)
       | extracted => coloring-from-tlcr *> extract-from-or some-color-diff
-                          \in contradiction
+                     \in contradiction
   }
   | blue, l-full-metavar, someColor, rd =>
-    ( \lam {s1} mvar => transport (Term env context __ mc) (inv mvar) C,
-      (inv (plain-identity-effect {env} C)),
-      \lam {s1} m => \let | unified => unify-reduction rho C rd m  \in (someColor, unified))
+    (\lam {s1} mvar => transport (Term env context __ mc) (inv mvar) C,
+     (inv (plain-identity-effect {env} C)),
+     \lam {s1} m => (someColor, unify-reduction rho C rd m))
   | blue, lt-var index p, someColor, equal-trees p1 => (\lam {s1} mvar => contradiction, inv p1, \lam {s1} m => contradiction)
   \where {
-    \func reconstruct-bpr
-      {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-      {gc : Color} (mcolor : Maybe Color)
-      (t t' : Term env context s mc)
-      (bpr : BorderedParallelReduction gc mcolor t t')
-      (iw : inject-monochrome-term.InjectionWitness (Color.flip gc) t) : t = t' \elim mcolor, t, bpr, iw
-      | _, _, equal-trees idp, _ => idp
-      | nothing, func f arguments, parallelization-f mediator _x (cr-skip idp), inject-monochrome-term.iw-func p _x1 => pmap (func {env} f) (ext (\lam index => reconstruct-bpr (_x index).1 (arguments index) (mediator index) (_x index).3 (_x1 index)))
-      | just a, func f arguments, parallelization-f mediator _x (cr-rewrite c idp), inject-monochrome-term.iw-func p _x1 => \case (Closure.extract c) \with {
-        | inl a1 => rewriteI a1 (pmap (func {env} f) (ext (\lam index => reconstruct-bpr (_x index).1 (arguments index) (mediator index) (_x index).3 (_x1 index))))
-        | inr (_, rd) => \let | q => HasColoredRoot.reorganize _ (TopLevelColoredReduction.extract-root-coloring rd)
-                              | empty => Color.flip-contradiction (inv q *> p) \in contradiction
-      }
-
-    \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
-      | inl a1 => contradiction
-      | inr b1 => unjust-eq b1
-
     \func unify-reduction {tc : TheoremContext} {gc : Color} {someColor : Maybe Color} {context : List Sort'} {s s' : Sort'} {mc : MetaContext Sort'}
                           (rho :  MetaSubstitution env nil (SingularMetaContext {env} s context) mc)
                           (C : Term env context s mc)
@@ -511,82 +465,21 @@
       : BorderedParallelReduction gc someColor (rho m)
         (transport (\lam (srt : Sort') => Term env context srt mc) (inv m) C) \elim m
       | idp => (rewriteI (plain-identity-effect {env}) bpr)
-
-    \func reorganize-colors {tc : TheoremContext} {gc gc' : Color} {someColor : Maybe Color} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-                            {A B : Term env context s mc} (A~>B : BorderedParallelReduction gc someColor A B) (or : (someColor = nothing) `Or` (someColor = just gc'))
-      : \Sigma (someColor' : Maybe Color) (Or (someColor' = nothing) (someColor' = just (gc'))) (BorderedParallelReduction gc someColor' A B) \elim someColor, A, A~>B
-      | _, A, equal-trees p => (nothing, inl idp, equal-trees p)
-      | nothing, func f arguments, rd => (nothing, inl idp, rd)
-      | just a, func f arguments, rd => (just a, or, rd)
-
-    \func unwrap-func {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
-                      (T : Term env context s mc) : Or Nat
-        (\Sigma (f : env.symbol s) (\Pi (index : Index (env.domain f)) ->
-            Term env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index) mc)) \elim T
-      | var index p => inl 0
-      | metavar m arguments1 => inl 0
-      | func f1 arguments1 => inr (f1, arguments1)
-
-    \func sigma-set-equalizer {A : \Set} (B : A -> \Type) {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b' =>
-      pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (__.2) p
-
-    \lemma apply-modularity {env : FSignature} {context subst-context pattern-context : List Sort} {s : Sort} {mc : MetaContext Sort} {n : Nat} {index : Fin n}
-                            (producer : Fin n -> MetaContext Sort)
-                            (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) mc)
-                            (sublist : SubList subst-context context)
-                            (pat-sublist : SubList pattern-context context)
-                            (t : Term env pattern-context s (producer index)) :
-      MetaSubstitution.apply (weakening t pat-sublist) sublist (substitutions index) = MetaSubstitution.apply (weakening (ModularMetaContext.upgrade-metavariables producer t) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim t
-      | var index1 p => idp
-      | metavar m arguments => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-left sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (arguments i)))
-      | func f arguments => pmap (func f) (ext (\lam i => apply-modularity producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right-both pat-sublist) (arguments i)))
   }
 
-\data Closure {A : \Type} (R : A -> A -> \Type) (a b : A)
-  | c-trivial (a = b)
-  | c-basic (a `R` b)
-  | c-connect (c : A) (a `R` c) (Closure R c b)
-  \where {
-    \func compose {A : \Type} {R : A -> A -> \Type} {a b c : A} (a~>b : Closure R a b) (b~>c : Closure R b c) : Closure R a c \elim a~>b, b~>c
-      | c-basic r, rx => c-connect b r rx
-      | c-connect c1 r a~>b, rx => c-connect c1 r (compose a~>b rx)
-      | c-trivial idp, b~>c => b~>c
-
-    \func lift {A B : \Type} {Rel : A -> A -> \Type} {Rel' : B -> B -> \Type} (map : A -> B)
-               (rel-map : \Pi {a b : A} (Rel a b) -> Rel' (map a) (map b))
-               (x y : A)
-               (closure : Closure Rel x y) : Closure Rel' (map x) (map y) \elim closure
-      | c-basic r => c-basic (rel-map r)
-      | c-connect c r closure => c-connect (map c) (rel-map r) (lift map rel-map c y closure)
-      | c-trivial idp => c-trivial idp
-
-    \func flatten {A : \Type} {Rel : A -> A -> \Type}
-                  {x y : A}
-                  (closure : Closure (Closure Rel) x y) : Closure Rel x y \elim closure
-      | c-basic r => r
-      | c-connect c r closure => compose r (flatten closure)
-      | c-trivial idp => c-trivial idp
-
-    \func extract
-      {A : \Type} {Rel : A -> A -> \Type}
-      {x y : A}
-      (closure : Closure Rel x y)
-      : Or (x = y) (\Sigma (z : A) (Rel x z)) \elim closure
-      | c-trivial p => inl p
-      | c-basic r => inr (y, r)
-      | c-connect c r closure => inr (c, r)
-  }
-
-\func unify-left {tc : TheoremContext} {context context' : List Sort'} {s : Sort'} {inner-mc : MetaContext Sort'}
-                 (gc anti-color : Color)
-                 (S : Term env context' s inner-mc)
-                 (witness : inject-monochrome-term.InjectionWitness anti-color S)
-                 (sublist : SubList context context')
-                 (rho sigma : MetaSubstitution env context inner-mc (EmptyMetaContext {env}))
-                 (rho~>sigma : \Pi {s : Sort'} (m : inner-mc.metaname s) ->
-                     \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m))) :
-  \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (MetaSubstitution.apply {env} S sublist rho) (MetaSubstitution.apply {env} S sublist sigma))
-\elim S, witness
+-- | Given forall m, rho(m) => sigma(m), generates s[rho] => s[sigma]
+\func unify-left
+  {tc : TheoremContext} {context context' : List Sort'} {sort : Sort'} {inner-mc : MetaContext Sort'}
+  (gc anti-color : Color)
+  (s : Term env context' sort inner-mc)
+  (witness : inject-monochrome-term.InjectionWitness anti-color s)
+  (sublist : SubList context context')
+  (rho sigma : MetaSubstitution env context inner-mc (EmptyMetaContext {env}))
+  (rho~>sigma : \Pi {s : Sort'} (m : inner-mc.metaname s) ->
+      \Sigma (mcolor : Maybe Color) (BorderedParallelReduction gc mcolor (rho m) (sigma m)))
+  : \Sigma (mcolor : Maybe Color)
+           (BorderedParallelReduction gc mcolor (MetaSubstitution.apply {env} s sublist rho) (MetaSubstitution.apply {env} s sublist sigma))
+\elim s, witness
   | var index p, _ => (nothing, equal-trees idp)
   | metavar m arguments, inject-monochrome-term.iw-mvar _x =>
     \let | main-reduction => rho~>sigma m
@@ -602,31 +495,33 @@
              (\lam i => MetaSubstitution.apply {env} (arguments i) (SubList.extend-right-single sublist) sigma)
              in-indices
     \in (someColor, parallelization-f med inrd cwr)
-
-\func extend-substitutuion-left-for-parallel
-  {tc : TheoremContext} {left-context right-context some-context : List Sort'}
-  {gc : Color}
-  (subst subst' : Substitution {env} right-context some-context (EmptyMetaContext {env}))
-  (rd' : \Pi (i : Index right-context) ->
-      \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
-  (sublist : SubList left-context some-context)
-  (index : Index (left-context ++ right-context))
-  : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index)) =>
-  partial-fin-induction (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
-      (\lam i => rewrite (extend-substitution-left.on-begin {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.on-begin {env}) idp))))
-      (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
-      index
-  \where {
-    \func lemma {tc : TheoremContext} {context : List Sort'}
-                {gc : Color} {ms : MetaContext Sort'}
-                (someColor : Maybe Color)
-                {s s' : Sort'}
-                (p : s = s')
-                {A B : Term env context s ms}
-                (bpr : BorderedParallelReduction gc someColor A B)
-      : BorderedParallelReduction gc someColor (transport (Term env context __ ms) p A) (transport (Term env context __ ms) p B) \elim p
-      | idp => bpr
-  }
+\where {
+  \func extend-substitutuion-left-for-parallel
+    {tc : TheoremContext} {left-context right-context some-context : List Sort'}
+    {gc : Color}
+    (subst subst' : Substitution {env} right-context some-context (EmptyMetaContext {env}))
+    (rd' : \Pi (i : Index right-context) ->
+        \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (subst i) (subst' i)))
+    (sublist : SubList left-context some-context)
+    (index : Index (left-context ++ right-context))
+    : \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst index) (extend-substitution-left {env} sublist subst' index)) =>
+    partial-fin-induction
+        (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
+        (\lam i => rewrite (extend-substitution-left.on-begin {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.on-begin {env}) idp))))
+        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
+        index
+    \where {
+      \func lemma {tc : TheoremContext} {context : List Sort'}
+                  {gc : Color} {ms : MetaContext Sort'}
+                  (someColor : Maybe Color)
+                  {s s' : Sort'}
+                  (p : s = s')
+                  {A B : Term env context s ms}
+                  (bpr : BorderedParallelReduction gc someColor A B)
+        : BorderedParallelReduction gc someColor (transport (Term env context __ ms) p A) (transport (Term env context __ ms) p B) \elim p
+        | idp => bpr
+    }
+}
 
 \func reduction-over-substitution {tc : TheoremContext} {context new-context : List Sort'} {s : Sort'}
                                   {gc : Color}

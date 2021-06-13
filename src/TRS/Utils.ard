@@ -1,4 +1,5 @@
 \import Data.List (!!, ++, List, length, ::, nil)
+\import Data.Maybe
 \import Data.Or
 \import Logic
 \import Logic.Meta
@@ -8,6 +9,7 @@
 \import Set.Fin
 \import TRS.Data.Fin
 \import TRS.HRS
+\import TRS.Maybe
 
 \func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set => Index (fs.domain f)
 
@@ -32,3 +34,19 @@
   | inr b => b
 
 \func or-contradiction {A B : \Type} {a : A} {b : B} (eq : inl a = inr b) : Empty => contradiction
+
+
+\func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
+  | inl a1 => contradiction
+  | inr b1 => unjust-eq b1
+
+\func unwrap-func {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
+                  (T : Term env context s mc) : Or Nat
+    (\Sigma (f : env.symbol s) (\Pi (index : Index (env.domain f)) ->
+        Term env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index) mc)) \elim T
+  | var index p => inl 0
+  | metavar m arguments1 => inl 0
+  | func f1 arguments1 => inr (f1, arguments1)
+
+\func sigma-set-equalizer {A : \Set} (B : A -> \Type) {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b' =>
+  pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd (__.2) p

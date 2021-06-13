@@ -3,7 +3,7 @@
 \import Logic
 \import Paths
 \import Paths.Meta
-\import Relation
+\import Relation.Truncated
 \import Termination
 
 \truncated \data StrongJoin {A : SimpleARS} (b c : A) : \Prop

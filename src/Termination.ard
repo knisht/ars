@@ -6,7 +6,7 @@
 \import Logic.Meta
 \import Paths
 \import Paths.Meta
-\import Relation
+\import Relation.Truncated
 \import Set.Fin
 \import Set
 

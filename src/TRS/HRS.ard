@@ -16,7 +16,6 @@
 \import TRS.Substitutions
 \import TRS.Utils
 
-
 -- | Family of functional term symbols
 \class FSignature {
   | Sort : \Set
