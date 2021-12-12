@@ -95,7 +95,7 @@
     :
     (shift-index {A} {b} {a ++ b} SubList.id+left ind, proof SubList.id+left ind idp)
       = {\Sigma (ind' : Fin (length (a ++ b))) (b !! ind = (a ++ b) !! ind')}
-    (expand-fin-right ind, inv (expand-fin-right-eq {_} {a} ind))
+    (expand-fin-right ind, inv (expand-fin-right.correct {_} {a} ind))
     => ext (over-left-single ind)
 
   \func right-both-after-expand-left {A : \Set} {a b c : List A} (sublist : SubList a b) (index : Index a)

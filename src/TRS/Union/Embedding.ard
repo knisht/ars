@@ -118,7 +118,7 @@
              (cr-rewrite (c-basic (rewrite-with-rule-colored (infer-color-from-hcr (color-of-idx idx) f arguments1 color-eq) unified.1 unified.2 unified.6 unified.3 unified.4 unified.5 idx unified.8 unified.7 unified.9 unified.10)) color-eq))
     | func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq =>
       \let | (global-color, color, bpr) => embed-rewrite-relation (arguments-A index) (arguments-B index) rd all-rules-are-linear
-           | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A arguments-A arguments-B (\lam i => \case (fin-dec i index) \with {
+           | (someColor, mediator, inrd, cwr) => collect-reductions-together-raw {_} {_} {_} {_} {global-color} f-A arguments-A arguments-B (\lam i => \case (fin-eq-dec i index) \with {
              | yes e => rewrite e (color, bpr)
              | no n => (nothing, equal-trees (eq i n))
            })

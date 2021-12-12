@@ -508,7 +508,7 @@
     partial-fin-induction
         (\lam ind => \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (extend-substitution-left {env} sublist subst ind) (extend-substitution-left {env} sublist subst' ind)))
         (\lam i => rewrite (extend-substitution-left.on-begin {env}) ((nothing, equal-trees (rewrite (extend-substitution-left.on-begin {env}) idp))))
-        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {env}) (inner.1, lemma inner.1 (inv (expand-fin-right-eq i)) inner.2)))
+        (\lam i => \let inner => rd' i \in rewrite (extend-substitution-left.on-end {env}) (rewrite (extend-substitution-left.on-end {env}) (inner.1, lemma inner.1 (inv (expand-fin-right.correct i)) inner.2)))
         index
     \where {
       \func lemma {tc : TheoremContext} {context : List Sort'}
@@ -634,7 +634,7 @@
               partial-fin-induction
                   (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) ind)
                   (\lam i1 => repeat {2} (rewrite append-context-right.on-begin) (rewrite weakening.combine-with-append-right (equating-lemma subst-a subst-b i1 _)))
-                  (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening.combine-with-append-left subst-b (var i1 (expand-fin-right-eq i1))) idp))
+                  (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening.combine-with-append-left subst-b (var i1 (expand-fin-right.correct i1))) idp))
                   i
               \where {
                 \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
@@ -659,7 +659,7 @@
           partial-fin-induction (\lam i => Substitution.apply (append-context-right subst i) (extend-substitution-left (SubList.extend-right-single SubList.identity) (\lam j => Substitution.apply (subst2 j) (append-context-right subst)))
             = Substitution.apply (extend-substitution-left (SubList.extend-right-single SubList.identity) subst2 i) (append-context-right subst))
               (\lam i => rewrite append-context-right.on-begin (rewrite extend-substitution-left.on-begin (rewrite weakening.combine-with-extend-right (inductive-step subst i _))))
-              (\lam i => rewrite append-context-right.on-end (rewrite extend-substitution-left.on-end (rewrite (weakening.combine-with-extend-left (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-right-eq i))) (inductive-step-2 subst subst2 i (expand-fin-right-eq i)))))
+              (\lam i => rewrite append-context-right.on-end (rewrite extend-substitution-left.on-end (rewrite (weakening.combine-with-extend-left (\lam (j : Index context-c) => Substitution.apply (subst2 j) (append-context-right subst)) (var i (expand-fin-right.correct i))) (inductive-step-2 subst subst2 i (expand-fin-right.correct i)))))
               index
           \where {
             \func inductive-step-2 {env : FSignature} {context-a context-b context-c context-d : List Sort} {s : Sort} {mc : MetaContext Sort}

@@ -1317,7 +1317,7 @@
                   \in q *> (var-extensionality (Shifts.over-right-single _)))
       (\lam i1 => \let | q => extend-substitution-left.on-end (SubList.extend-right-single SubList.identity) (\lam i => weakening (var i idp) (SubList.extend-left-single SubList.identity)) i1
                        | big-eq => Shifts.left-extension {Sort} {left-context} {right-context} i1
-                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right.to-identity.lem2 (expand-fin-right i1) (expand-fin-right i1) (inv (expand-fin-right-eq i1)) idp (inv (expand-fin-right-eq i1)) idp)))
+                  \in q *> (rewrite (pmap to-var big-eq) (append-context-right.to-identity.lem2 (expand-fin-right i1) (expand-fin-right i1) (inv (expand-fin-right.correct i1)) idp (inv (expand-fin-right.correct i1)) idp)))
       i
 
 \lemma expand-substitution-3 {env : FSignature} {term-context ms-context big-context big-context' : List Sort} {s : Sort} {ms ms' : MetaContext Sort}

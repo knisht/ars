@@ -12,34 +12,36 @@
 
 \cons fsuc {n : Nat} (x : Fin n) : Fin (suc n) => suc x
 
-\func inject-nat (n : Nat) : Fin (suc n) \elim n
+\func last-fin (n : Nat) : Fin (suc n) \elim n
   | 0 => 0
-  | suc n => suc (inject-nat n)
+  | suc n => suc (last-fin n)
 
-\func fin-dec {n : Nat} (x y : Fin n) : Dec (x = y) \elim n, x, y
+\func fin-eq-dec {n : Nat} (x y : Fin n) : Dec (x = y) \elim n, x, y
   | suc n, 0, 0 => yes idp
   | suc n, 0, suc y => no contradiction
   | suc n, suc x, 0 => no contradiction
-  | suc n, suc x, suc y => \case (fin-dec x y) \with {
+  | suc n, suc x, suc y => \case (fin-eq-dec x y) \with {
     | yes e => yes (pmap fsuc e)
     | no n1 => no (\lam p => n1 (FinSet.suc-isInj x y p))
   }
 
-\func expand-fin-left {A : \Type} {a b : List A} (i : Fin (length a)) : Fin (length (a ++ b)) \elim a, i
+\func expand-fin-left {A : \Type} {a b : List A} (i : Index a) : Index (a ++ b) \elim a, i
   | :: a _, 0 => 0
   | :: _ _, suc i => suc (expand-fin-left i)
+  \where {
+    \func correct {A : \Type} {a b : List A} (i : Index a) : (a ++ b) !! expand-fin-left i = a !! i \elim a, i
+      | :: a a1, 0 => idp
+      | :: a a1, suc i => correct i
+  }
 
-\func expand-fin-right {A : \Type} {a b : List A} (i : Fin (length b)) : Fin (length (a ++ b)) \elim a
+\func expand-fin-right {A : \Type} {a b : List A} (i : Index b) : Index (a ++ b) \elim a
   | nil => i
   | :: a a1 => suc (expand-fin-right i)
-
-\func expand-fin-left-eq {A : \Type} {a b : List A} (i : Index a) : (a ++ b) !! (expand-fin-left i) = a !! i \elim a, i
-  | :: a a1, 0 => idp
-  | :: a a1, suc i => expand-fin-left-eq i
-
-\func expand-fin-right-eq {A : \Type} {a b : List A} (i : Index b) : (a ++ b) !! (expand-fin-right i) = b !! i \elim a
-  | nil => idp
-  | :: a a1 => expand-fin-right-eq i
+  \where {
+    \func correct {A : \Type} {a b : List A} (i : Index b) : (a ++ b) !! expand-fin-right i = b !! i \elim a
+      | nil => idp
+      | :: a a1 => correct i
+  }
 
 \func partial-fin-induction
   {A : \Type} {a b : List A} (C : Index (a ++ b) -> \Type)
@@ -76,22 +78,22 @@
   \where {
     \func pure-left-modular
       {n : Nat}
-      (C : Fin (n) -> \Type)
-      (f g : \Pi (i : Fin (n)) -> C i)
+      (C : Fin n -> \Type)
+      (f g : \Pi (i : Fin n) -> C i)
       : modular-function C f g 0 = f => ext (unext C f g)
       \where {
         \func unext
           {n : Nat}
-          (C : Fin (n) -> \Type)
-          (f g : \Pi (i : Fin (n)) -> C i)
+          (C : Fin n -> \Type)
+          (f g : \Pi (i : Fin n) -> C i)
           (i : Fin n) : modular-function C f g 0 i = f i \elim n, i
           | suc n, i => idp
       }
 
     \func modular-bridge
       {n : Nat}
-      (C : Fin (n) -> \Type)
-      (f g : \Pi (i : Fin (n)) -> C i)
+      (C : Fin n -> \Type)
+      (f g : \Pi (i : Fin n) -> C i)
       (delim : Fin n)
       (eq : f delim = g delim) : modular-function C f g delim = modular-function C f g (suc delim) =>
       ext (unext C f g delim eq)
@@ -113,15 +115,15 @@
 
     \func pure-right-modular
       {n : Nat}
-      (C : Fin (n) -> \Type)
-      (f g : \Pi (i : Fin (n)) -> C i) : modular-function C f g (inject-nat n) = g => ext (unext C f g)
+      (C : Fin n -> \Type)
+      (f g : \Pi (i : Fin n) -> C i) : modular-function C f g (last-fin n) = g => ext (unext C f g)
       \where {
         \func unext
           {n : Nat}
-          (C : Fin (n) -> \Type)
-          (f g : \Pi (i : Fin (n)) -> C i)
+          (C : Fin n -> \Type)
+          (f g : \Pi (i : Fin n) -> C i)
           (i : Fin n)
-          : modular-function C f g (inject-nat n) i = g i \elim n, i
+          : modular-function C f g (last-fin n) i = g i \elim n, i
           | suc n, 0 => idp
           | suc n, suc i => (unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) i)
       }
@@ -134,7 +136,7 @@
   (start : Q f)
   (step : \Pi (delim : Fin n) (Q (modular-function C f g delim)) -> Q (modular-function C f g (suc delim)))
   : Q g =>
-  transport Q (modular-function.pure-right-modular C f g) (progressive-induction-lemma {n} C Q f g step (inject-nat n) start)
+  transport Q (modular-function.pure-right-modular C f g) (progressive-induction-lemma {n} C Q f g step (last-fin n) start)
   \where {
     \func progressive-induction-lemma
       {n : Nat} (C : Fin n -> \Type)
@@ -196,8 +198,8 @@
   : Q i (pointed-function C f index point i)
 \elim n, index, i
   | suc n, 0, 0 => eq1
-  | suc n, 0, suc i => eq2 (suc i) (\lam ())
-  | suc n, suc index, 0 => eq2 0 (\lam ())
+  | suc n, 0, suc i => eq2 (suc i) (\lam e => contradiction)
+  | suc n, suc index, 0 => eq2 0 (\lam e => contradiction)
   | suc n, suc index, suc i =>
     pointed-induction
         (\lam i => C (suc i))

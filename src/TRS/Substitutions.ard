@@ -246,7 +246,7 @@
               : append-context-right (weakening.substitution sublist) i = weakening.substitution (SubList.extend-right-both sublist {context-c}) {ms} i =>
               partial-fin-induction
                   (\lam fin => append-context-right (weakening.substitution sublist) fin = weakening.substitution (SubList.extend-right-both sublist {context-c}) {ms} fin)
-                  (\lam fin => rewrite append-context-right.on-begin (unfold weakening.substitution (equalize-indices (inv (expand-fin-left-eq fin)) (shift-index sublist fin) (Shifts.proof sublist fin idp) _ _ (SubList.extend-right-single SubList.identity) (inv (Shifts.right-both-after-expand-left _ _)))))
+                  (\lam fin => rewrite append-context-right.on-begin (unfold weakening.substitution (equalize-indices (inv (expand-fin-left.correct fin)) (shift-index sublist fin) (Shifts.proof sublist fin idp) _ _ (SubList.extend-right-single SubList.identity) (inv (Shifts.right-both-after-expand-left _ _)))))
                   (\lam fin => rewrite append-context-right.on-end (var-extensionality (inv (Shifts.right-both-after-expand-right _ _))))
                   i
 
@@ -361,7 +361,7 @@
       :
       append-context-right subst {additional-context} (expand-fin-left index)
         =
-      weakening (transport (Term env new-context __ mc) (inv (expand-fin-left-eq index)) (subst index)) SubList.id+right
+      weakening (transport (Term env new-context __ mc) (inv (expand-fin-left.correct index)) (subst index)) SubList.id+right
     \elim old-context, index
       | :: a old-context, 0 => idp
       | :: a old-context, suc index => on-begin (\lam i => subst (suc i)) index
@@ -374,7 +374,7 @@
       :
       append-context-right subst {additional-context} (expand-fin-right index)
         =
-      weakening (var index (expand-fin-right-eq index)) SubList.id+left
+      weakening (var index (expand-fin-right.correct index)) SubList.id+left
     \elim old-context
       | nil => idp
       | :: a old-context => on-end (\lam i => subst (suc i)) index
@@ -463,13 +463,13 @@
           : (transport (\lam (ctx : List env.Sort) =>
             \Pi (index : Index ctx) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc) (inv ++-assoc)
             (append-context-right subst) (expand-fin-right i1)) =
-        transport (Term env __ (((context-a ++ context-b) ++ context-add) !! expand-fin-right i1) mc) (++-assoc) (weakening (var i1 (expand-fin-right-eq i1)) ((SubList.extend-left-single SubList.identity)))
+        transport (Term env __ (((context-a ++ context-b) ++ context-add) !! expand-fin-right i1) mc) (++-assoc) (weakening (var i1 (expand-fin-right.correct i1)) ((SubList.extend-left-single SubList.identity)))
         \elim context-a
           | nil => unfold transport
               (transport (\lam vr => var (vr).1 (vr).2 =
               coe (\lam i => Term env (++-assoc @ i) ((context-b ++ context-add) !! expand-fin-right i1) mc)
                   (var (shift-index (SubList.extend-left-single SubList.identity) i1)
-                      (Shifts.proof (SubList.extend-left-single SubList.identity) i1 (expand-fin-right-eq i1))) right) (inv (Shifts.left-extension (expand-fin-right i1)))
+                      (Shifts.proof (SubList.extend-left-single SubList.identity) i1 (expand-fin-right.correct i1))) right) (inv (Shifts.left-extension (expand-fin-right i1)))
                   (              (rewrite (push-transport-into-var _ _ _).2 (var-extensionality (expansion-lemma {_} {context-res} {context-b} i1 *> idp)))))
           | :: a context-a => \let inductive => end-over-transport-2 {_} {_} {context-b} (\lam i => subst (suc i)) (i1) \in (transport-unifier _ _ _ _) *> inductive
           \where {
@@ -536,7 +536,7 @@
             \Pi (index : Index ctx) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc) (inv ++-assoc)
             (append-context-right subst) (expand-fin-left i2)) =
         (transport (Term env __ _ mc) (++-assoc)
-            (weakening (transport (Term env (context-res ++ context-b) __ mc) (inv (expand-fin-left-eq {_} {_} {context-add} i2)) (append-context-right subst i2)) (SubList.extend-right-single SubList.identity)))
+            (weakening (transport (Term env (context-res ++ context-b) __ mc) (inv (expand-fin-left.correct {_} {_} {context-add} i2)) (append-context-right subst i2)) (SubList.extend-right-single SubList.identity)))
         \elim context-a, context-b, i2
           | nil, context-b, i2 => transport (\lam eqt => transport (\lam (ctx : List env.Sort) =>
               \Pi (index : Index ctx) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc)
@@ -712,7 +712,7 @@
       {env : FSignature} {left-context right-context some-context : List Sort} {mc : MetaContext Sort}
       (sublist : SubList left-context some-context)
       (chooser : Substitution right-context some-context mc)
-      (j : Index (left-context)) : extend-substitution-left sublist chooser (expand-fin-left j) = weakening (var j (expand-fin-left-eq j)) sublist \elim left-context, j
+      (j : Index (left-context)) : extend-substitution-left sublist chooser (expand-fin-left j) = weakening (var j (expand-fin-left.correct j)) sublist \elim left-context, j
       | :: a left-context, 0 => idp
       | :: a left-context, suc j => (on-begin (SubList.shrink sublist) chooser j) *> (var-extensionality (Shifts.over-shrink _ _))
 
@@ -721,7 +721,7 @@
       (sublist : SubList left-context some-context)
       (chooser : Substitution right-context some-context mc)
       (j : Index (right-context))
-      : extend-substitution-left sublist chooser (expand-fin-right j) = transport (Term env some-context __ mc) (inv (expand-fin-right-eq j)) (chooser j)
+      : extend-substitution-left sublist chooser (expand-fin-right j) = transport (Term env some-context __ mc) (inv (expand-fin-right.correct j)) (chooser j)
     \elim left-context, j
       | nil, j => idp
       | :: a left-context, j => on-end (SubList.shrink sublist) chooser j
@@ -776,7 +776,7 @@
           (\lam i1 => rewrite append-context-right.on-begin (unfold subst-composition (rewrite append-context-right.on-begin (Jl (\lam s eq => weakening (transport (Term env context-c __ mc) (eq) (Substitution.apply (subst-a i1) subst-b))
               (SubList.extend-right-single SubList.identity) = Substitution.apply
                                                                    (weakening (transport (Term env context-b __ mc) (eq) (subst-a i1))
-                                                                       (SubList.extend-right-single SubList.identity)) (append-context-right subst-b)) (unfold transport (inv (weakening.combine-with-append-right subst-b _))) (inv (expand-fin-left-eq i1))))))
+                                                                       (SubList.extend-right-single SubList.identity)) (append-context-right subst-b)) (unfold transport (inv (weakening.combine-with-append-right subst-b _))) (inv (expand-fin-left.correct i1))))))
           (\lam i1 => rewrite append-context-right.on-end (unfold subst-composition (rewrite append-context-right.on-end (repeat {2} (rewrite (pmap to-var (Shifts.left-extension-generic _ {_}).2)) (rewrite weakening.combine-with-append-right.wsubst-over-right-extension.local-untransport (inv (rewrite append-context-right.on-end (rewrite (pmap to-var (Shifts.left-extension-generic _ {_}).2) (weakening.combine-with-append-right.wsubst-over-right-extension.local-untransport-2 _ i1 _ _)))))))))
           i
   }
