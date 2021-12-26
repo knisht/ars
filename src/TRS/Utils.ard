@@ -26,11 +26,15 @@
   | in2 B
   | in3 C
 
-\func unor {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
+\func inl-injection {A B : \Type} {a b : A} (eq : inl {_} {B} a = inl b) : a = b => pmap (destruct-inl a) eq
+
+\func inr-injection {A B : \Type} {a b : B} (eq : inr {A} a = inr b) : a = b => pmap (destruct-inr a) eq
+
+\func destruct-inl {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
   | inl a => a
   | inr b => default
 
-\func unor-r {A B : \Type} (default : B) (or : A `Or` B) : B \elim or
+\func destruct-inr {A B : \Type} (default : B) (or : A `Or` B) : B \elim or
   | inl a => default
   | inr b => b
 

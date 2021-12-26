@@ -33,6 +33,10 @@
   | L-rules : IndexedSet (RewriteRule envL)
   | R-rules : IndexedSet (RewriteRule envR)
 
+  \func lfunc => func {envL}
+
+  \func rfunc => func {envR}
+
   \func colored-env (color : Color) : FSignature Sort' \elim color
     | red => envL
     | blue => envR
@@ -133,12 +137,12 @@
       ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term color t) \elim color, t
       | red, var index p => idp
       | red, metavar m arguments =>
-        \let extt : (\lam i1 => Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
+        \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
         \in rewrite extt idp
       | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => swap red msigs (arguments index)))
       | blue, var index p => idp
       | blue, metavar m arguments =>
-        \let extt : (\lam i1 => Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
+        \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
         \in rewrite extt idp
       | blue, func f arguments => pmap (func {env} (inr f)) (extext (\lam index => swap blue msigs (arguments index)))
   }

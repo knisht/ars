@@ -81,10 +81,9 @@
   | red, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply {env}
-            (Injections.inject-term-left envL envR (arguments-A index)) SubList.sublist-trivial-free subst)
-            (MetaSubstitution.apply {env}
-                (Injections.inject-term-left envL envR (arguments-B index)) sl
-                subst)) (trivial-sublist-contractible SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) ) (lift-relation red subst rd fw all-rules-are-linear)))
+            (inject-monochrome-term red (arguments-A index)) SubList.sublist-trivial-free subst)
+            (MetaSubstitution.apply {env} (inject-monochrome-term red (arguments-B index)) sl subst))
+            (trivial-sublist-contractible SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) ) (lift-relation red subst rd fw all-rules-are-linear)))
         (\lam j _x => rewrite (eq j _x) idp)
   | blue, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
@@ -128,8 +127,8 @@
         (lp,
          r,
          \lam {s1} mvar => MetaSubstitution.apply {env} (inject-monochrome-term red (msubst mvar)) SubList.sublist-trivial-free outer-subst,
-         rewrite lcoh (rewriteI ms-leq (unfold transport (rewrite (injection-weakening-commutation red) (rewrite (push-injection red) (metacommutation {env} (\lam m => Injections.inject-term-left envL envR (msubst m)) outer-subst  _ SubList.identity))))),
-         rewriteI ms-req (rewrite (injection-weakening-commutation red) (rewrite (push-injection red) (metacommutation {env} (\lam m => Injections.inject-term-left envL envR (msubst m)) outer-subst  _ SubList.identity))),
+         rewrite lcoh (rewriteI ms-leq (unfold transport (rewrite (injection-weakening-commutation red) (rewrite (push-injection red) (metacommutation {env} (\lam m => inject-monochrome-term red (msubst m)) outer-subst  _ SubList.identity))))),
+         rewriteI ms-req (rewrite (injection-weakening-commutation red) (rewrite (push-injection red) (metacommutation {env} (\lam m => inject-monochrome-term red (msubst m)) outer-subst  _ SubList.identity))),
          idp,
          inv lcoh,
          idp,
@@ -430,15 +429,15 @@
   : \Sigma (u : Term (colored-env color) context s inner-mc)
            (MetaSubstitution.apply {env} (inject-monochrome-term color u) SubList.sublist-trivial-free subst = B)
            (rd : monochrome-reduction color t u)
-           (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd)\elim color, t, B, A~>B
-  | red, func f arguments, func (inl f') arguments', rewrite-with-parameter-f-colored p p1 i tlcr eq =>
-    \let | unmap => pmap (unor {_} {envR.symbol s} f) p
-         | eq-p : p = pmap inl unmap => Path.inProp _ _
-    \in inductive _ _ unmap arguments arguments' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
+           (FunctionalWitness {colored-env color} {colored-set-of-rules color} rd) \elim color, t, B, A~>B
+  | red, func f arguments, func (inl f') arguments', rewrite-with-parameter-f-colored inlf=inlf' p1 i tlcr eq =>
+    \let | f=f' => inl-injection inlf=inlf'
+         | eq-p : inlf=inlf' = pmap inl f=f' => Path.inProp _ _
+    \in inductive _ _ f=f' arguments arguments' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
   | red, func f arguments, B, rewrite-with-rule-colored hcr lr r lf big-subst l[bs]=injt r[bs]=B (inl idx) seq meq lcx rcx =>
     \let | (middle-subst, substitution-equality, l-eq) =>
       decompose-metasubstitution
-          red lr (transport (Term envL __ s inner-mc) (inv ++_nil) (func {envL} f arguments)) big-subst subst
+          red lr (transport (Term envL __ s inner-mc) (inv ++_nil) (lfunc f arguments)) big-subst subst
           (rewrite (unwrap-injection {_} {red} lr) (rewrite (inv Transports.extension-to-nil-left)
               (rewrite Transports.extension-to-nil-right (rewrite (transport-over-injection red)
                   (metasubst-over-transport-2 {env} ++_nil
@@ -469,13 +468,13 @@
   }
   | red, func f arguments, func (inr s1) arguments1, rewrite-with-parameter-f-colored p p1 i tlcr eq => contradiction
   | blue, func f arguments, func (inr f') arguments', rewrite-with-parameter-f-colored p p1 i tlcr eq =>
-    \let | unmap => pmap (unor-r {_} {envR.symbol s} f) p
+    \let | unmap => pmap (destruct-inr {_} {envR.symbol s} f) p
          | eq-p : p = pmap inr unmap => Path.inProp _ _
     \in inductive-blue _ _ unmap arguments arguments' subst root-colors i (rewriteI eq-p tlcr) (rewriteI eq-p eq)
   | blue, func f arguments, B, rewrite-with-rule-colored hcr lr r lf big-subst l[bs]=injt r[bs]=B (inr idx) seq meq lcx rcx =>
     \let | (middle-subst, substitution-equality, l-eq) =>
       decompose-metasubstitution
-          blue lr (transport (Term envR __ s inner-mc) (inv ++_nil) (func {envR} f arguments)) big-subst subst
+          blue lr (transport (Term envR __ s inner-mc) (inv ++_nil) (rfunc f arguments)) big-subst subst
           (rewrite (unwrap-injection {_} {blue} lr) (rewrite (inv Transports.extension-to-nil-left)
               (rewrite Transports.extension-to-nil-right (rewrite (transport-over-injection blue)
                   (metasubst-over-transport-2 {env} ++_nil
@@ -519,22 +518,21 @@
                     (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip red) (subst m))
                     (i : Index (domain {env} (inl f)))
                     (tlcr : TopLevelColoredReduction red (MetaSubstitution.apply {env}
-                        (Injections.inject-term-left envL envR (arguments i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                        (inject-monochrome-term red (arguments i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                         subst) (arguments-over-f {env} (pmap (inl {_} {envR.symbol s}) eq) arguments' i))
                     (eq' :
                     \Pi (j : Index (domain {env} (inl f))) -> (j = i -> Empty) -> MetaSubstitution.apply {env}
-                        (Injections.inject-term-left envL envR (arguments j)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                        (inject-monochrome-term red (arguments j)) (SubList.extend-right-single SubList.sublist-trivial-free)
                         subst = arguments-over-f {env} (pmap (inl {_} {envR.symbol s}) eq) arguments' j)
       :  \Sigma (u : Term envL context s inner-mc)
-                (MetaSubstitution.apply {env} (Injections.inject-term-left envL envR u) SubList.sublist-trivial-free subst = func (inl f') arguments')
+                (MetaSubstitution.apply {env} (inject-monochrome-term red u) SubList.sublist-trivial-free subst = func (inl f') arguments')
                 (rd : monochrome-reduction red (func f arguments) u)
                 (FunctionalWitness {colored-env red} {L-rules} rd)\elim eq
       | idp => \let inductive-step => decompose-along-reduction red (arguments i) (arguments' i) subst root-colors (rewrite trivial-sublist-contractible tlcr) \in
         (func f (pointed-function (\lam index => Term envL (context ++ f FSignature.!!domain {envL} index) (f FSignature.!!sort {envL} index) inner-mc) arguments i inductive-step.1),
          pmap (func {env} (inl f))
              (extext (\lam index => pointed-induction
-                 (\lam index => Term envL (context ++ f FSignature.!!domain {envL} index) (f FSignature.!!sort {envL} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR
-                     fx) (SubList.extend-right-single SubList.sublist-trivial-free) subst = arguments' j)
+                 (\lam index => Term envL (context ++ f FSignature.!!domain {envL} index) (f FSignature.!!sort {envL} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (inject-monochrome-term red fx) (SubList.extend-right-single SubList.sublist-trivial-free) subst = arguments' j)
                  arguments
                  i
                  inductive-step.1
@@ -563,21 +561,21 @@
                          (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (Color.flip blue) (subst m))
                          (i : Index (domain {env} (inr f)))
                          (tlcr : TopLevelColoredReduction blue (MetaSubstitution.apply {env}
-                             (Injections.inject-term-right envL envR (arguments i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                             (inject-monochrome-term blue (arguments i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                              subst) (arguments-over-f {env} (pmap (inr {envL.symbol s} {_}) eq) arguments' i))
                          (eq' :
                          \Pi (j : Index (domain {env} (inr f))) -> (j = i -> Empty) -> MetaSubstitution.apply {env}
-                             (Injections.inject-term-right envL envR (arguments j)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                             (inject-monochrome-term blue (arguments j)) (SubList.extend-right-single SubList.sublist-trivial-free)
                              subst = arguments-over-f {env} (pmap (inr {envL.symbol s}) eq) arguments' j)
       :  \Sigma (u : Term envR context s inner-mc)
-                (MetaSubstitution.apply {env} (Injections.inject-term-right envL envR u) SubList.sublist-trivial-free subst = func (inr f') arguments')
+                (MetaSubstitution.apply {env} (inject-monochrome-term blue u) SubList.sublist-trivial-free subst = func (inr f') arguments')
                 (rd : monochrome-reduction blue (func f arguments) u)
                 (FunctionalWitness {colored-env blue} {R-rules} rd) \elim eq
       | idp => \let inductive-step => decompose-along-reduction blue (arguments i) (arguments' i) subst root-colors (rewrite trivial-sublist-contractible tlcr) \in
         (func f (pointed-function (\lam index => Term envR (context ++ f FSignature.!!domain {envR} index) (f FSignature.!!sort {envR} index) inner-mc) arguments i inductive-step.1),
          pmap (func {env} (inr f))
              (extext (\lam index => pointed-induction
-                 (\lam index => Term envR (context ++ f FSignature.!!domain {envR} index) (f FSignature.!!sort {envR} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (Injections.inject-term-right tc.envL tc.envR
+                 (\lam index => Term envR (context ++ f FSignature.!!domain {envR} index) (f FSignature.!!sort {envR} index) inner-mc) (\lam j fx => MetaSubstitution.apply {env} (inject-monochrome-term blue
                      fx) (SubList.extend-right-single SubList.sublist-trivial-free) subst = arguments' j)
                  arguments
                  i
@@ -679,12 +677,12 @@
           ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term color t) \elim color, t
           | red, var index p => idp
           | red, metavar m arguments =>
-            \let extt : (\lam i1 => Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
+            \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term red (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
             \in rewrite extt idp
           | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => swap red msigs (arguments index)))
           | blue, var index p => idp
           | blue, metavar m arguments =>
-            \let extt : (\lam i1 => Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
+            \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term blue (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
             \in rewrite extt idp
           | blue, func f arguments => pmap (func {env} (inr f)) (extext (\lam index => swap blue msigs (arguments index)))
       }
@@ -748,12 +746,12 @@
           ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term color t) \elim color, t
           | red, var index p => idp
           | red, metavar m arguments =>
-            \let extt : (\lam i1 => Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
+            \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term red (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
             \in rewrite extt idp
           | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => swap red msigs (arguments index)))
           | blue, var index p => idp
           | blue, metavar m arguments =>
-            \let extt : (\lam i1 => Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
+            \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term blue (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
             \in rewrite extt idp
           | blue, func f arguments => pmap (func {env} (inr f)) (extext (\lam index => swap blue msigs (arguments index)))
       }
@@ -768,9 +766,9 @@
       | red, idp, idp, var index p, func f arguments => contradiction
       | red, idp, idp, metavar m arguments, var index p => contradiction
       | red, idp, idp, metavar m arguments, metavar m1 arguments1 =>
-        \let | sigma-equality => pmap (unmetavar {env} m (\lam (i : Index (mc.m-domain m)) => Injections.inject-term-left tc.envL tc.envR (arguments i))) ineq
+        \let | sigma-equality => pmap (unmetavar {env} m (\lam (i : Index (mc.m-domain m)) => inject-monochrome-term red (arguments i))) ineq
              | meta-eq : m = m1 => pmap __.1 sigma-equality
-             | meta-eq-2 : transport (\lam mx => Substitution {env} (mc.m-domain mx) context mc) meta-eq (\lam i => Injections.inject-term-left tc.envL tc.envR (arguments i)) = (\lam i => Injections.inject-term-left tc.envL tc.envR (arguments1 i))
+             | meta-eq-2 : transport (\lam mx => Substitution {env} (mc.m-domain mx) context mc) meta-eq (\lam i => inject-monochrome-term red (arguments i)) = (\lam i => inject-monochrome-term red (arguments1 i))
              => second-sigma sigma-equality
         \in \case \elim m, \elim arguments, \elim meta-eq, \elim arguments1, \elim meta-eq-2 \with {
           | m, arguments, idp, arguments1, meta-eq-2 => pmap (metavar {envL} m1) (extext (\lam index => uninject-equality red idp idp _ _ (pmap (__ index) meta-eq-2)))
@@ -780,12 +778,12 @@
       | red, idp, idp, func f arguments, metavar m arguments1 => contradiction
       | red, idp, idp, func f (arguments : DArray (\lam index => Term tc.envL (context ++ f tc.envL.!!domain index) (f tc.envL.!!sort index) mc)), func f1 arguments1 =>
         \let | unfunced => pmap (unfunc {env} (inl f) (\lam (i : Index (domain {JointFSignature tc.envL tc.envR} (inl f))) =>
-            Injections.inject-term-left tc.envL tc.envR (arguments.at i))) ineq
+            inject-monochrome-term red (arguments.at i))) ineq
              | choosers-eq => second-sigma {_} {\lam fx => \Pi (index : Index (domain {env} fx)) ->
                  Term env (context ++ fx FSignature.!!domain {env} index) (fx FSignature.!!sort {env} index) mc} unfunced
-             | inlfeq => pmap (\lam sig => unor f sig.1) unfunced
+             | inlfeq => pmap (\lam sig => destruct-inl f sig.1) unfunced
         \in \case \elim f, \elim arguments, \elim arguments1, \elim unfunced, \elim choosers-eq, \elim inlfeq \with {
-          | f, (arguments : DArray (\lam index => Term tc.envL (context ++ f tc.envL.!!domain index) (f tc.envL.!!sort index) mc)), arguments1, unfunced, choosers-eq, idp => pmap (func {envL} f1) (extext (\lam index =>
+          | f, (arguments : DArray (\lam index => Term tc.envL (context ++ f tc.envL.!!domain index) (f tc.envL.!!sort index) mc)), arguments1, unfunced, choosers-eq, idp => pmap (lfunc f1) (extext (\lam index =>
               \let | q : pmap (\lam (p0 : \Sigma (a : Or (symbol {tc.envL} s) (symbol {tc.envR} s)) (\Pi (index : Index (env.domain a)) ->
                   Term env (context ++ a FSignature.!!domain {env} index) (a FSignature.!!sort {env} index) mc)) => p0.1) unfunced = idp => Path.inProp _ _
                    | at-index' => rewrite q (pmap (__ index) choosers-eq)
@@ -810,9 +808,9 @@
             inject-monochrome-term blue (arguments i))) ineq
              | choosers-eq => second-sigma {_} {\lam fx => \Pi (index : Index (domain {env} fx)) ->
                  Term env (context ++ fx FSignature.!!domain {env} index) (fx FSignature.!!sort {env} index) mc} unfunced
-             | inlfeq => pmap (\lam sig => unor-r f sig.1) unfunced
+             | inlfeq => pmap (\lam sig => destruct-inr f sig.1) unfunced
         \in \case \elim f, \elim arguments, \elim unfunced, \elim choosers-eq, \elim inlfeq \with {
-          | f, arguments, unfunced, choosers-eq, idp => pmap (func {envR} f1) (extext (\lam index =>
+          | f, arguments, unfunced, choosers-eq, idp => pmap (rfunc f1) (extext (\lam index =>
               \let | q : pmap (\lam (p0 : \Sigma (a : Or (symbol {tc.envL} s) (symbol {tc.envR} s)) (\Pi (index : Index (env.domain a)) ->
                   Term env (context ++ a FSignature.!!domain {env} index) (a FSignature.!!sort {env} index) mc)) => p0.1) unfunced = idp => Path.inProp _ _
                    | at-index => rewrite q (pmap (__ index) choosers-eq)
@@ -911,7 +909,7 @@
   | red, metavar m arguments =>
     \let | inner i : MetaSubstitution.apply {env} (inject-monochrome-term red (arguments i)) sublist subst-c = MetaSubstitution.apply {env} (inject-monochrome-term red (MetaSubstitution.apply {colored-env red} (arguments i) sublist subst-a)) SubList.sublist-trivial-free subst-b => colored-metacomposition red subst-a subst-b subst-c eq sublist (arguments i)
          | inner-ext : (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term red (arguments i)) sublist subst-c) = (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term red (MetaSubstitution.apply {colored-env red} (arguments i) sublist subst-a)) SubList.sublist-trivial-free subst-b) => ext inner
-    \in rewrite (eq m) (inv (rewrite inner-ext (rewrite (twist-application red) (commutation subst-b (\lam ind => Injections.inject-term-left tc.envL tc.envR (extend-substitution-left {envL} sublist (\lam i => MetaSubstitution.apply {envL} (arguments i) sublist subst-a) ind)) (Injections.inject-term-left envL envR (subst-a m)) *> pmap (Substitution.apply {env} (MetaSubstitution.apply {env} (Injections.inject-term-left tc.envL tc.envR (subst-a m)) SubList.sublist-trivial-free subst-b)) (extend-left-commutation.ext' red _ _ _)))))
+    \in rewrite (eq m) (inv (rewrite inner-ext (rewrite (twist-application red) (commutation subst-b (\lam ind => inject-monochrome-term red (extend-substitution-left {envL} sublist (\lam i => MetaSubstitution.apply {envL} (arguments i) sublist subst-a) ind)) (inject-monochrome-term red (subst-a m)) *> pmap (Substitution.apply {env} (MetaSubstitution.apply {env} (inject-monochrome-term red (subst-a m)) SubList.sublist-trivial-free subst-b)) (extend-left-commutation.ext' red _ _ _)))))
   | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => colored-metacomposition red subst-a subst-b subst-c eq (SubList.extend-right-single sublist) (arguments index) *> invariant-through-empty-subst {env} subst-b SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) _))
   | blue, var index p => idp
   | blue, metavar m arguments =>
@@ -1108,15 +1106,15 @@
   | red, l-func f arguments, metavar m arguments1 =>
     \let | opposite-color-for-m => root-colors m
          | colored-root-for-f : HasColoredRoot red (func (inl f)
-             (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL}
+             (\lam i => MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL}
                  (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments i))))
                  (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution)) => red-func-root
          | colored-root-for-m : HasColoredRoot red (Substitution.apply {env} (middle-substitution m) (extend-substitution-left {env} SubList.sublist-trivial-free
-             (\lam i => MetaSubstitution.apply {env} (Injections.inject-term-left envL envR (arguments1 i)) SubList.sublist-trivial-free middle-substitution))) => rewriteI eq colored-root-for-f
+             (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term red (arguments1 i)) SubList.sublist-trivial-free middle-substitution))) => rewriteI eq colored-root-for-f
          | empty => decompose-along-reduction.eliminate-colors blue opposite-color-for-m colored-root-for-m
     \in contradiction
   | red, l-func f arguments, func f1 arguments1 =>
-    \let | f-eq : f = f1 => pmap (unor f) (pmap (unfunc {env} (inl f)) eq)
+    \let | f-eq : f = f1 => pmap (destruct-inl f) (pmap (unfunc {env} (inl f)) eq)
     \in inductive-step red f f1 f-eq arguments arguments1 big-substitution middle-substitution root-colors eq
   | red, l-full-metavar, t =>
     (\lam {s1} mvar => transport (\lam sort => Term envL (core-context ++ pattern-context) sort inner-mc) (inv mvar) t,
@@ -1128,15 +1126,15 @@
   | blue, l-func f arguments, metavar m arguments1 =>
     \let | opposite-color-for-m => root-colors m
          | colored-root-for-f : HasColoredRoot blue (func (inr f)
-             (\lam i => MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR}
+             (\lam i => MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR}
                  (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments i))))
                  (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution)) => blue-func-root
          | colored-root-for-m : HasColoredRoot blue (Substitution.apply {env} (middle-substitution m) (extend-substitution-left {env} SubList.sublist-trivial-free
-             (\lam i => MetaSubstitution.apply {env} (Injections.inject-term-right envL envR (arguments1 i)) SubList.sublist-trivial-free middle-substitution))) => rewriteI eq colored-root-for-f
+             (\lam i => MetaSubstitution.apply {env} (inject-monochrome-term blue (arguments1 i)) SubList.sublist-trivial-free middle-substitution))) => rewriteI eq colored-root-for-f
          | empty => decompose-along-reduction.eliminate-colors red opposite-color-for-m colored-root-for-m
     \in contradiction
   | blue, l-func f arguments, func f1 arguments1 =>
-    \let | f-eq : f = f1 => pmap (unor-r f) (pmap (unfunc {env} (inr f)) eq)
+    \let | f-eq : f = f1 => pmap (destruct-inr f) (pmap (unfunc {env} (inr f)) eq)
     \in inductive-step blue f f1 f-eq arguments arguments1 big-substitution middle-substitution root-colors eq
   | blue, l-full-metavar, t =>
     (\lam {s1} mvar => transport (\lam sort => Term envR (core-context ++ pattern-context) sort inner-mc) (inv mvar) t,
@@ -1187,19 +1185,19 @@
              (MetaSubstitution.apply {colored-env color} (weakening {colored-env color} (Linear.convert-to-term {colored-env color} (l-func f arguments)) (SubList.extend-left-single SubList.identity {core-context})) (SubList.extend-right-single SubList.identity) inner-substitution = func f1 arguments1)
     \elim color, eq
       | red, idp =>
-        \let | args-eq i  : MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL}
+        \let | args-eq i  : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL}
             (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments i))))
             (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution
           =
         MetaSubstitution.apply {env}
-            (Injections.inject-term-left envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+            (inject-monochrome-term red (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
             middle-substitution =>
           \let | sigmas-or =>  pmap (unwrap-func {env}) eq'
                  | inf : env.symbol s => inl f
-                 | z => pmap (unor-r {Nat} {\Sigma (f : symbol {env} s) (\Pi (index : Index (domain {env} f)) ->
+                 | z => pmap (destruct-inr {Nat} {\Sigma (f : symbol {env} s) (\Pi (index : Index (domain {env} f)) ->
                      Term env ((core-context ++ pattern-context) ++ f env.!!domain index) (f env.!!sort index)
                          mc)} (inl {_} {envR.symbol s} f, \lam i => MetaSubstitution.apply {env}
-                     (Injections.inject-term-left envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                     (inject-monochrome-term red (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                      middle-substitution)) sigmas-or
                  | rhs => sigmas-or @ left
                  | res => sigma-set-equalizer {symbol {env} s} (\lam f => \Pi (index : Index (domain {env} f)) ->
@@ -1212,18 +1210,18 @@
                  (transport (Term envL __ _ inner-mc) (++-assoc {_} {core-context} {pattern-context} {f1 envL.!!domain i}) (arguments1 i))
                  (\lam m => big-substitution (i, m))
                  middle-substitution
-                 (\let ind : MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL}
+                 (\let ind : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL}
                      (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments i))))
                      (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution
                    =
                  MetaSubstitution.apply {env}
-                     (Injections.inject-term-left envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                     (inject-monochrome-term red (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                      middle-substitution => args-eq i \in apply-modularity-colored red (\lam i => LinearMetaContext {envL} (arguments i)) (\lam j m => big-substitution (j, m)) _ _ _ *> rewrite Transports.lb-ls-to-ls.inv' (rewrite Transports.rs-rs-to-rs.inv' (rewrite Transports.nil-to-right-nil (ad-hoc-lemma red (\lam i => LinearMetaContext {envL} (arguments i))  (Linear.convert-to-term {envL} (arguments i)) ++-assoc _ _ (\lam {s1} m => big-substitution (m.1, m.2)) (arguments1 i) middle-substitution _ ind)))
                  )
                  root-colors
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2,
              \lam {s1} m => (inductive m.1).2 m.2,
-             pmap (func {envL} f1) (extext (\lam index =>
+             pmap (lfunc f1) (extext (\lam index =>
                  \let ind => (inductive index).3
                  \in rewrite (inv (apply-modularity {envL}
                      (\lam i => LinearMetaContext {envL} (arguments i))
@@ -1235,18 +1233,18 @@
                          (rewrite Transports.rs-rs-to-rs
                              (expand-substitution-3 {envL} _ _ _ _ _ _ ind))))))
       | blue, idp =>
-        \let | args-eq i : MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR}
+        \let | args-eq i : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR}
             (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments i))))
             (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution
           =
         MetaSubstitution.apply {env}
-            (Injections.inject-term-right envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+            (inject-monochrome-term blue (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
             middle-substitution =>
           \let | sigmas-or =>  pmap (unwrap-func {env}) eq'
-                 | z => pmap (unor-r {Nat} {\Sigma (f : symbol {env} s) (\Pi (index : Index (domain {env} f)) ->
+                 | z => pmap (destruct-inr {Nat} {\Sigma (f : symbol {env} s) (\Pi (index : Index (domain {env} f)) ->
                      Term env ((core-context ++ pattern-context) ++ f env.!!domain index) (f env.!!sort index)
                          mc)} (inr {envL.symbol s} {_} f, \lam i => MetaSubstitution.apply {env}
-                     (Injections.inject-term-right envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                     (inject-monochrome-term blue (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                      middle-substitution)) sigmas-or
                  | res => sigma-set-equalizer {symbol {env} s} (\lam f => \Pi (index : Index (domain {env} f)) ->
                      Term env ((core-context ++ pattern-context) ++ f env.!!domain index) (f env.!!sort index)
@@ -1258,18 +1256,18 @@
                  (transport (Term envR __ _ inner-mc) (++-assoc {_} {core-context} {pattern-context} {f1 envR.!!domain i}) (arguments1 i))
                  (\lam m => big-substitution (i, m))
                  middle-substitution
-                 (\let ind : MetaSubstitution.apply {env} (weakening {env} (Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR}
+                 (\let ind : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR}
                      (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments i))))
                      (SubList.extend-right-both (SubList.extend-left-single SubList.identity {core-context}))) (SubList.extend-right-single (SubList.extend-right-single SubList.identity)) big-substitution
                    =
                  MetaSubstitution.apply {env}
-                     (Injections.inject-term-right envL envR (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
+                     (inject-monochrome-term blue (arguments1 i)) (SubList.extend-right-single SubList.sublist-trivial-free)
                      middle-substitution => args-eq i \in apply-modularity-colored blue (\lam i => LinearMetaContext {envR} (arguments i)) (\lam j m => big-substitution (j, m)) _ _ _ *> rewrite Transports.lb-ls-to-ls.inv' (rewrite Transports.rs-rs-to-rs.inv' (rewrite Transports.nil-to-right-nil (ad-hoc-lemma blue (\lam i => LinearMetaContext {envR} (arguments i))  (Linear.convert-to-term {envR} (arguments i)) ++-assoc _ _ (\lam {s1} m => big-substitution (m.1, m.2)) (arguments1 i) middle-substitution _ ind)))
                  )
                  root-colors
         \in (\lam {s1} mvar => (inductive mvar.1).1 mvar.2,
              \lam {s1} m => (inductive m.1).2 m.2,
-             pmap (func {envR} f1) (extext (\lam index =>
+             pmap (rfunc f1) (extext (\lam index =>
                  \let ind => (inductive index).3
                  \in rewrite (inv (apply-modularity {envR}
                      (\lam i => LinearMetaContext {envR} (arguments i))

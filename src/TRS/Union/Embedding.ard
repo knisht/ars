@@ -21,10 +21,6 @@
 
 \open TheoremContext
 
---\data SOr (A B : \Set) : \Set
---  | inl A
---  | inr B
-
 \func LinearDump {tc : TheoremContext} : \Type =>
   \Pi (point :  L-rules.J `Or` R-rules.J) ->
       \Sigma (linear-pattern : LinearPattern (TheoremContext.colored-env (color-of-idx point)) nil (RewriteRule.s {get {JointRules {Sort'} {envL} {envR} L-rules R-rules} point}))
