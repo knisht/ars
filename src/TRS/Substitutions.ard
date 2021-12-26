@@ -23,8 +23,8 @@
   (t : Term env context s mc)
   : Substitution.apply t plain-identity = t \elim t
   | var index idp => idp
-  | metavar m arguments => pmap (metavar m) (extext (\lam index => plain-identity-effect (arguments index)))
-  | func f arguments => pmap (func f) (extext (\lam index => rewrite append-context-right.to-identity (plain-identity-effect (arguments index))))
+  | metavar m arguments => Term.mext (\lam index => plain-identity-effect (arguments index))
+  | func f arguments => Term.fext (\lam index => rewrite append-context-right.to-identity (plain-identity-effect (arguments index)))
 
 \func weakening
   {env : FSignature} {s' : Sort} {narrow-context wide-context : List Sort} {mc : MetaContext Sort}
@@ -56,9 +56,9 @@
       (sl' : SubList context-b context-c)
       : weakening (weakening t sl) sl' = weakening t (SubList.compose sl sl') \elim t
       | var index p => var-extensionality (lemma _ _ _)
-      | metavar m arguments => pmap (metavar m) (extext (\lam index => composition (arguments index) _ _))
-      | func f arguments => pmap (func f) (extext (\lam index => rewrite (composition (arguments index) _ _)
-          (pmap (weakening (arguments index)) (SubList.compose.over-right-both _ _))))
+      | metavar m arguments => Term.mext (\lam index => composition (arguments index) _ _)
+      | func f arguments => Term.fext (\lam index => rewrite (composition (arguments index) _ _)
+          (pmap (weakening (arguments index)) (SubList.compose.over-right-both _ _)))
       \where {
         \func lemma {A : \Set} {a b c : List A} (sl : SubList a b) (sl' : SubList b c) (ind : Index a) :
           shift-index sl' (shift-index sl ind) = shift-index (SubList.compose sl sl') ind \elim a, b, c, sl, sl', ind
@@ -82,9 +82,8 @@
       : weakening t sublist = Substitution.apply t (weakening.substitution sublist)
     \elim t
       | var index idp => idp
-      | metavar m arguments => pmap (metavar m) (extext (\lam index => substitution-eq sublist (arguments index)))
-      | func f arguments => pmap (func f)
-          (extext (\lam index => substitution-eq (SubList.extend-right-both sublist) (arguments index) *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => weakening-commutation-lemma sublist index1))))
+      | metavar m arguments => Term.mext (\lam index => substitution-eq sublist (arguments index))
+      | func f arguments => Term.fext (\lam index => substitution-eq (SubList.extend-right-both sublist) (arguments index) *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => weakening-commutation-lemma sublist index1)))
       \where {
         \func weakening-commutation-lemma
           {env : FSignature}
@@ -137,13 +136,12 @@
           Substitution.apply (Substitution.apply t (weakening.substitution sublist)) subst =
           Substitution.apply t (\lam i => Substitution.apply (Substitution.apply (var i idp) (weakening.substitution sublist)) subst) \elim t
           | var index idp => idp
-          | metavar m arguments => pmap (metavar m) (extext (\lam index => subst-comm-for-weakening subst (arguments index) sublist))
-          | func f arguments => pmap (func f)
-              (extext (\lam index =>
+          | metavar m arguments => Term.mext (\lam index => subst-comm-for-weakening subst (arguments index) sublist)
+          | func f arguments => Term.fext (\lam index =>
                   \let inductive => subst-comm-for-weakening (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
                   \in rewrite append-context-right-after-subst
                       (inductive *> pmap (Substitution.apply (arguments index))
-                                        (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension subst sublist index1))))))
+                                        (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension subst sublist index1)))))
 
         \func subst-comm-for-weakening-2
           {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
@@ -155,11 +153,10 @@
           Substitution.apply t (\lam i => Substitution.apply (subst i) (weakening.substitution sublist))
         \elim t
           | var index idp => idp
-          | metavar m arguments => pmap (metavar m) (extext (\lam index => subst-comm-for-weakening-2 subst (arguments index) sublist))
-          | func f arguments => pmap (func f)
-              (extext (\lam index =>
+          | metavar m arguments => Term.mext (\lam index => subst-comm-for-weakening-2 subst (arguments index) sublist)
+          | func f arguments => Term.fext (\lam index =>
                   \let inductive => subst-comm-for-weakening-2 (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
-                  \in rewrite append-context-right-after-subst (inductive *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension-2 subst sublist index1))))))
+                  \in rewrite append-context-right-after-subst (inductive *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension-2 subst sublist index1)))))
 
         \func wsubst-over-right-extension
           {env : FSignature} {context-a context-b context-c context-add : List Sort} {ms : MetaContext Sort}
@@ -333,8 +330,8 @@
       (t : Term env context s mc)
       : weakening t SubList.identity = t \elim t
       | var index idp => var-extensionality (rewrite Shifts.over-identity idp) {_} {_}
-      | metavar m arguments => pmap (metavar m) (extext (\lam index => over-identity (arguments index)))
-      | func f arguments => pmap (func f) (extext (\lam index => rewrite extend-lemma (over-identity (arguments index))))
+      | metavar m arguments => Term.mext (\lam index => over-identity (arguments index))
+      | func f arguments => Term.fext (\lam index => rewrite extend-lemma (over-identity (arguments index)))
       \where {
         \func extend-lemma {A : \Type} {a b : List A} : SubList.extend-right-both (SubList.identity {_} {a}) {b} = SubList.identity \elim a
           | nil => idp
@@ -762,8 +759,8 @@
   Substitution.apply (Substitution.apply t subst-a) subst-b
 \elim t
   | var index idp => idp
-  | metavar m arguments => pmap (metavar m) (extext (\lam index => apply-composition subst-a subst-b (arguments index)))
-  | func f arguments => pmap (func f) (extext (\lam index => pmap (Substitution.apply (arguments index)) (ext (distribute-append-context-right subst-a subst-b)) *> apply-composition (append-context-right subst-a) (append-context-right subst-b) (arguments index)))
+  | metavar m arguments => Term.mext (\lam index => apply-composition subst-a subst-b (arguments index))
+  | func f arguments => Term.fext (\lam index => pmap (Substitution.apply (arguments index)) (ext (distribute-append-context-right subst-a subst-b)) *> apply-composition (append-context-right subst-a) (append-context-right subst-b) (arguments index))
   \where {
     \func distribute-append-context-right
       {env : FSignature} {context-a context-b context-c context-add : List Sort} {mc : MetaContext Sort}

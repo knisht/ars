@@ -147,7 +147,7 @@
         | _, l-var index p (), meta-eq, t, t-is-func
 
       \func infer-color-from-hcr {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : env.symbol s) (arguments : \Pi (index : Index (env.domain f)) ->
-          Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})) (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (func {env} {context} {_} {EmptyMetaContext {env}} f arguments) \elim color, f, eq-color -- Unnecessary implicit arguments
+          Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})) (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (efunc {context} {_} {EmptyMetaContext {env}} f arguments) \elim color, f, eq-color -- Unnecessary implicit arguments
         | red, inl a, eq-color => TheoremContext.red-func-root
         | blue, inr b, eq-color => TheoremContext.blue-func-root
 
@@ -231,7 +231,7 @@
       \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
            | joined => modular-induction
                (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
-               (\lam curmed => Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f arguments) (func f curmed))
+               (\lam curmed => Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (efunc f arguments) (func f curmed))
                arguments
                mediator
                (c-trivial idp)
@@ -253,7 +253,7 @@
                        (rewrite {1}
                            (modular-to-pointed (\lam index => Term env (context ++ f env.!!domain  index) (f env.!!sort index) mc) arguments mediator delim)
                            lifted)))
-           | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => unwrap-cwr color c
+           | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (efunc f mediator) B => unwrap-cwr color c
       \in Closure.compose joined from-cwr
 
   \func unwrap-cwr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}

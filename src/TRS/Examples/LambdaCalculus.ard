@@ -77,8 +77,8 @@
   }
 
 \func I_I~>I : RewriteRelation LC-rules I_I I =>
-  rewrite-with-rule () idp suitable-substitution (pmap (func application) (extext (\lam index => \case \elim index \with {
-    | 0 => pmap (func abstraction) (extext (\lam 0 => idp))
-    | 1 => pmap (func abstraction) (extext (\lam 0 => idp))
-  }))
-  ) (pmap (func abstraction) (extext (\lam 0 => idp)))
+  rewrite-with-rule () idp suitable-substitution (Term.fext (\lam index => \case \elim index \with {
+    | 0 => Term.fext (\lam 0 => idp)
+    | 1 => Term.fext (\lam 0 => idp)
+  })
+  ) (Term.fext (\lam 0 => idp))

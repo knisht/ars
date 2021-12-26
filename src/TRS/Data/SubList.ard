@@ -67,10 +67,6 @@
       | nil => 0
       | :: a add => 1
 
-    \func iii {A : \Type} (i l : List A)  : Nat => extend-left-single' i i l
-
-    \func f : iii (1 :: 2 :: nil) (1 :: nil) = 1 => idp
-
     \func compose
       {A : \Type} {a b c : List A}
       (sl : SubList a b)

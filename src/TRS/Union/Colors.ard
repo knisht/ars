@@ -37,6 +37,8 @@
 
   \func rfunc => func {envR}
 
+  \func efunc => func {env}
+
   \func colored-env (color : Color) : FSignature Sort' \elim color
     | red => envL
     | blue => envR
@@ -121,12 +123,10 @@
 
 \lemma unwrap-injection {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {allow-variables : \Prop} (t : GenericLinearTerm (colored-env color) context s allow-variables) :
   inject-monochrome-term color (Linear.convert-to-term {colored-env color} t) = convert-to-injected-term color {context} {s} t \elim color, t
-  | red, l-func f arguments => pmap (func {env} (inl f))
-      (extext (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index)))))
+  | red, l-func f arguments => Term.fext {env} (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index))))
   | red, l-full-metavar => idp
   | red, l-var index p _ => idp
-  | blue, l-func f arguments => pmap (func {env} (inr f))
-      (extext (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index)))))
+  | blue, l-func f arguments => Term.fext {env} (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index))))
   | blue, l-full-metavar => idp
   | blue, l-var index p _ => idp
   \where {
@@ -139,12 +139,12 @@
       | red, metavar m arguments =>
         \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
         \in rewrite extt idp
-      | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => swap red msigs (arguments index)))
+      | red, func f arguments => Term.fext {env} (\lam index => swap red msigs (arguments index))
       | blue, var index p => idp
       | blue, metavar m arguments =>
         \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
         \in rewrite extt idp
-      | blue, func f arguments => pmap (func {env} (inr f)) (extext (\lam index => swap blue msigs (arguments index)))
+      | blue, func f arguments => Term.fext {env} (\lam index => swap blue msigs (arguments index))
   }
 
 \func break-down-rule {tc : TheoremContext}

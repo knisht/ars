@@ -137,7 +137,7 @@
   | color1, color2, A, B, C, rd, equal-trees p => (B, color2, color1, equal-trees idp, rewriteI p rd)
   | nothing, nothing, func f arguments, B, C, parallelization-f mediator arguments->med (cr-skip famed=B), parallelization-f mediator' arguments->med' (cr-skip famed'=C)
   => \let | inner-confluences i => bpr-confluence (arguments->med i).1 (arguments->med' i).1 (arguments->med i).3 (arguments->med' i).3 left-confluence right-confluence all-rules-are-linear
-          | D => func {env} f (\lam i => (inner-confluences i).1)
+          | D => efunc f (\lam i => (inner-confluences i).1)
           | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (inner-confluences i).1) (\lam i => ((inner-confluences i).2, (inner-confluences i).4))
           | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (inner-confluences i).1) (\lam i => ((inner-confluences i).3, (inner-confluences i).5))
      \in (func f (\lam i => (inner-confluences i).1),
@@ -147,7 +147,7 @@
           rewriteI famed'=C (parallelization-f mediator-2 inrd-2 cwr-2))
   | nothing, just right-color, func f arguments, B, C, parallelization-f mediator arguments=>med (cr-skip p), parallelization-f mediator' arguments=>med' (cr-rewrite med'~>C gc2=right-color) =>
     \let | joined-mediators i => bpr-confluence (arguments=>med i).1 (arguments=>med' i).1 (arguments=>med i).3 (arguments=>med' i).3 left-confluence right-confluence all-rules-are-linear
-         | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+         | first-level-reduct => efunc f (\lam i => (joined-mediators i).1)
          | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
          | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
          | rd : BorderedParallelReduction gc2 color-1 (func f mediator) (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-1 inrd-1 cwr-1
@@ -160,7 +160,7 @@
          C=>X)
   | just left-color, nothing, func f arguments, B, C, parallelization-f mediator arguments=>med (cr-rewrite med~>B gc1=left-color), parallelization-f mediator' arguments=>med' (cr-skip p) =>
     \let | joined-mediators i => bpr-confluence (arguments=>med i).1 (arguments=>med' i).1 (arguments=>med i).3 (arguments=>med' i).3 left-confluence right-confluence all-rules-are-linear
-         | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+         | first-level-reduct => efunc f (\lam i => (joined-mediators i).1)
          | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
          | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
          | (leftmost-reduct, flr~>lr, mcl, B=>lr) => unify-top left-color gc2 f mediator mediator-1 B med~>B inrd-1 all-rules-are-linear
@@ -175,7 +175,7 @@
   => \case Closure.extract med~>B, Closure.extract med'~>C \with {
       | inl a, _ => rewriteI a (
         \let | joined-mediators i => bpr-confluence (arguments=>med i).1 (arguments=>med' i).1 (arguments=>med i).3 (arguments=>med' i).3 left-confluence right-confluence all-rules-are-linear
-             | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+             | first-level-reduct => efunc f (\lam i => (joined-mediators i).1)
              | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
              | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
              | rd : BorderedParallelReduction gc2 color-1 (func f mediator) (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-1 inrd-1 cwr-1
@@ -188,7 +188,7 @@
              C=>X))
       | _, inl a => rewriteI a (
         \let | joined-mediators i => bpr-confluence (arguments=>med i).1 (arguments=>med' i).1 (arguments=>med i).3 (arguments=>med' i).3 left-confluence right-confluence all-rules-are-linear
-             | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+             | first-level-reduct => efunc f (\lam i => (joined-mediators i).1)
              | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
              | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
              | (leftmost-reduct, flr~>lr, mcl, B=>lr) => unify-top left-color gc2 f mediator mediator-1 B med~>B inrd-1 all-rules-are-linear
@@ -205,7 +205,7 @@
           | hcl-f-right : HasColoredRoot right-color (func f mediator') => TopLevelColoredReduction.extract-root-coloring rd'
           | lcolor=rcolor : left-color = right-color => HasColoredRoot.equalize-colors left-color right-color f mediator mediator' hcl-f-left hcl-f-right
           | joined-mediators i => bpr-confluence (arguments=>med i).1 (arguments=>med' i).1 (arguments=>med i).3 (arguments=>med' i).3 left-confluence right-confluence all-rules-are-linear
-          | first-level-reduct => func {env} f (\lam i => (joined-mediators i).1)
+          | first-level-reduct => efunc f (\lam i => (joined-mediators i).1)
           | (color-1, mediator-1, inrd-1, cwr-1) => collect-reductions-together-raw f mediator (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).2, (joined-mediators i).4))
           | (color-2, mediator-2, inrd-2, cwr-2) => collect-reductions-together-raw f mediator' (\lam i => (joined-mediators i).1) (\lam i => ((joined-mediators i).3, (joined-mediators i).5))
           | rd : BorderedParallelReduction gc2 color-1 (func f mediator) (func f (\lam i => (joined-mediators i).1)) => parallelization-f mediator-1 inrd-1 cwr-1
@@ -310,14 +310,14 @@
   (f : env.symbol s)
   (arguments-A arguments-C : \Pi (index : Index (env.domain f)) -> PureTerm env (context ++ f env.!!domain index) (f env.!!sort index))
   (B : PureTerm env context s)
-  (A~>B : Closure (TopLevelColoredReduction color) (func {env} f arguments-A) B)
+  (A~>B : Closure (TopLevelColoredReduction color) (efunc f arguments-A) B)
   (inner-reductions : \Pi (i : env.index-in f) ->
       \Sigma (someColor : Maybe Color)
              ((someColor = nothing) `Or` (someColor = just (Color.flip (color-of-root f))))
              (BorderedParallelReduction color' someColor (arguments-A i) (arguments-over-f {env} idp arguments-C i)))
   (all-rules-are-linear : LinearDump)
   : \Sigma (X : PureTerm env context s)
-           (Closure (TopLevelColoredReduction color) (func {env} f arguments-C) X)
+           (Closure (TopLevelColoredReduction color) (efunc f arguments-C) X)
            (mcolor : Maybe Color)
            (BorderedParallelReduction color' mcolor B X) =>
   \let
@@ -392,18 +392,18 @@
               (rewrite (invariant-through-empty-subst {env} rho SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) (ModularMetaContext.upgrade-metavariables {env}
                   (\lam j => LinearMetaContext {colored-env red} (arguments j)) (convert-to-injected-term red (arguments i)))) (inner-reductions i).3))
     \in (\lam {s1} mvar => (inductive-result mvar.1).1 mvar.2,
-         inv p *> pmap (func {env} (inl f))
-             (extext (\lam index => rewriteI
+         inv p *> Term.fext {env}
+             (\lam index => rewriteI
                  (modular-commutation {env} (\lam j => LinearMetaContext {envL} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term red (arguments index)) (\lam {s1} mvar => (inductive-result mvar.1).1 mvar.2))
-                 (rewrite (invariant-through-empty-subst {env}) (inductive-result index).2))),
+                 (rewrite (invariant-through-empty-subst {env}) (inductive-result index).2)),
          \lam {s1} m => (inductive-result m.1).3 m.2)
   | red, l-func f arguments, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr p) => \case Closure.extract tlcr \with {
     | inl a => \let | induc index => alternate-subst red rcolor (mediator index) (arguments index) (\lam m => rho (index, m)) (\lam {s1} m => root-colors (index, m)) (inner-reductions index).1 (inner-reductions index).2 (rewrite (modular-commutation {env}) (rewrite trivial-sublist-contractible (inner-reductions index).3))
       \in (\lam mvar => (induc mvar.1).1 mvar.2,
-           inv a *> pmap (func {env} (inl f))
-               (extext (\lam index => rewriteI
+           inv a *> Term.fext {env}
+               (\lam index => rewriteI
                    (modular-commutation {env} (\lam j => LinearMetaContext {envL} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term red (arguments index)) (\lam {s1} mvar => (induc mvar.1).1 mvar.2))
-                   (rewrite (invariant-through-empty-subst {env}) (induc index).2))),
+                   (rewrite (invariant-through-empty-subst {env}) (induc index).2)),
            \lam {s1} m => (induc m.1).3 m.2)
     | inr (_, rd) => \let
       | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd)
@@ -428,18 +428,18 @@
               (rewrite (invariant-through-empty-subst {env} rho SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) (ModularMetaContext.upgrade-metavariables {env}
                   (\lam j => LinearMetaContext {colored-env blue} (arguments j)) (convert-to-injected-term blue (arguments i)))) (inner-reductions i).3))
     \in (\lam {s1} mvar => (inductive-result mvar.1).1 mvar.2,
-         inv p *> pmap (func {env} (inr f))
-             (extext (\lam index => rewriteI
+         inv p *> Term.fext {env}
+             (\lam index => rewriteI
                  (modular-commutation {env} (\lam j => LinearMetaContext {envR} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term blue (arguments index)) (\lam {s1} mvar => (inductive-result mvar.1).1 mvar.2))
-                 (rewrite (invariant-through-empty-subst {env}) (inductive-result index).2))),
+                 (rewrite (invariant-through-empty-subst {env}) (inductive-result index).2)),
          \lam {s1} m => (inductive-result m.1).3 m.2)
   | blue, l-func f arguments, just color, parallelization-f mediator inner-reductions (cr-rewrite tlcr idp) => \case Closure.extract tlcr \with {
     | inl a => \let | induc index => alternate-subst blue rcolor (mediator index) (arguments index) (\lam m => rho (index, m)) (\lam {s1} m => root-colors (index, m)) (inner-reductions index).1 (inner-reductions index).2 (rewrite (modular-commutation {env}) (rewrite trivial-sublist-contractible (inner-reductions index).3))
       \in (\lam mvar => (induc mvar.1).1 mvar.2,
-           inv a *> pmap (func {env} (inr f))
-               (extext (\lam index => rewriteI
+           inv a *> Term.fext {env}
+               (\lam index => rewriteI
                    (modular-commutation {env} (\lam j => LinearMetaContext {envR} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term blue (arguments index)) (\lam {s1} mvar => (induc mvar.1).1 mvar.2))
-                   (rewrite (invariant-through-empty-subst {env}) (induc index).2))),
+                   (rewrite (invariant-through-empty-subst {env}) (induc index).2)),
            \lam {s1} m => (induc m.1).3 m.2)
     | inr (_, rd) => \let
       | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd)
@@ -534,7 +534,7 @@
     \in rewriteI p (sc, parallelization-f med inrd cwr)
   | just a, func f arguments, parallelization-f mediator _x (cr-rewrite tlcr p) =>
     \let | medium-reductions i => reduction-over-substitution (_x i).1 (arguments i) (mediator i) (_x i).3 (append-context-right {env} subst) (append-context-right {env} subst') (expand-reduction-right subst subst' subst=>subst')
-         | (some-color, med, inrd, cwr) => collect-reductions-together-tlcr (just gc) f (\lam i => Substitution.apply {env} (arguments i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions (Substitution.apply {env} B subst') (cr-rewrite (rewrite p (Closure.lift (\lam t => Substitution.apply {env} t subst') (\lam rel => tlcr-over-substitution subst' rel) (func {env} f mediator) B tlcr)) idp)
+         | (some-color, med, inrd, cwr) => collect-reductions-together-tlcr (just gc) f (\lam i => Substitution.apply {env} (arguments i) (append-context-right {env} subst)) (\lam i => Substitution.apply {env} (mediator i) (append-context-right {env} subst')) medium-reductions (Substitution.apply {env} B subst') (cr-rewrite (rewrite p (Closure.lift (\lam t => Substitution.apply {env} t subst') (\lam rel => tlcr-over-substitution subst' rel) (efunc f mediator) B tlcr)) idp)
     \in (some-color, parallelization-f med inrd cwr)
 
 \func expand-reduction-right
@@ -610,7 +610,7 @@
               (weakening (arguments j) (SubList.extend-left-single SubList.identity))
               (SubList.extend-right-single SubList.identity {aux-context}) metasubst) (append-context-right subst)) => ext (\lam j => commutation (arguments j) subst metasubst)
           \in rewrite inductive (subst-comm-different subst _ i))))
-      | func f arguments => pmap (func f) (extext (\lam index => \let inductive => commutation (arguments index) subst metasubst \in rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite append-context-right.composition (inductive-step (arguments index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive)))))))
+      | func f arguments => Term.fext (\lam index => \let inductive => commutation (arguments index) subst metasubst \in rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite append-context-right.composition (inductive-step (arguments index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive))))))
       \where {
         \lemma subst-comm {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
                           (t : Term env context-a s mc)
@@ -618,8 +618,8 @@
                           (subst-b : Substitution context-b context-c mc) :
           Substitution.apply (Substitution.apply t subst-a) subst-b = Substitution.apply t (\lam i => Substitution.apply (subst-a i) subst-b) \elim t
           | var index idp => idp
-          | metavar m arguments => pmap (metavar m) (extext (\lam index => subst-comm (arguments index) subst-a subst-b))
-          | func f arguments => pmap (func f) (extext (\lam index => subst-comm (arguments index) (append-context-right subst-a) (append-context-right subst-b) *> pmap (Substitution.apply (arguments index)) (ext (\lam i => commutation-with-right-extension subst-a subst-b i))))
+          | metavar m arguments => Term.mext (\lam index => subst-comm (arguments index) subst-a subst-b)
+          | func f arguments => Term.fext (\lam index => subst-comm (arguments index) (append-context-right subst-a) (append-context-right subst-b) *> pmap (Substitution.apply (arguments index)) (ext (\lam i => commutation-with-right-extension subst-a subst-b i)))
           \where {
             \func commutation-with-right-extension {env : FSignature} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
                                                    (subst-a : Substitution context-a context-b mc)
@@ -810,7 +810,7 @@
   (arguments-A arguments-B : \Pi (index : Index (env.domain f)) -> Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
   (tlcrs : \Pi (index : Index (env.domain f)) -> \Sigma (someColor : Maybe Color) (BorderedParallelReduction gc someColor (arguments-A index) (arguments-B index)))
   (C : Term env context s mc)
-  (B~>*C : SwitchingReduction gc someColor (func {env} f arguments-B) C)
+  (B~>*C : SwitchingReduction gc someColor (efunc f arguments-B) C)
   : \Sigma
   (someColor : Maybe Color)
   (mediator : \Pi (index : Index (env.domain f)) ->
@@ -851,7 +851,7 @@
              (SwitchingReduction gc someColor (func f (\new DArray { | at => modular-function (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-B midterms (suc delim) })) C)
     \elim prev-rd-cl, pred-rd-cwr, point-rd-cl, point-coherence, point-rd-cwr
       | nothing, cr-skip p, nothing, point-coherence, cr-skip p1
-      => (nothing, cr-skip (pmap (func {env} f) (ext (inv (modular-function.modular-bridge (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-B midterms delim (inv p1)))) *> p))
+      => (nothing, cr-skip (pmap (efunc f) (ext (inv (modular-function.modular-bridge (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-B midterms delim (inv p1)))) *> p))
             --
       | nothing, cr-skip p, just color, inl (), _
       | nothing, cr-skip idp, just color, inr b, cr-rewrite ind1~>ind' idp => (just gc, cr-rewrite (upgrade-iterated-reduction f (unjust-eq (inv b)) arguments-B midterms delim ind1~>ind') idp)
@@ -870,8 +870,8 @@
       (index : Index (env.domain f))
       (rd : Closure (TopLevelColoredReduction gc) (arguments-B index) (arguments-A index))
       : Closure (TopLevelColoredReduction gc)
-        (func {env} f (\new DArray { | at => modular-function (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-A arguments-B (suc index) }))
-        (func {env} f (modular-function (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-A arguments-B index)) =>
+        (efunc f (\new DArray { | at => modular-function (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-A arguments-B (suc index) }))
+        (efunc f (modular-function (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc) arguments-A arguments-B index)) =>
       \let | modular => modular-function
           (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
           arguments-A arguments-B index

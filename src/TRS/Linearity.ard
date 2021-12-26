@@ -74,9 +74,7 @@
   | metavar m arguments => pmap
       (\lam f => Substitution.apply (rho (i, m)) (extend-substitution-left sublist f))
       (ext (\lam index => modular-commutation sigs i sublist (arguments index) rho))
-  | func f arguments => pmap
-      (func f)
-      (extext (\lam index => modular-commutation sigs i (SubList.extend-right-single sublist) (arguments index) rho))
+  | func f arguments => Term.fext (\lam index => modular-commutation sigs i (SubList.extend-right-single sublist) (arguments index) rho)
 
 \lemma invariant-through-empty-subst
   {env : FSignature} {context context' : List Sort} {s : Sort} {old-msig new-msig : MetaContext Sort}

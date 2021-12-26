@@ -61,6 +61,18 @@
   | func
     (f : symbol termSort)
     (arguments : DArray {env.arity f} (\lam index => Term env (context ++ f !!domain index) (f !!sort index) mc))
+\where {
+  \func fext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {f : symbol termSort}
+             {args args' : DArray {env.arity f} (\lam index => Term env (context ++ f !!domain index) (f !!sort index) mc)}
+             (eq : \Pi (index : Fin (env.arity f)) -> args index = args' index)
+    : func f args = func f args' => pmap (func f) (extext eq)
+
+  \func mext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {m : mc.metaname termSort}
+             {args args' : DArray {mc.arity m} (\lam index => Term env context (mc.m-domain m !! index) mc)}
+             (eq : \Pi (index : Fin (mc.arity m)) -> args index = args' index)
+    : metavar m args = metavar m args' => pmap (metavar m) (extext eq)
+}
+
 
 -- | Substitution of regular variables
 \func Substitution {env : FSignature} (old-context new-context : List Sort) (mc : MetaContext Sort) : \Set =>
