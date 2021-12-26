@@ -8,7 +8,7 @@
 \func ModularMetaContext {env : FSignature} {n : Nat} (meta-contexts : Fin n -> MetaContext Sort) : MetaContext Sort
 \cowith
   | metaname s => \Sigma (i : Fin n) (metaname {meta-contexts i} s)
-  | m-domain m => m-domain {(meta-contexts (m.1))} m.2
+  | m-domain m => m-domain {meta-contexts m.1} m.2
   \where {
     \func upgrade-metavariables
       {env : FSignature} {context : List Sort} {s : Sort} {n : Nat}
@@ -25,7 +25,7 @@
 \func PointedModularMetaContext {env : FSignature} {n : Nat} (point : Sort) (context-for-point : List Sort)
                                 (meta-contexts : Fin n -> MetaContext Sort) : MetaContext Sort
 \cowith
-  | metaname s => (s = point) `Or` (metaname {ModularMetaContext meta-contexts} s)
+  | metaname s => (s = point) `Or` metaname {ModularMetaContext meta-contexts} s
   | m-domain m => \case \elim m \with {
     | inl eq => context-for-point
     | inr m => m-domain {ModularMetaContext meta-contexts} m

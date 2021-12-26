@@ -51,10 +51,10 @@
         | yes (inP (x, z~>x)) => \case (step x (tc-direct z~>x)) \with {
           | normal-form e nfe x~>*e => normal-form e nfe (~>*-concat (trc-unary z~>x) x~>*e)
         }
-        | no n => normal-form z (\lam {b} z~>b => (n (inP (b, z~>b)))) trc-direct'
+        | no n => normal-form z (\lam {b} z~>b => n (inP (b, z~>b))) trc-direct'
       })
       a
-      (Acc=>AccTrans a (term))
+      (Acc=>AccTrans a term)
 
 \func well-founded-induction
   {A : \Set} {R : Rel A} (C : A -> \Type)

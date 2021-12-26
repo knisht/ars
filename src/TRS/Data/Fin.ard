@@ -100,8 +100,8 @@
       \where {
         \func unext
           {n : Nat}
-          (C : Fin (n) -> \Type)
-          (f g : \Pi (i : Fin (n)) -> C i)
+          (C : Fin n -> \Type)
+          (f g : \Pi (i : Fin n) -> C i)
           (delim : Fin n)
           (eq : f delim = g delim)
           (j : Fin n)
@@ -125,7 +125,7 @@
           (i : Fin n)
           : modular-function C f g (last-fin n) i = g i \elim n, i
           | suc n, 0 => idp
-          | suc n, suc i => (unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) i)
+          | suc n, suc i => unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam i => g (suc i)) i
       }
   }
 
@@ -193,7 +193,7 @@
   (index : Fin n)
   (point : C index)
   (eq1 : Q index point)
-  (eq2 : \Pi (j : Fin n) (Not (j = index)) -> (Q j (f j)))
+  (eq2 : \Pi (j : Fin n) (Not (j = index)) -> Q j (f j))
   (i : Fin n)
   : Q i (pointed-function C f index point i)
 \elim n, index, i
@@ -226,7 +226,7 @@
       | suc n, 0, suc i => idp
       | suc n, suc delim, 0 => idp
       | suc n, suc delim, suc i =>
-        unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
+        unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) delim i
   }
 
 \func modular-to-pointed-forward
@@ -246,5 +246,5 @@
       | suc n, 0, 0 => idp
       | suc n, 0, suc i => rewrite modular-function.pure-left-modular.unext idp
       | suc n, suc delim, 0 => idp
-      | suc n, suc delim, suc i => unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) (delim) i
+      | suc n, suc delim, suc i => unext (\lam i => C (suc i)) (\lam i => f (suc i)) (\lam j => g (suc j)) delim i
   }

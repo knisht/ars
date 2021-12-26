@@ -115,7 +115,7 @@
           | nil, :: y b, :: y1 c, :: a d, sublist-skip sl, sublist-skip sl' =>
             run {
               pmap sublist-skip,
-              over-right-both (sublist-skip sl) (sl') *>,
+              over-right-both (sublist-skip sl) sl' *>,
               rewrite (trivial-sublist-contractible {_} {_} (compose (sublist-skip sl) sl') (compose sl (SubList.shrink sl'))),
               idp
             }
@@ -131,9 +131,9 @@
           | nil, nil, :: a c, sublist-trivial => pmap sublist-skip (over-right-single sublist-trivial)
           | :: x a, :: y b, c, sublist-match p sublist => rewrite idp_*> (pmap (sublist-match p) (over-right-single sublist))
           | :: a a2, :: y b, c, sublist-skip sublist => pmap sublist-skip (over-right-single {_} {_} {_} {c} sublist)
-          | nil, :: y b, nil, sublist-skip sublist => pmap (sublist-skip) (trivial-sublist-contractible _ _)
+          | nil, :: y b, nil, sublist-skip sublist => pmap sublist-skip (trivial-sublist-contractible _ _)
           | nil, :: y b, :: a1 c, sublist-skip sublist =>
-            pmap (sublist-skip) (trivial-sublist-contractible _ _ *> (over-right-single {_} {_} {_} {:: a1 c} sublist))
+            pmap sublist-skip (trivial-sublist-contractible _ _ *> over-right-single {_} {_} {_} {:: a1 c} sublist)
       }
   }
 
@@ -158,7 +158,7 @@
   : SubList.extend-right-both (SubList.identity {_} {a}) = SubList.identity {_} {a ++ b}
 \elim a
   | nil => idp
-  | :: a a1 => pmap (sublist-match idp) (identity-invariant-over-right-extension)
+  | :: a a1 => pmap (sublist-match idp) identity-invariant-over-right-extension
 
 \func skip-over-extend-right {A : \Set} {x : A} {a b c : List A} (sl : SubList a b)
   : sublist-skip {_} {_} {x} (SubList.extend-right-both sl {c}) = SubList.extend-right-both (sublist-skip sl)
@@ -181,7 +181,7 @@
     | idp => idp
 
   \func sublist-skip-over-transport-2 {A : \Type} {x : A} {a b c : List A} (eq : a = b) (sl : SubList a c)
-    : SubList.sublist-skip (transport (SubList __ c) eq sl) = transport (SubList __ (x :: c)) (eq) (sublist-skip sl)
+    : SubList.sublist-skip (transport (SubList __ c) eq sl) = transport (SubList __ (x :: c)) eq (sublist-skip sl)
   \elim eq
     | idp => idp
 
@@ -191,12 +191,12 @@
     | idp => idp
 
   \func sublist-match-over-transport-2 {A : \Type} {x : A} {a b c : List A} (eq : b = c) (sl : SubList a b)
-    : SubList.sublist-match idp (transport (SubList a) (eq) sl) = transport (SubList (x :: a)) ((pmap (x ::) eq)) (sublist-match idp sl)
+    : SubList.sublist-match idp (transport (SubList a) eq sl) = transport (SubList (x :: a)) (pmap (x ::) eq) (sublist-match idp sl)
   \elim eq
     | idp => idp
 
   \func sublist-match-over-transport-3 {A : \Type} {x : A} {a b c : List A} (eq : b = c) (sl : SubList b a)
-    : SubList.sublist-match idp (transport (SubList __ a) (eq) sl) = transport (SubList __ (x :: a)) ((pmap (x ::) eq)) (sublist-match idp sl)
+    : SubList.sublist-match idp (transport (SubList __ a) eq sl) = transport (SubList __ (x :: a)) (pmap (x ::) eq) (sublist-match idp sl)
   \elim eq
     | idp => idp
 
@@ -219,7 +219,7 @@
     transport (SubList (context-b ++ context-c)) (inv ++-assoc) (SubList.extend-left-single SubList.identity)
   \elim context-a, context-b, context-c
     | nil, nil, context-c => idp
-    | nil, :: a context-b, context-c => rewrite (lb-ls-to-ls {_} {nil} {context-b} {_}) (idp)
+    | nil, :: a context-b, context-c => rewrite (lb-ls-to-ls {_} {nil} {context-b} {_}) idp
     | :: a context-a, nil, :: a1 context-c => run {
       rewrite (lb-ls-to-ls {_} {_} {nil}),
       rewrite (Transports.sublist-skip-over-transport {A} {a} _ (SubList.extend-left-single (sublist-match idp SubList.identity))),
@@ -227,8 +227,8 @@
     }
     | :: a context-a, nil, nil => run {
       rewrite (lb-ls-to-ls {_} {_} {nil}),
-      rewrite (Transports.sublist-skip-over-transport {A} {a} _ (SubList.extend-left-single (sublist-trivial))),
-      transport-lemma (SubList (nil)) (:: a)
+      rewrite (Transports.sublist-skip-over-transport {A} {a} _ (SubList.extend-left-single sublist-trivial)),
+      transport-lemma (SubList nil) (:: a)
     }
     | :: a context-a, :: a1 context-b, context-c => run {
       rewrite (lb-ls-to-ls {_} {_} {:: a1 context-b}),
@@ -241,13 +241,13 @@
         | idp => idp
 
       \func inv' {A : \Type} {context-a context-b context-c : List A}
-        : (SubList.extend-left-single SubList.identity) = transport (SubList (context-b ++ context-c)) (++-assoc) (SubList.extend-right-both (SubList.extend-left-single (SubList.identity {_} {context-b}) {context-a}) {context-c}) =>
-        inv (transport_id_inv (SubList (context-b ++ context-c)) ++-assoc _) *> (pmap (transport (SubList (context-b ++ context-c)) (++-assoc)) (inv lb-ls-to-ls))
+        : SubList.extend-left-single SubList.identity = transport (SubList (context-b ++ context-c)) ++-assoc (SubList.extend-right-both (SubList.extend-left-single (SubList.identity {_} {context-b}) {context-a}) {context-c}) =>
+        inv (transport_id_inv (SubList (context-b ++ context-c)) ++-assoc _) *> pmap (transport (SubList (context-b ++ context-c)) ++-assoc) (inv lb-ls-to-ls)
     }
 
   \func rs-rs-to-rs {A : \Type} {context-a context-b context-c : List A}
     :
-    (SubList.extend-right-single (SubList.extend-right-single (SubList.identity {_} {context-a}) {context-b}) {context-c})
+    SubList.extend-right-single (SubList.extend-right-single (SubList.identity {_} {context-a}) {context-b}) {context-c}
       =
     transport (SubList context-a) (inv ++-assoc) (SubList.extend-right-single SubList.identity)
   \elim context-a, context-b, context-c
@@ -260,14 +260,14 @@
         | :: a context-a, context-b => pmap sublist-skip extension-lemma
 
       \func inv' {A : \Type} {context-a context-b context-c : List A}
-        : (SubList.extend-right-single SubList.identity) = transport (SubList (context-a)) (++-assoc) (SubList.extend-right-single (SubList.extend-right-single (SubList.identity {_} {context-a}) {context-b}) {context-c}) =>
-        inv (transport_id_inv (SubList (context-a)) ++-assoc _) *> (pmap (transport (SubList (context-a)) (++-assoc)) (inv rs-rs-to-rs))
+        : SubList.extend-right-single SubList.identity = transport (SubList context-a) ++-assoc (SubList.extend-right-single (SubList.extend-right-single (SubList.identity {_} {context-a}) {context-b}) {context-c}) =>
+        inv (transport_id_inv (SubList context-a) ++-assoc _) *> pmap (transport (SubList context-a) ++-assoc) (inv rs-rs-to-rs)
 
       \func inv'2 {A : \Type} {a b c : List A} :
         SubList.extend-right-single SubList.identity =
         transport (SubList a) ++-assoc (SubList.compose (SubList.extend-right-single (SubList.identity {_} {a}) {b}) (SubList.extend-right-single SubList.identity {c})) \elim a, b, c
         | nil, b, c => trivial-sublist-contractible _ _
-        | :: a a1, b, c => \let inductive => inv'2 {_} {a1} {b} {c} \in (rewrite inductive (rewrite (Transports.sublist-match-over-transport-2) idp))
+        | :: a a1, b, c => \let inductive => inv'2 {_} {a1} {b} {c} \in rewrite inductive (rewrite Transports.sublist-match-over-transport-2 idp)
     }
 
   \func nil-to-right-nil {A : \Type} {context-a context-b context-c : List A}
@@ -280,7 +280,7 @@
     | nil, :: a context-b, context-c => rewrite (nil-to-right-nil {_} {nil} {context-b} {context-c}) idp
     | :: a context-a, context-b, context-c => rewrite (nil-to-right-nil {_} {context-a} {context-b} {context-c}) (rewrite Transports.sublist-skip-over-transport idp)
     \where {
-      \func transport-lemma {A B : \Type} (C : B -> \Type) (map : A -> B) {a a' : A} (eq : a = a') (x : C (map a)) : transport C (pmap map (eq)) x = transport C ((path (\lam i => map (eq @ i)))) x \elim eq
+      \func transport-lemma {A B : \Type} (C : B -> \Type) (map : A -> B) {a a' : A} (eq : a = a') (x : C (map a)) : transport C (pmap map eq) x = transport C (path (\lam i => map (eq @ i))) x \elim eq
         | idp => idp
     }
 
@@ -292,8 +292,8 @@
     transport (SubList __ ((context-d ++ context-b) ++ context-a)) (inv ++-assoc) (transport (SubList (context-c ++ context-b ++ context-a)) (inv ++-assoc) (SubList.extend-right-both sublist {context-b ++ context-a}))
   \elim context-b, context-c, context-d, sublist
     | context-b, nil, nil, sublist-trivial => identity-invariant-over-right-extension
-    | context-b, :: x context-c, :: y context-d, sublist-match idp sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc)) (rewriteI (pmap_inv-comm (x ::) (++-assoc)) (rewriteI (Transports.sublist-match-over-transport-2 (inv ++-assoc) (SubList.extend-right-both sublist)) (rewriteI Transports.sublist-match-over-transport-3 (pmap (sublist-match idp) (rb-rb-to-rb sublist)))))
-    | nil, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {nil} {context-a})) ((rewriteI Transports.sublist-skip-over-transport ((pmap (sublist-skip) (rb-rb-to-rb sublist)))))
-    | :: a context-b, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {a :: context-b} {context-a})) (rewriteI Transports.sublist-skip-over-transport ((pmap (sublist-skip) (rb-rb-to-rb sublist))))
-    | context-b, :: a context-c, :: y context-d, sublist-skip sublist => rewrite (rb-rb-to-rb sublist) (rewriteI (pmap_inv-comm (y ::) (++-assoc)) (rewriteI (pmap_inv-comm (a ::)) (rewriteI Transports.sublist-skip-over-transport (rewriteI Transports.sublist-skip-over-transport-2 idp))))
+    | context-b, :: x context-c, :: y context-d, sublist-match idp sublist => rewriteI (pmap_inv-comm (y ::) ++-assoc) (rewriteI (pmap_inv-comm (x ::) ++-assoc) (rewriteI (Transports.sublist-match-over-transport-2 (inv ++-assoc) (SubList.extend-right-both sublist)) (rewriteI Transports.sublist-match-over-transport-3 (pmap (sublist-match idp) (rb-rb-to-rb sublist)))))
+    | nil, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {nil} {context-a})) (rewriteI Transports.sublist-skip-over-transport (pmap sublist-skip (rb-rb-to-rb sublist)))
+    | :: a context-b, nil, :: y context-d, sublist-skip sublist => rewriteI (pmap_inv-comm (y ::) (++-assoc {A} {context-d} {a :: context-b} {context-a})) (rewriteI Transports.sublist-skip-over-transport (pmap sublist-skip (rb-rb-to-rb sublist)))
+    | context-b, :: a context-c, :: y context-d, sublist-skip sublist => rewrite (rb-rb-to-rb sublist) (rewriteI (pmap_inv-comm (y ::) ++-assoc) (rewriteI (pmap_inv-comm (a ::)) (rewriteI Transports.sublist-skip-over-transport (rewriteI Transports.sublist-skip-over-transport-2 idp))))
 }

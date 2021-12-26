@@ -81,7 +81,7 @@
   \where {
     \lemma conf=>nfp-helper {A : SimpleARS} (conf : isConfluent A) (a b : A) (a<~>*b : a <~>* b) (bnf : isNormalForm b) : a ~>_* b \elim a<~>*b
       | trc-direct a=b => trc-direct a=b
-      | trc-connect c a<~>c c<~>*b => \let c~>*b => (conf=>nfp-helper conf c b c<~>*b bnf) \in \case \elim a<~>c \with {
+      | trc-connect c a<~>c c<~>*b => \let c~>*b => conf=>nfp-helper conf c b c<~>*b bnf \in \case \elim a<~>c \with {
         | sc-left a~>c => trc-connect c a~>c c~>*b
         | sc-right c~>a => \let join-a-b => conf (trc-unary c~>a) c~>*b \in \case \elim join-a-b \with {
           | join c' a~>*c' b~>*c' => \case \elim b~>*c' \with {

@@ -13,7 +13,7 @@
 
 \module Shifts \where {
   \func proof {A : \Set} {a b : List A} {point : A} (sublist : SubList a b) (ind : Index a) (p : point = a !! ind)
-    : (point = b !! (shift-index sublist ind))
+    : point = b !! shift-index sublist ind
   \elim a, b, sublist, ind, p
     | :: x xs, :: y ys, sublist-match p sublist, zero, idp => p
     | :: x xs, :: y ys, sublist-match p sublist, suc ind, idp => proof sublist ind idp
@@ -35,8 +35,8 @@
     | nil, :: y b, sublist-skip sublist, ind => idp
     | :: a a1, :: y b, sublist-skip sublist, ind => idp
 
-  \lemma over-match {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Index a) (eq : point = a !! (ind))
-    : shift-index {_} {point' :: a} {point' :: b} (sublist-match idp sublist) (suc ind) = (suc (shift-index sublist ind))
+  \lemma over-match {A : \Set} {a b : List A} {point point' : A} (sublist : SubList a b) (ind : Index a) (eq : point = a !! ind)
+    : shift-index {_} {point' :: a} {point' :: b} (sublist-match idp sublist) (suc ind) = suc (shift-index sublist ind)
   \elim a, b, sublist, ind, eq
     | :: x a, :: y b, sublist-match p sublist, 0, idp => idp
     | :: x a, :: y b, sublist-match p sublist, suc ind, idp => idp
@@ -51,7 +51,7 @@
     | :: a a1, :: y b, sublist-skip sublist, ind => rewrite (over-shrink sublist ind ) idp
 
   \lemma over-right-single {A : \Set} {a b : List A} (ind : Index a)
-    : (shift-index SubList.id+right ind) = expand-fin-left {A} {a} {b} ind
+    : shift-index SubList.id+right ind = expand-fin-left {A} {a} {b} ind
   \elim a, ind
     | :: a a1, 0 => idp
     | :: a a1, suc ind => pmap fsuc (over-right-single ind)
@@ -80,10 +80,10 @@
   \elim a, ind
     | :: a a1, 0 => (idp, ext idp)
     | :: a a1, suc ind => \let sig => right-extension {_} {a1} {b} ind
-                          \in (sig.1, ext (pmap fsuc (pmap (__.1) sig.2)))
+                          \in (sig.1, ext (pmap fsuc (pmap __.1 sig.2)))
 
   \lemma left-extension-generic {A : \Set} {a b : List A} {point : A} (ind : Index b) {point-eq : point = b !! ind} :
-    \Sigma (eq2 : (point = (a ++ b) !! expand-fin-right ind))
+    \Sigma (eq2 : point = (a ++ b) !! expand-fin-right ind)
            ((shift-index (SubList.extend-left-single SubList.identity ) ind, proof (SubList.extend-left-single SubList.identity) ind point-eq)
              = {\Sigma (ind' : Fin (length (a ++ b))) (point = (a ++ b) !! ind')}
            (expand-fin-right ind, eq2))
@@ -91,7 +91,7 @@
     | nil, idp => (idp, ext (over-identity ind))
     | :: a a1, idp =>
       \let sig => left-extension-generic {_} {a1} {b} ind {idp}
-      \in (sig.1, ext (transport (\lam (r : SubList b (a :: a1 ++ b)) => shift-index r ind = fsuc (expand-fin-right ind)) idp (rewrite over-skip (pmap fsuc (pmap (__.1) sig.2))))) -- ???
+      \in (sig.1, ext (transport (\lam (r : SubList b (a :: a1 ++ b)) => shift-index r ind = fsuc (expand-fin-right ind)) idp (rewrite over-skip (pmap fsuc (pmap __.1 sig.2))))) -- ???
 
   \lemma left-extension {A : \Set} {a b : List A} (ind : Index b)
     :
