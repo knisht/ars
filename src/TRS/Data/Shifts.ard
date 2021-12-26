@@ -1,4 +1,5 @@
 \import Data.List
+\import Logic
 \import Paths
 \import Paths.Meta
 \import TRS.Data.Fin
@@ -59,7 +60,8 @@
     : shift-index {A} {b} {a ++ b} SubList.id+left ind = expand-fin-right ind
   \elim a
     | nil => over-identity _
-    | :: a a1 => rewrite over-skip (pmap fsuc (over-left-single ind))
+    | :: a a1 =>
+      transport (\lam (r : SubList b (a :: a1 ++ b)) => shift-index r ind = fsuc (expand-fin-right ind)) idp (rewrite over-skip (pmap fsuc (over-left-single ind)))
 
   \lemma over-right-both {A : \Set} {a b c : List A} (sublist : SubList a b) (fin : Index c)
     : shift-index (SubList.extend-right-both sublist) (expand-fin-right fin) = expand-fin-right fin \elim a, b, c, sublist, fin
@@ -89,7 +91,7 @@
     | nil, idp => (idp, ext (over-identity ind))
     | :: a a1, idp =>
       \let sig => left-extension-generic {_} {a1} {b} ind {idp}
-      \in (sig.1, ext (rewrite over-skip (pmap fsuc (pmap (__.1) sig.2)))) -- ???
+      \in (sig.1, ext (transport (\lam (r : SubList b (a :: a1 ++ b)) => shift-index r ind = fsuc (expand-fin-right ind)) idp (rewrite over-skip (pmap fsuc (pmap (__.1) sig.2))))) -- ???
 
   \lemma left-extension {A : \Set} {a b : List A} (ind : Index b)
     :

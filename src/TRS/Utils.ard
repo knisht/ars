@@ -11,7 +11,8 @@
 \import TRS.HRS
 \import TRS.Maybe
 
-\func F-param-index {fs : FSignature} {s : Sort} (f : fs.symbol s) : \Set => Index (fs.domain f)
+-- | Useful for proving equalities on arrays
+\meta extext x => ext (ext x)
 
 \func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
   | idp => idp
@@ -43,7 +44,7 @@
 \func unwrap-func {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
                   (T : Term env context s mc) : Or Nat
     (\Sigma (f : env.symbol s) (\Pi (index : Index (env.domain f)) ->
-        Term env (context ++ (f FSignature.!!param index)) (f FSignature.!!sort index) mc)) \elim T
+        Term env (context ++ (f FSignature.!!domain index)) (f FSignature.!!sort index) mc)) \elim T
   | var index p => inl 0
   | metavar m arguments1 => inl 0
   | func f1 arguments1 => inr (f1, arguments1)

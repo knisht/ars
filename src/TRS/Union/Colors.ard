@@ -10,6 +10,7 @@
 \import TRS.MetaContexts
 \import TRS.Union
 \import TRS.Union.Confluence
+\import TRS.Utils
 
 \data Color | red | blue \where {
   \func flip (c : Color) : Color \elim c
@@ -70,7 +71,7 @@
     \where {
       \lemma equalize-colors (color color' : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                              (f : env.symbol s)
-                             (arguments arguments' : \Pi (index : Index (env.domain f)) -> Term env (context ++ (f env.!!param index)) (f env.!!sort index) mc)
+                             (arguments arguments' : DArray {env.arity f} (\lam (index : Index (env.domain f)) => Term env (context ++ (f env.!!domain index)) (f env.!!sort index) mc))
                              (hcl1 : HasColoredRoot color (func f arguments))
                              (hcl2 : HasColoredRoot color' (func f arguments'))
         : color = color' \elim color, color', f, hcl1, hcl2
@@ -81,7 +82,7 @@
 
       \lemma reorganize (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                         {f : env.symbol s}
-                        {arguments : \Pi (index : Index (env.domain f)) -> Term env (context ++ (f env.!!param index)) (f env.!!sort index) mc}
+                        {arguments : DArray {env.arity f} (\lam (index : Index (env.domain f)) => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)}
                         (hcl : HasColoredRoot color (func f arguments))
         : color-of-root f = color \elim color, f, hcl
         | red, inl s1, red-func-root => idp
@@ -117,11 +118,11 @@
 \lemma unwrap-injection {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {allow-variables : \Prop} (t : GenericLinearTerm (colored-env color) context s allow-variables) :
   inject-monochrome-term color (Linear.convert-to-term {colored-env color} t) = convert-to-injected-term color {context} {s} t \elim color, t
   | red, l-func f arguments => pmap (func {env} (inl f))
-      (ext (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index)))))
+      (extext (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index)))))
   | red, l-full-metavar => idp
   | red, l-var index p _ => idp
   | blue, l-func f arguments => pmap (func {env} (inr f))
-      (ext (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index)))))
+      (extext (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index)))))
   | blue, l-full-metavar => idp
   | blue, l-var index p _ => idp
   \where {
@@ -134,12 +135,12 @@
       | red, metavar m arguments =>
         \let extt : (\lam i1 => Injections.inject-term-left envL envR (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => (ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1)))) => ext (\lam i => swap red msigs (arguments i))
         \in rewrite extt idp
-      | red, func f arguments => pmap (func {env} (inl f)) (ext (\lam index => (swap red msigs (arguments index))))
+      | red, func f arguments => pmap (func {env} (inl f)) (extext (\lam index => (swap red msigs (arguments index))))
       | blue, var index p => idp
       | blue, metavar m arguments =>
         \let extt : (\lam i1 => Injections.inject-term-right envL envR (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => (ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1)))) => ext (\lam i => swap blue msigs (arguments i))
         \in rewrite extt idp
-      | blue, func f arguments => pmap (func {env} (inr f)) (ext (\lam index => (swap blue msigs (arguments index))))
+      | blue, func f arguments => pmap (func {env} (inr f)) (extext (\lam index => (swap blue msigs (arguments index))))
   }
 
 \func break-down-rule {tc : TheoremContext}
@@ -156,7 +157,7 @@
   | inl a => \let rule : RewriteRule envL => L-rules.get a \in extract-left-l red rule.l rule.l-is-func
   | inr b => \let rule : RewriteRule envR => R-rules.get b \in extract-left-l blue rule.l rule.l-is-func
   \where {
-    \func extract-left-l {tc : TheoremContext} (color : Color) {s : Sort'} {mc : MetaContext Sort'} (t : Term (colored-env color) nil s mc) (fr : FunctionalRoot {colored-env color} t) : HasColoredRoot color (inject-monochrome-term color t) \elim color, t, fr
+    \func extract-left-l {tc : TheoremContext} (color : Color) {s : Sort'} {mc : MetaContext Sort'} (t : Term (colored-env color) nil s mc) (fr : FunctionRoot {colored-env color} t) : HasColoredRoot color (inject-monochrome-term color t) \elim color, t, fr
       | red, func f arguments, T-has-functional-root => red-func-root
       | blue, func f arguments, T-has-functional-root => blue-func-root
   }

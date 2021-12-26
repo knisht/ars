@@ -1,8 +1,12 @@
 \import Data.List (::, List, nil)
+\import Logic.Meta
 \import Paths
 \import Paths.Meta
 \import TRS.HRS
 \import TRS.MetaContexts
+\import TRS.Utils
+
+\meta impossible-lambda => \lam e => contradiction
 
 \data SingularSort | lc-term
 
@@ -29,11 +33,11 @@
   func application
       (\lam i => \case \elim i \with {
         | 0 => func abstraction (\lam 0 => metavar metavar-a (\lam 0 => var 0 idp))
-        | 1 => metavar metavar-b (\lam ())
+        | 1 => metavar metavar-b impossible-lambda
       })
 
 \func BetaResult : Term LC-FSignature nil lc-term BetaRedexContext =>
-  metavar metavar-a (\lam 0 => metavar metavar-b (\lam ()))
+  metavar metavar-a (\lam 0 => metavar metavar-b impossible-lambda)
 
 \func beta-reduction : RewriteRule LC-FSignature \cowith
   | meta-context => BetaRedexContext
@@ -73,8 +77,8 @@
   }
 
 \func I_I~>I : RewriteRelation LC-rules I_I I =>
-  rewrite-with-rule () idp suitable-substitution (pmap (func application) (ext (\lam index => \case \elim index \with {
-    | 0 => pmap (func abstraction) (ext (\lam 0 => idp))
-    | 1 => pmap (func abstraction) (ext (\lam 0 => idp))
+  rewrite-with-rule () idp suitable-substitution (pmap (func application) (extext (\lam index => \case \elim index \with {
+    | 0 => pmap (func abstraction) (extext (\lam 0 => idp))
+    | 1 => pmap (func abstraction) (extext (\lam 0 => idp))
   }))
-  ) (pmap (func abstraction) (ext (\lam 0 => idp)))
+  ) (pmap (func abstraction) (extext (\lam 0 => idp)))

@@ -21,8 +21,12 @@
 
 \open TheoremContext
 
-\func LinearDump {tc : TheoremContext} =>
-  \Pi (point : L-rules.J `Or` R-rules.J) ->
+--\data SOr (A B : \Set) : \Set
+--  | inl A
+--  | inr B
+
+\func LinearDump {tc : TheoremContext} : \Type =>
+  \Pi (point :  (L-rules.J) `Or` (R-rules.J)) ->
       \Sigma (linear-pattern : LinearPattern (TheoremContext.colored-env (color-of-idx point)) nil (RewriteRule.s {(get {(JointRules {Sort'} {envL} {envR} L-rules R-rules)} point)}))
              (meta-eq : RewriteRule.meta-context {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)} = LinearMetaContext {colored-env (color-of-idx point)} linear-pattern)
              (convert-to-injected-term (color-of-idx point) linear-pattern = transport (Term env nil (RewriteRule.s {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)})) meta-eq (RewriteRule.l {(get {(JointRules {_} {envL} {envR} L-rules R-rules)} point)}))
@@ -100,15 +104,15 @@
                                (A~>B : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B)
                                (all-rules-are-linear : LinearDump)
     : TrichromaticParallelReduction A B \elim A, B, A~>B
-    | var index p, B, rewrite-with-rule idx sort-eqs msubst l-coherence r-coherence => \let q => contradicting {env} index p msubst sort-eqs (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) l-coherence (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) \in contradiction
+    | var index p, B, rewrite-with-rule idx sort-eqs msubst l-coherence r-coherence => \let q => contradicting {env} index p msubst sort-eqs (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules } idx}) l-coherence (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) \in contradiction
     | func f arguments1, B, rewrite-with-rule idx sort-eq msubst l-coherence r-coherence
     =>
       \let | (lp, meta-eq, lp=l) => all-rules-are-linear idx
-           | lp-is-func : FunctionalRoot {colored-env (color-of-idx idx)} (Linear.convert-to-term {colored-env (color-of-idx idx)} lp) => extract-functional-root (color-of-idx idx) lp meta-eq _ lp=l (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx})
-           | (color-eq, hcr-l')  => coloring-lemma sort-eq (color-of-idx idx) lp (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) meta-eq lp=l msubst f arguments1 l-coherence
-           | (uninjected-r, inject-uninj) => break-down-rule idx
+           | lp-is-func : FunctionRoot {colored-env (color-of-idx idx)} (Linear.convert-to-term {colored-env (color-of-idx idx)} lp) => extract-functional-root (color-of-idx idx) lp meta-eq _ lp=l (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx})
+           | (color-eq, hcr-l')  => coloring-lemma sort-eq (color-of-idx  idx) lp (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.l-is-func {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) meta-eq lp=l msubst f arguments1 l-coherence
+           | (uninjected-r, inject-uninj) => break-down-rule  idx
            | hcr-l => get-colored-root-for-l idx
-           | unified => unify-tlcr (color-of-idx idx) (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.r {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (sort-eq) lp lp-is-func (meta-eq) lp=l msubst (func f arguments1) B l-coherence r-coherence uninjected-r inject-uninj
+           | unified => unify-tlcr (color-of-idx idx) (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.r {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) sort-eq lp lp-is-func meta-eq lp=l msubst (func f arguments1) B l-coherence r-coherence uninjected-r inject-uninj
       \in
         (color-of-root f,
          just (color-of-idx idx),
@@ -138,8 +142,8 @@
         (t : Term env nil s mc)
         (coh : convert-to-injected-term color lp =
         transport (Term TheoremContext.env nil (s)) meta-eq t)
-        (t-is-func : FunctionalRoot {env} t)
-        : FunctionalRoot {colored-env color} (Linear.convert-to-term {colored-env color} lp) \elim color, lp, meta-eq, t, t-is-func
+        (t-is-func : FunctionRoot {env} t)
+        : FunctionRoot {colored-env color} (Linear.convert-to-term {colored-env color} lp) \elim color, lp, meta-eq, t, t-is-func
         | red, l-func f arguments, idp, func f1 arguments1, T-has-functional-root => T-has-functional-root {colored-env red}
         | blue, l-func f arguments, idp, func f1 arguments1, T-has-functional-root => T-has-functional-root {colored-env blue}
         | red, l-full-metavar, idp, func f arguments1, T-has-functional-root => contradiction
@@ -147,13 +151,13 @@
         | _, l-var index p (), meta-eq, t, t-is-func
 
       \func infer-color-from-hcr {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : env.symbol s) (arguments : \Pi (index : Index (env.domain f)) ->
-          Term TheoremContext.env (context ++ f FSignature.!!param {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})) (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (func {env} f arguments) \elim color, f, eq-color
+          Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})) (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (func {env} {context} {_} {EmptyMetaContext {env}} f arguments) \elim color, f, eq-color -- Unnecessary implicit arguments
         | red, inl a, eq-color => TheoremContext.red-func-root
         | blue, inr b, eq-color => TheoremContext.blue-func-root
 
       \func contradicting {env : FSignature} {context : List Sort} {s s' : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
                           (eq' : s = s')
-                          (t : Term env nil s' mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free) (SubList.identity) msubst = transport (Term env context __ mc') eq' (var index p)) (rt : FunctionalRoot t) : Empty \elim eq', t, rt
+                          (t : Term env nil s' mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free) (SubList.identity) msubst = transport (Term env context __ mc') eq' (var index p)) (rt : FunctionRoot t) : Empty \elim eq', t, rt
         | idp, func f arguments, T-has-functional-root => contradiction
 
       \func unify-tlcr
@@ -162,7 +166,7 @@
         (old-l old-r : Term env nil rule-s inner-mc)
         (eq : s' = rule-s)
         (new-l : LinearPattern (colored-env color) nil rule-s)
-        (new-l-is-func : FunctionalRoot {colored-env color} (Linear.convert-to-term {colored-env color} new-l))
+        (new-l-is-func : FunctionRoot {colored-env color} (Linear.convert-to-term {colored-env color} new-l))
         (ms-eq : inner-mc = LinearMetaContext {colored-env color} new-l)
         (lp=l : convert-to-injected-term color new-l = transport (Term env nil rule-s) ms-eq (old-l))
         (subst : MetaSubstitution env context inner-mc mc)
@@ -176,7 +180,7 @@
                  (new-subst : MetaSubstitution env context (LinearMetaContext {colored-env color} new-lp) mc)
                  (new-l-coherence : MetaSubstitution.apply {env} (weakening {env} (convert-to-injected-term color new-lp) SubList.sublist-trivial-free) SubList.identity new-subst = A)
                  (new-r-coherence : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color new-r) SubList.sublist-trivial-free) SubList.identity new-subst = B)
-                 (FunctionalRoot {colored-env color} (Linear.convert-to-term {colored-env color} new-lp))
+                 (FunctionRoot {colored-env color} (Linear.convert-to-term {colored-env color} new-lp))
                  (new-ms-eq : LinearMetaContext {colored-env color} new-lp = inner-mc)
                  (new-sort-eq : s' = rule-s)
                  (old-l = transport2 (Term env nil) new-sort-eq new-ms-eq (convert-to-injected-term color new-lp))
@@ -193,13 +197,13 @@
         (color : Color)
         (lp : LinearPattern (TheoremContext.colored-env color) nil s')
         (t : Term env nil s' mc)
-        (froot : FunctionalRoot {env} t)
+        (froot : FunctionRoot {env} t)
         (mc-eq : mc = LinearMetaContext {TheoremContext.colored-env color} lp)
         (eq : convert-to-injected-term color lp = transport (Term env nil s') mc-eq t)
         (msubst : MetaSubstitution env context mc mc')
         (f : env.symbol s)
         (arguments : \Pi (index : Index (env.domain f)) ->
-            Term TheoremContext.env (context ++ f FSignature.!!param {env} index) (f FSignature.!!sort {env} index) mc')
+            Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) mc')
         (eq2 : MetaSubstitution.apply {env} (weakening {env} t SubList.sublist-trivial-free) SubList.identity msubst = transport (Term env context __ mc') s-eq (func f arguments)) : \Sigma  (TheoremContext.color-of-root f = color) (TheoremContext.HasColoredRoot color t) \elim s-eq, color, lp, t, froot, mc-eq, f
         | idp, red, l-func f arguments1, func (inl a1) arguments2, T-has-functional-root, idp, inl a => (idp, TheoremContext.red-func-root)
         | idp, red, l-func f arguments1, func (inr b) arguments2, T-has-functional-root, idp, inl a => contradiction
@@ -230,7 +234,7 @@
     | color, func f arguments, parallelization-f mediator _x c =>
       \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
            | joined => modular-induction
-               (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc)
+               (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
                (\lam curmed => Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f arguments) (func f curmed))
                arguments
                mediator
@@ -238,7 +242,7 @@
                (\lam delim prev-result =>
                    \let | curmodular => from-indices delim
                         | modular => (modular-function
-                            (\lam index => Term env (context ++ f env.!!param index) (f env.!!sort index) mc)
+                            (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
                             arguments mediator delim)
                         | lifted => Closure.lift {_} {_}
                             {RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)}
@@ -249,9 +253,9 @@
                             (mediator delim)
                             curmodular
                    \in Closure.compose prev-result (rewrite
-                       (modular-to-pointed-forward (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) arguments mediator)
+                       (modular-to-pointed-forward (\lam index => Term env (context ++ f env.!!domain  index) (f env.!!sort index) mc) arguments mediator)
                        (rewrite {1}
-                           (modular-to-pointed (\lam index => Term env (context ++ f env.!!param  index) (f env.!!sort index) mc) arguments mediator delim)
+                           (modular-to-pointed (\lam index => Term env (context ++ f env.!!domain  index) (f env.!!sort index) mc) arguments mediator delim)
                            lifted)))
            | from-cwr : Closure (RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules)) (func {env} f mediator) B => unwrap-cwr color c
       \in Closure.compose joined from-cwr
@@ -270,8 +274,8 @@
                      (color : Color)
                      {A B : Term env context s mc}
                      (A=>B : TopLevelColoredReduction color A B)
-    : RewriteRelation {env} (JointRules {_} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
-    | A, B, rewrite-with-rule-colored h linear-pattern r l-is-func substitution left-coherence right-coherence idx seq' meq lcoh rcoh =>
+    : RewriteRelation {env} (JointRules {tc.Sort'} {envL} {envR} L-rules R-rules) A B \elim A, B, A=>B
+    | A, B, rewrite-with-rule-colored h linear-pattern r l-is-func substitution left-coherence right-coherence idx seq' meq lcoh rcoh => \let q : Sort {env {tc}} = tc.Sort' => idp \in
       rewrite-with-rule idx seq' (rewriteI meq substitution)
           (untransport {env {tc}} seq' meq substitution _ _ A left-coherence lcoh)
           (untransport {env {tc}} seq' meq substitution _ _ B right-coherence rcoh)

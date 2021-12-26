@@ -73,7 +73,7 @@
                                     {s : Sort}
                                     {mc : MetaContext Sort}
                                     (t : Term envL context s mc)
-                                    (t-is-func : FunctionalRoot {envL} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-left envL envR t) \elim t, t-is-func
+                                    (t-is-func : FunctionRoot {envL} t) : FunctionRoot {JointFSignature envL envR} (inject-term-left envL envR t) \elim t, t-is-func
         | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
     }
 
@@ -93,7 +93,7 @@
                                      {s : Sort}
                                      {mc : MetaContext Sort}
                                      (t : Term envR context s mc)
-                                     (t-is-func : FunctionalRoot {envR} t) : FunctionalRoot {JointFSignature envL envR} (inject-term-right envL envR t) \elim t, t-is-func
+                                     (t-is-func : FunctionRoot {envR} t) : FunctionRoot {JointFSignature envL envR} (inject-term-right envL envR t) \elim t, t-is-func
         | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
     }
 
@@ -106,7 +106,7 @@
     | get j => Injections.promote-rewrite-rule-right envL envR (rules.get j)
 }
 
-\func JointRules {Sort : \Set} {envL envR : FSignature Sort}
+\func JointRules \hlevels lh {Sort : \Set} {envL envR : FSignature Sort}
                  (L-rules : IndexedSet (RewriteRule envL))
                  (R-rules : IndexedSet (RewriteRule envR))
   : IndexedSet (RewriteRule (JointFSignature envL envR)) =>
