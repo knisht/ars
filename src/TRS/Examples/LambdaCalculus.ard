@@ -6,8 +6,6 @@
 \import TRS.MetaContexts
 \import TRS.Utils
 
-\meta impossible-lambda => \lam e => contradiction
-
 \data SingularSort | lc-term
 
 \data LC-Symbols : \Set | abstraction | application
@@ -18,7 +16,6 @@
     | abstraction => (lc-term :: nil, lc-term) :: nil
     | application => (nil, lc-term) :: (nil, lc-term) :: nil
   }
-
 
 \data MetaVariables | metavar-a | metavar-b
 
@@ -39,16 +36,15 @@
 \func BetaResult : Term LC-FSignature nil lc-term BetaRedexContext =>
   metavar metavar-a (\lam 0 => metavar metavar-b impossible-lambda)
 
-\func beta-reduction : RewriteRule LC-FSignature \cowith
-  | meta-context => BetaRedexContext
-  | s => lc-term
-  | l => BetaRedex
-  | r => BetaResult
-  | l-is-func => T-has-functional-root {LC-FSignature}
+\func beta-reduction : RewriteRule lc-term \cowith
+  | rr-mc => BetaRedexContext
+  | rr-l => BetaRedex
+  | rr-r => BetaResult
+  | rr-l-func-root => T-has-functional-root {LC-FSignature}
 
-\func LC-rules : IndexedSet (RewriteRule LC-FSignature) \cowith
-  | J => \Sigma
-  | get () => beta-reduction
+\func LC-rules : RuleRegistry LC-FSignature \cowith
+  | rule-J (lc-term) => \Sigma
+  | rule-container {(lc-term)} () => beta-reduction
 
 \instance UntypedLambdaCalculus  : SimpleHigherOrderTermRewritingSystem \cowith
   | env => LC-FSignature
@@ -77,7 +73,7 @@
   }
 
 \func I_I~>I : RewriteRelation LC-rules I_I I =>
-  rewrite-with-rule () idp suitable-substitution (Term.fext (\lam index => \case \elim index \with {
+  rewrite-with-rule () suitable-substitution (Term.fext (\lam index => \case \elim index \with {
     | 0 => Term.fext (\lam 0 => idp)
     | 1 => Term.fext (\lam 0 => idp)
   })

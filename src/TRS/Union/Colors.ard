@@ -24,14 +24,18 @@
   \lemma flip-contradiction {c : Color} (eq : c = flip c) : Empty \elim c
     | red => contradiction
     | blue => contradiction
+
+  \func inject {A B : \Type} (c : Color) (t : \case \elim c \with {| red => A | blue => B }) : Or A B \elim c
+    | red => inl t
+    | blue => inr t
 }
 
 \class TheoremContext {
   | Sort' : \Set
   | envL : FSignature Sort'
   | envR : FSignature Sort'
-  | L-rules : IndexedSet (RewriteRule envL)
-  | R-rules : IndexedSet (RewriteRule envR)
+  | L-rules : RuleRegistry envL
+  | R-rules : RuleRegistry envR
 
   \func lfunc => func {envL}
 
@@ -43,12 +47,14 @@
     | red => envL
     | blue => envR
 
-  \func colored-set-of-rules (color : Color) : IndexedSet (RewriteRule (colored-env color)) \elim color
+  \func colored-rule-registry (color : Color) : RuleRegistry (colored-env {\this} color) \elim color
     | red => L-rules
     | blue => R-rules
 
   \func monochrome-reduction (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (A B : Term (colored-env color) context s mc) : \Type =>
-    RewriteRelation {colored-env color} (colored-set-of-rules color) A B
+    RewriteRelation {colored-env color} (colored-rule-registry color) A B
+
+  \func JRegistry : RuleRegistry (JointFSignature envL envR) => JointRegistry envL envR L-rules R-rules
 
   \func inject-monochrome-term (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                                (t : Term (colored-env color) context s mc) : Term env context s mc \elim color
@@ -101,9 +107,9 @@
 
   \func env : FSignature => JointFSignature envL envR
 
-  \func colored-rules (color : Color) : IndexedSet (RewriteRule env) \elim color
-    | red => Injections.promote-indexed-set-left {Sort'} {envL} {envR} L-rules
-    | blue => Injections.promote-indexed-set-right {Sort'} {envL} {envR} R-rules
+--  \func colored-rules (color : Color) : IndexedSet (RewriteRule env) \elim color
+--    | red => Injections.promote-indexed-set-left {Sort'} {envL} {envR} L-rules
+--    | blue => Injections.promote-indexed-set-right {Sort'} {envL} {envR} R-rules
 }
 
 \open TheoremContext
@@ -148,18 +154,20 @@
   }
 
 \func break-down-rule {tc : TheoremContext}
-                      (idx : J {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules})
-  : \Sigma (new-r : Term (colored-env (color-of-idx idx)) nil (RewriteRule.s {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) (RewriteRule.meta-context {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}))
-           (inject-monochrome-term (color-of-idx idx) new-r = RewriteRule.r {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) \elim idx
-  | inl left-idx => \let rule : RewriteRule envL => L-rules.get left-idx \in (rule.r, idp)
-  | inr right-idx => \let rule : RewriteRule envR => R-rules.get right-idx \in (rule.r, idp)
+                      {s : Sort'}
+                      (idx : JRegistry.rule-J s)
+  : \Sigma (new-r : Term (colored-env (color-of-idx idx)) nil s (JRegistry.rule-mc idx))
+           (inject-monochrome-term (color-of-idx idx) new-r = JRegistry.rule-r idx) \elim idx
+  | inl left-idx => (L-rules.rule-r left-idx, idp)
+  | inr right-idx => (R-rules.rule-r right-idx, idp)
 
 \func get-colored-root-for-l
   {tc : TheoremContext}
-  (idx : J {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules})
-  : HasColoredRoot (color-of-idx idx) (RewriteRule.l {get {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules} idx}) \elim idx
-  | inl a => \let rule : RewriteRule envL => L-rules.get a \in extract-left-l red rule.l rule.l-is-func
-  | inr b => \let rule : RewriteRule envR => R-rules.get b \in extract-left-l blue rule.l rule.l-is-func
+  {s : Sort'}
+  (idx : JRegistry.rule-J s)
+  : HasColoredRoot (color-of-idx idx) (JRegistry.rule-l idx) \elim idx
+  | inl a => extract-left-l red (L-rules.rule-l a) (L-rules.rule-func-root a)
+  | inr b => extract-left-l blue (R-rules.rule-l b) (R-rules.rule-func-root b)
   \where {
     \func extract-left-l {tc : TheoremContext} (color : Color) {s : Sort'} {mc : MetaContext Sort'} (t : Term (colored-env color) nil s mc) (fr : FunctionRoot {colored-env color} t) : HasColoredRoot color (inject-monochrome-term color t) \elim color, t, fr
       | red, func f arguments, T-has-functional-root => red-func-root
@@ -167,7 +175,8 @@
   }
 
 \func color-of-idx {tc : TheoremContext}
-                   (idx : J {JointRules {_} {envL} {envR} tc.L-rules tc.R-rules}) : Color \elim idx
+                   {s : Sort'}
+                   (idx : JRegistry.rule-J s) : Color \elim idx
   | inl a => red
   | inr b => blue
 

@@ -51,7 +51,7 @@
 
 -- | Term of higher-order TRS
 \data Term (env : FSignature)
-           (context : List Sort)
+           (context : List Sort) -- | what if context will be a function from a sort to a number of disjoint indices? will it complicate the substitution?
            (termSort : Sort)
            (mc : MetaContext Sort): \Set
   | var (index : Index context) (termSort = context !! index)
@@ -88,11 +88,6 @@
       | func f arguments => func f (\lam i => Substitution.apply (arguments i) (append-context-right map))
   }
 
-\record RewriteRule (env : FSignature) {s : Sort} {meta-context : MetaContext Sort}
-                    (l : Term env nil s meta-context)
-                    (r : Term env nil s meta-context)
-                    (l-is-func : FunctionRoot l)
-
 \data FunctionRoot {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
                    (T : Term env context s mc) : \Prop \elim T
   | func _ _ => T-has-functional-root
@@ -110,12 +105,22 @@
       | func f arguments => func f (\lam i => apply (arguments i) (SubList.extend-right-single sublist) subst)
   }
 
-\record IndexedSet (A : \Type)
-  | J : \Set
-  | get : J -> A
-  \where {
-    \func \infix 4 in {A : \Type} (a : A) (set : IndexedSet A) : \Type => \Sigma (point : set.J) (set.get point = a)
-  }
+\record RuleRegistry (env : FSignature) {
+  | rule-J : Sort -> \Set
+  | rule-container : \Pi {s : Sort} (id : rule-J s) -> RewriteRule {env} s
+
+  \func rule-mc {s : Sort} (id : rule-J s) : MetaContext Sort => rr-mc {rule-container id}
+  \func rule-l {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-l {rule-container id}
+  \func rule-r {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-r {rule-container id}
+  \lemma rule-func-root {s : Sort} (id : rule-J s) : FunctionRoot (rule-l id) => rr-l-func-root {rule-container id}
+}
+
+\record RewriteRule {env : FSignature} (s : Sort) {
+  | rr-mc : MetaContext Sort
+  | rr-l : Term env nil s rr-mc
+  | rr-r : Term env nil s rr-mc
+  | rr-l-func-root : FunctionRoot rr-l
+}
 
 \func arguments-over-f
   {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
@@ -134,20 +139,15 @@
 \data RewriteRelation
   {env : FSignature}
   {mc : MetaContext Sort}
-  (set-of-rules : IndexedSet (RewriteRule env))
+  (set-of-rules : RuleRegistry env)
   {context : List Sort} {s : Sort}
   (A B : Term env context s mc) \elim A, B
   | A, B =>
   rewrite-with-rule
-    (idx : set-of-rules.J)
-    (sort-eq : s = RewriteRule.s {set-of-rules.get idx})
-    (substitution : MetaSubstitution env context (RewriteRule.meta-context {set-of-rules.get idx}) mc)
-    (left-coherence :
-    MetaSubstitution.apply (weakening (RewriteRule.l {set-of-rules.get idx}) SubList.sublist-trivial-free) SubList.identity substitution =
-    transport (Term env context __ mc) sort-eq A)
-    (right-coherence :
-    MetaSubstitution.apply (weakening (RewriteRule.r {set-of-rules.get idx}) SubList.sublist-trivial-free) SubList.identity substitution =
-    transport (Term env context __ mc) sort-eq B)
+    (idx : set-of-rules.rule-J s)
+    (substitution : MetaSubstitution env context (set-of-rules.rule-mc idx) mc)
+    (left-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-l idx) SubList.sublist-trivial-free) SubList.identity substitution = A)
+    (right-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-r idx) SubList.sublist-trivial-free) SubList.identity substitution = B)
 
   | func f-A arguments-A, func f-B arguments-B =>
   rewrite-with-parameter-f
@@ -163,7 +163,7 @@
     (reduction : RewriteRelation set-of-rules (arguments-A i) (arguments-over-m p arguments-B i))
     (other-unchanged : \Pi (j : mc.index-in m-A) (j = i -> Empty) -> arguments-A j = arguments-over-m p arguments-B j)
 
-\class HigherOrderTermRewritingSystem \noclassifying (env : FSignature) (meta-context : MetaContext Sort) (set-of-rules : IndexedSet (RewriteRule env))  \extends AbstractReductionSystem
+\class HigherOrderTermRewritingSystem \noclassifying (env : FSignature) (meta-context : MetaContext Sort) (set-of-rules : RuleRegistry env)  \extends AbstractReductionSystem
   | A => \Sigma (context : List Sort) (sort : Sort) (Term env context sort meta-context)
   | ~> a b => \case \elim a, b \with {
     | (context, sort, A), (context', sort', B) => ∃ (p : context' = context) (q : sort' = sort) (RewriteRelation set-of-rules A (transport2 (\lam a b => Term env a b meta-context) p q B))

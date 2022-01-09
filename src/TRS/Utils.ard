@@ -14,6 +14,8 @@
 -- | Useful for proving equalities on arrays
 \meta extext x => ext (ext x)
 
+\meta impossible-lambda => \lam e => contradiction
+
 \func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
   | idp => idp
 
@@ -40,6 +42,9 @@
 
 \func or-contradiction {A B : \Type} {a : A} {b : B} (eq : inl a = inr b) : Empty => contradiction
 
+\func destruct-just {A : \Type} (default : A) (j : Maybe A) : A \elim j
+  | nothing => default
+  | just a => a
 
 \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
   | inl a1 => contradiction

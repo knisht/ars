@@ -31,12 +31,33 @@
     | inr b => B.domain b
   }
 
-\func JointIndexedSet {A : \Type} (L R : IndexedSet A) : IndexedSet A \cowith
-  | J => L.J `Or` R.J
-  | get x => \case \elim x \with {
-    | inl a => L.get a
-    | inr b => R.get b
+\func JointRegistry {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) (L : RuleRegistry envL) (R : RuleRegistry envR)
+  : RuleRegistry (JointFSignature envL envR) \cowith
+  | rule-J s => L.rule-J s `Or` R.rule-J s
+  | rule-container j => \case \elim j \with {
+    | inl a => inject-rule-container-left envL envR (L.rule-container a)
+    | inr b => inject-rule-container-right envL envR (R.rule-container b)
   }
+
+\func inject-rule-container-left {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} (L : RewriteRule {envL} s) : RewriteRule {JointFSignature envL envR} s \cowith
+  | rr-mc => L.rr-mc
+  | rr-l => Injections.inject-term-left envL envR L.rr-l
+  | rr-r => Injections.inject-term-left envL envR L.rr-r
+  | rr-l-func-root => inject-functional-root-left envL envR rr-l-func-root
+
+\func inject-functional-root-left {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} {mc : MetaContext Sort} {t : Term envL nil s mc} (fr : FunctionRoot {envL} t)
+  : FunctionRoot {JointFSignature envL envR} (Injections.inject-term-left envL envR t) \elim t, fr
+  | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
+
+\func inject-rule-container-right {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} (R : RewriteRule {envR} s) : RewriteRule {JointFSignature envL envR} s \cowith
+  | rr-mc => R.rr-mc
+  | rr-l => Injections.inject-term-right envL envR R.rr-l
+  | rr-r => Injections.inject-term-right envL envR R.rr-r
+  | rr-l-func-root => inject-functional-root-right envL envR rr-l-func-root
+
+\func inject-functional-root-right {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} {mc : MetaContext Sort} {t : Term envR nil s mc} (fr : FunctionRoot {envR} t)
+  : FunctionRoot {JointFSignature envL envR} (Injections.inject-term-right envL envR t) \elim t, fr
+  | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
 
 \module Injections \where {
   \func inject-term-left {Sort : \Set}
@@ -56,70 +77,6 @@
     | var index p => var index p
     | metavar m arguments => metavar m (\lam i => inject-term-right envL envR (arguments i))
     | func f arguments => func (inr f) (\lam i => inject-term-right envL envR (arguments i))
-
-  \func promote-rewrite-rule-left {Sort : \Set}
-                                  (envL envR : FSignature Sort)
-                                  (rule : RewriteRule envL)
-    : RewriteRule (JointFSignature envL envR) \cowith
-    | s => rule.s
-    | meta-context => rule.meta-context
-    | l => inject-term-left envL envR rule.l
-    | r => inject-term-left envL envR rule.r
-    | l-is-func => promote-injection-left {_} {envL} {envR} rule.l rule.l-is-func
-    \where {
-      \lemma promote-injection-left {Sort : \Set}
-                                    {envL envR : FSignature Sort}
-                                    {context : List Sort}
-                                    {s : Sort}
-                                    {mc : MetaContext Sort}
-                                    (t : Term envL context s mc)
-                                    (t-is-func : FunctionRoot {envL} t) : FunctionRoot {JointFSignature envL envR} (inject-term-left envL envR t) \elim t, t-is-func
-        | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
-    }
-
-  \func promote-rewrite-rule-right {Sort : \Set}
-                                   (envL envR : FSignature Sort)
-                                   (rule : RewriteRule envR)
-    : RewriteRule (JointFSignature envL envR) \cowith
-    | s => rule.s
-    | meta-context => rule.meta-context
-    | l => inject-term-right envL envR rule.l
-    | r => inject-term-right envL envR rule.r
-    | l-is-func => promote-injection-right {_} {envL} {envR} rule.l rule.l-is-func
-    \where {
-      \lemma promote-injection-right {Sort : \Set}
-                                     {envL envR : FSignature Sort}
-                                     {context : List Sort}
-                                     {s : Sort}
-                                     {mc : MetaContext Sort}
-                                     (t : Term envR context s mc)
-                                     (t-is-func : FunctionRoot {envR} t) : FunctionRoot {JointFSignature envL envR} (inject-term-right envL envR t) \elim t, t-is-func
-        | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
-    }
-
-  \func promote-indexed-set-left {Sort : \Set} {envL envR : FSignature Sort} (rules : IndexedSet (RewriteRule envL)) : IndexedSet (RewriteRule (JointFSignature envL envR)) \cowith
-    | J => rules.J
-    | get j => Injections.promote-rewrite-rule-left envL envR (rules.get j)
-
-  \func promote-indexed-set-right {Sort : \Set} {envL envR : FSignature Sort} (rules : IndexedSet (RewriteRule envR)) : IndexedSet (RewriteRule (JointFSignature envL envR)) \cowith
-    | J => rules.J
-    | get j => Injections.promote-rewrite-rule-right envL envR (rules.get j)
 }
 
-\func JointRules \hlevels lh {Sort : \Set} {envL envR : FSignature Sort}
-                 (L-rules : IndexedSet (RewriteRule envL))
-                 (R-rules : IndexedSet (RewriteRule envR))
-  : IndexedSet (RewriteRule (JointFSignature envL envR)) =>
-  \let
-    | injected-left-set : IndexedSet (RewriteRule (JointFSignature envL envR)) => Injections.promote-indexed-set-left {_} {envL} {envR} L-rules
-    | injected-right-set : IndexedSet (RewriteRule (JointFSignature envL envR)) => Injections.promote-indexed-set-right {_} {envL} {envR} R-rules
-  \in JointIndexedSet injected-left-set injected-right-set
-
-
-\instance JointHRS {Sort : \Set} {envL envR : FSignature Sort} {mc : MetaContext Sort}
-                   (L : SimpleHigherOrderTermRewritingSystem envL mc)
-                   (R : SimpleHigherOrderTermRewritingSystem envR mc)
-: SimpleHigherOrderTermRewritingSystem (JointFSignature L.env R.env)
-  | set-of-rules => JointRules {_} {envL} {envR} L.set-of-rules R.set-of-rules
-  | meta-context => mc
 
