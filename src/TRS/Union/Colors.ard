@@ -34,8 +34,8 @@
   | Sort' : \Set
   | envL : FSignature Sort'
   | envR : FSignature Sort'
-  | L-rules : RuleRegistry envL
-  | R-rules : RuleRegistry envR
+  | L-rules : LinearRegistry envL
+  | R-rules : LinearRegistry envR
 
   \func lfunc => func {envL}
 
@@ -47,14 +47,40 @@
     | red => envL
     | blue => envR
 
-  \func colored-rule-registry (color : Color) : RuleRegistry (colored-env {\this} color) \elim color
+  \func colored-rule-registry (color : Color) : LinearRegistry (colored-env {\this} color) \elim color
     | red => L-rules
     | blue => R-rules
 
   \func monochrome-reduction (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (A B : Term (colored-env color) context s mc) : \Type =>
     RewriteRelation {colored-env color} (colored-rule-registry color) A B
 
+--  \func colored-registry (c : Color) : RuleRegistry (colored-env c) \elim c
+--    | red => L-rules
+--    | blue => {?}
+
   \func JRegistry : RuleRegistry (JointFSignature envL envR) => JointRegistry envL envR L-rules R-rules
+  \where {
+    \func bare-pattern {s : Sort'} (idx : JRegistry.rule-J s): LinearPattern (colored-env (color-of-idx idx)) nil s \elim idx
+      | inl a => L-rules.rule-pattern a
+      | inr b => R-rules.rule-pattern b
+
+    \func idx-env {s : Sort'} (idx : JRegistry.rule-J s) : FSignature Sort' => colored-env (color-of-idx idx)
+
+    \func linear-mc {s : Sort'} (idx : JRegistry.rule-J s) : MetaContext Sort => LinearMetaContext {idx-env idx} (bare-pattern idx)
+
+    \func bare-right-rule {s : Sort'} (idx : JRegistry.rule-J s) : Term (idx-env idx) nil s (linear-mc idx) \elim idx
+      | inl a => L-rules.rule-r a
+      | inr b => R-rules.rule-r b
+  }
+
+  \func bare-pattern' {s : Sort'} {c : Color} (idx : rule-J {colored-rule-registry c} s) : LinearPattern (colored-env c) nil s =>
+    LinearRegistry.rule-pattern {colored-rule-registry c} idx
+
+  \func linear-mc' {s : Sort'} {c : Color} (idx : rule-J {colored-rule-registry c} s) : MetaContext Sort' =>
+      LinearMetaContext {colored-env c} (bare-pattern' idx)
+
+  \func bare-right-rule' {s : Sort'} {c : Color} (idx : rule-J {colored-rule-registry c} s) : Term (colored-env c) nil s (linear-mc' idx) =>
+    LinearRegistry.rule-r {colored-rule-registry c} idx
 
   \func inject-monochrome-term (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                                (t : Term (colored-env color) context s mc) : Term env context s mc \elim color
@@ -107,9 +133,6 @@
 
   \func env : FSignature => JointFSignature envL envR
 
---  \func colored-rules (color : Color) : IndexedSet (RewriteRule env) \elim color
---    | red => Injections.promote-indexed-set-left {Sort'} {envL} {envR} L-rules
---    | blue => Injections.promote-indexed-set-right {Sort'} {envL} {envR} R-rules
 }
 
 \open TheoremContext
@@ -179,6 +202,14 @@
                    (idx : JRegistry.rule-J s) : Color \elim idx
   | inl a => red
   | inr b => blue
+
+\func unwrap-idx {tc : TheoremContext} {s : Sort'} (idx : JRegistry.rule-J s) : LinearRegistry.rule-J {colored-rule-registry (color-of-idx idx)} s \elim idx
+  | inl a => a
+  | inr b => b
+
+\func wrap-idx {tc : TheoremContext} {c : Color} {s : Sort'} (idx : rule-J {colored-rule-registry c} s) : JRegistry.rule-J s \elim c
+  | red => inl idx
+  | blue => inr idx
 
 \func or-by-color {A : \Type} (c : Color) (a : A) : Or A A \elim c
   | red => inl a

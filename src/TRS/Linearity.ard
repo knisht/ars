@@ -95,3 +95,16 @@
       : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho \elim eq
       | idp => idp
   }
+
+
+\record LinearRewriteRule \extends RewriteRule {
+  | rr-pattern : LinearPattern env nil s
+  | rr-mc => LinearMetaContext rr-pattern
+  | rr-l => Linear.convert-to-term rr-pattern
+}
+
+\record LinearRegistry \extends RuleRegistry {
+  \override rule-container : \Pi {s : Sort} (id : rule-J s) -> LinearRewriteRule {env} s
+
+  \func rule-pattern {s : Sort} (idx : rule-J s) : LinearPattern env nil s => rr-pattern {rule-container idx}
+}
