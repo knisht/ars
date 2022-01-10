@@ -73,13 +73,13 @@
         (\lam {s1} mvar => MetaSubstitution.apply (inject-monochrome-term color (msubst mvar)) SubList.sublist-trivial-free subst)
         (rewrite (inv msubst[l]=t, inv (unwrap-injection _), injection-weakening-commutation color, push-injection color, metacommutation) idp)
         (rewrite (inv msubst[r]=u, injection-weakening-commutation color, push-injection color, metacommutation) idp)
-  | c, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
-    rewrite-with-parameter-f-colored {tc} {c} idp idp index
-        {?} {- (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply
+  | red, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
+    rewrite-with-parameter-f-colored idp idp index
+        (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (transport (\lam sl => TopLevelColoredReduction red (MetaSubstitution.apply
             (inject-monochrome-term red (arguments-A index)) SubList.sublist-trivial-free subst)
             (MetaSubstitution.apply (inject-monochrome-term red (arguments-B index)) sl subst))
-            (trivial-sublist-contractible SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) ) (lift-relation red subst rd fw))) -}
-        {?} -- (\lam j _x => rewrite (eq j _x) idp)
+            (trivial-sublist-contractible SubList.sublist-trivial-free (SubList.extend-right-single SubList.sublist-trivial-free) ) (lift-relation red subst rd fw)))
+        (\lam j _x => rewrite (eq j _x) idp)
   | blue, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f idp index rd eq, param-rewriting fw =>
     rewrite-with-parameter-f-colored idp idp index
         (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (transport (\lam sl => TopLevelColoredReduction blue (MetaSubstitution.apply
