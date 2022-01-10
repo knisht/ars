@@ -2,6 +2,7 @@
 \import Data.Or
 \import Logic
 \import Logic.Meta
+\import Meta
 \import Paths
 \import Paths.Meta
 \import TRS.Data.Fin
@@ -47,16 +48,25 @@
     | red => envL
     | blue => envR
 
+  \func inject-f {s : Sort'} (c : Color) (f : symbol {colored-env c} s) : symbol {env} s \elim c
+    | red => inl f
+    | blue => inr f
+  \where {
+    \func color-equity {s : Sort'} (c : Color) (f : symbol {colored-env c} s) : color-of-root (inject-f c f) = c \elim c
+      | red => idp
+      | blue => idp
+
+    \func lift-index {s : Sort'} (c : Color) {f : symbol {colored-env c} s} (index : Index (domain {colored-env c} f)) : Index (domain {env} (inject-f c f)) \elim c
+      | red => index
+      | blue => index
+  }
+
   \func colored-rule-registry (color : Color) : LinearRegistry (colored-env {\this} color) \elim color
     | red => L-rules
     | blue => R-rules
 
   \func monochrome-reduction (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (A B : Term (colored-env color) context s mc) : \Type =>
     RewriteRelation {colored-env color} (colored-rule-registry color) A B
-
---  \func colored-registry (c : Color) : RuleRegistry (colored-env c) \elim c
---    | red => L-rules
---    | blue => {?}
 
   \func JRegistry : RuleRegistry (JointFSignature envL envR) => JointRegistry envL envR L-rules R-rules
   \where {
@@ -174,27 +184,6 @@
         \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
         \in rewrite extt idp
       | blue, func f arguments => Term.fext {env} (\lam index => swap blue msigs (arguments index))
-  }
-
-\func break-down-rule {tc : TheoremContext}
-                      {s : Sort'}
-                      (idx : JRegistry.rule-J s)
-  : \Sigma (new-r : Term (colored-env (color-of-idx idx)) nil s (JRegistry.rule-mc idx))
-           (inject-monochrome-term (color-of-idx idx) new-r = JRegistry.rule-r idx) \elim idx
-  | inl left-idx => (L-rules.rule-r left-idx, idp)
-  | inr right-idx => (R-rules.rule-r right-idx, idp)
-
-\func get-colored-root-for-l
-  {tc : TheoremContext}
-  {s : Sort'}
-  (idx : JRegistry.rule-J s)
-  : HasColoredRoot (color-of-idx idx) (JRegistry.rule-l idx) \elim idx
-  | inl a => extract-left-l red (L-rules.rule-l a) (L-rules.rule-func-root a)
-  | inr b => extract-left-l blue (R-rules.rule-l b) (R-rules.rule-func-root b)
-  \where {
-    \func extract-left-l {tc : TheoremContext} (color : Color) {s : Sort'} {mc : MetaContext Sort'} (t : Term (colored-env color) nil s mc) (fr : FunctionRoot {colored-env color} t) : HasColoredRoot color (inject-monochrome-term color t) \elim color, t, fr
-      | red, func f arguments, T-has-functional-root => red-func-root
-      | blue, func f arguments, T-has-functional-root => blue-func-root
   }
 
 \func color-of-idx {tc : TheoremContext}
