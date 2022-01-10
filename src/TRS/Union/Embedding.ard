@@ -23,36 +23,36 @@
 
 \func fill-confluence
   {tc : TheoremContext} {context : List Sort'} {s : Sort'}
-  (A B C : Term env context s (EmptyMetaContext {env}))
-  (A~>B : Closure (RewriteRelation {env} JRegistry) A B)
-  (A~>C : Closure (RewriteRelation {env} JRegistry) A C)
+  (A B C : Term env context s EmptyMetaContext)
+  (A~>B : Closure (RewriteRelation JRegistry) A B)
+  (A~>C : Closure (RewriteRelation JRegistry) A C)
   (l-confluential : ConfluentialSystem envL L-rules)
   (r-confluential : ConfluentialSystem envR R-rules)
-  : StraightJoin B C (Closure (RewriteRelation {env} JRegistry)) =>
+  : StraightJoin B C (Closure (RewriteRelation JRegistry)) =>
   \let | lifted-a => Closure.lift
-      {Term env context s (EmptyMetaContext {env})}
-      {Term env context s (EmptyMetaContext {env})}
-      {RewriteRelation {env} JRegistry}
+      {Term env context s EmptyMetaContext}
+      {Term env context s EmptyMetaContext}
+      {RewriteRelation JRegistry}
       {TrichromaticParallelReduction}
       (\lam t => t)
       (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A B A~>B
        | lifted-b => Closure.lift
-           {Term env context s (EmptyMetaContext {env})}
-           {Term env context s (EmptyMetaContext {env})}
-           {RewriteRelation {env} JRegistry}
+           {Term env context s EmptyMetaContext}
+           {Term env context s EmptyMetaContext}
+           {RewriteRelation JRegistry}
            {TrichromaticParallelReduction}
            (\lam t => t)
            (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A C A~>C
        | joins => Internal.unify-reduction A B C lifted-a lifted-b (\lam a b c a->b a->c => \let (D, m1, m2, b->D, c->D) => bpr-confluence a->b.2 a->c.2 a->b.3 a->c.3 l-confluential r-confluential \in (D, (a->c.1, m1, b->D), (a->b.1, m2, c->D)))
        | long-closure-b-w => Closure.lift {_} {_}
            {TrichromaticParallelReduction}
-           {Closure (RewriteRelation {env} JRegistry)}
+           {Closure (RewriteRelation JRegistry)}
            (\lam x => x)
            (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
            B joins.1 joins.2
        | long-closure-c-w => Closure.lift {_} {_}
            {TrichromaticParallelReduction}
-           {Closure (RewriteRelation {env} JRegistry)}
+           {Closure (RewriteRelation JRegistry)}
            (\lam x => x)
            (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
            C joins.1 joins.3
@@ -89,10 +89,10 @@
     }
 
   \func embed-rewrite-relation {tc : TheoremContext} {context : List Sort'} {s : Sort'}
-                               (A B : Term env context s (EmptyMetaContext {env}))
-                               (A~>B : RewriteRelation {env} JRegistry A B)
+                               (A B : Term env context s EmptyMetaContext)
+                               (A~>B : RewriteRelation JRegistry A B)
     : TrichromaticParallelReduction A B \elim A, B, A~>B
-    | var index p, B, rewrite-with-rule idx msubst l-coherence r-coherence => \let q => contradicting {env} index p msubst (JRegistry.rule-l idx) l-coherence (JRegistry.rule-func-root idx) \in contradiction
+    | var index p, B, rewrite-with-rule idx msubst l-coherence r-coherence => \let q => contradicting index p msubst (JRegistry.rule-l idx) l-coherence (JRegistry.rule-func-root idx) \in contradiction
     | func f arguments1, B, rewrite-with-rule (inl idx) msubst l-coherence r-coherence
     =>
       \let | color-eq  => coloring-lemma red (bare-pattern' {_} {_} {red} idx) (JRegistry.rule-func-root (inl idx)) msubst f arguments1 l-coherence
@@ -133,28 +133,28 @@
     | metavar () arguments-A, _, _
     \where {
 
-      \func infer-color-from-hcr
-        {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : env.symbol s)
-        (arguments : DArray {env.arity f} (\lam index => Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) (EmptyMetaContext {env})))
-        (eq-color : color-of-root f = color) : TheoremContext.HasColoredRoot color (func {env} f arguments) \elim color, f, eq-color
-        | red, inl a, eq-color => TheoremContext.red-func-root
-        | blue, inr b, eq-color => TheoremContext.blue-func-root
+      \lemma infer-color-from-hcr
+        {tc : TheoremContext} {s : Sort'} {context : List Sort'} (color : Color) (f : symbol s)
+        (arguments : DArray {env.arity f} (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) EmptyMetaContext))
+        (eq-color : color-of-root f = color) : HasColoredRoot color (func f arguments) \elim color, f, eq-color
+        | red, inl a, eq-color => red-func-root
+        | blue, inr b, eq-color => blue-func-root
 
-      \func contradicting {env : FSignature} {context : List Sort} {s : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
+      \lemma contradicting {env : FSignature} {context : List Sort} {s : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
                           (t : Term env nil s mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free) SubList.identity msubst = var index p) (rt : FunctionRoot t) : Empty \elim t, rt
         | func f arguments, T-has-functional-root => contradiction
 
-      \func coloring-lemma
+      \lemma coloring-lemma
         {tc : TheoremContext} {s : Sort'} {mc' : MetaContext Sort'}
         {context : List Sort'}
         (color : Color)
         (lp : LinearPattern (TheoremContext.colored-env color) nil s)
-        (froot : FunctionRoot {env} (inject-monochrome-term color (Linear.convert-to-term {colored-env color} lp)))
+        (froot : FunctionRoot (inject-monochrome-term color (Linear.convert-to-term {colored-env color} lp)))
         (msubst : MetaSubstitution env context (LinearMetaContext {colored-env color} lp) mc')
-        (f : env.symbol s)
-        (arguments : \Pi (index : Index (env.domain f)) ->
-            Term TheoremContext.env (context ++ f FSignature.!!domain {env} index) (f FSignature.!!sort {env} index) mc')
-        (eq2 : MetaSubstitution.apply {env} (weakening {env} (inject-monochrome-term color (Linear.convert-to-term {colored-env color} lp)) SubList.sublist-trivial-free) SubList.identity msubst = func f arguments) :
+        (f : symbol s)
+        (arguments : \Pi (index : Index (domain f)) ->
+            Term env (context ++ f env.!!domain index) (f env.!!sort index) mc')
+        (eq2 : MetaSubstitution.apply (weakening (inject-monochrome-term color (Linear.convert-to-term {colored-env color} lp)) SubList.sublist-trivial-free) SubList.identity msubst = func f arguments) :
         TheoremContext.color-of-root f = color \elim color, lp, froot, f
         | red, l-func f arguments1, T-has-functional-root, inl a => idp
         | red, l-func f arguments1, T-has-functional-root, inr b => contradiction
@@ -168,13 +168,13 @@
                                  (color : Maybe Color)
                                  {A B : Term env context s mc}
                                  (A=>B : BorderedParallelReduction gc color A B)
-    : Closure (RewriteRelation {env} JRegistry) A B \elim color, A, A=>B
+    : Closure (RewriteRelation JRegistry) A B \elim color, A, A=>B
     | color, A, equal-trees p => c-trivial p
     | color, func f arguments, parallelization-f mediator _x c =>
       \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
            | joined => modular-induction
                (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
-               (\lam curmed => Closure (RewriteRelation {env} JRegistry) (efunc f arguments) (func f curmed))
+               (\lam curmed => Closure (RewriteRelation JRegistry) (efunc f arguments) (func f curmed))
                arguments
                mediator
                (c-trivial idp)
@@ -184,9 +184,9 @@
                             (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
                             arguments mediator delim
                         | lifted => Closure.lift {_} {_}
-                            {RewriteRelation {env} JRegistry}
-                            {RewriteRelation {env} JRegistry}
-                            (collect-reductions-together-tlcr.insert-term {env} f modular delim)
+                            {RewriteRelation JRegistry}
+                            {RewriteRelation JRegistry}
+                            (collect-reductions-together-tlcr.insert-term f modular delim)
                             (\lam {a} {b} a->b => rewrite-with-parameter-f idp delim (rewrite pointed-function.at-index (rewrite pointed-function.at-index a->b)) (\lam j _x1 => rewrite (pointed-function.not-at-index _ modular _ _ j _x1) (rewrite (pointed-function.not-at-index _ modular _ _ j _x1) idp)))
                             (arguments delim)
                             (mediator delim)
@@ -196,7 +196,7 @@
                        (rewrite {1}
                            (modular-to-pointed (\lam index => Term env (context ++ f env.!!domain  index) (f env.!!sort index) mc) arguments mediator delim)
                            lifted)))
-           | from-cwr : Closure (RewriteRelation {env} JRegistry) (efunc f mediator) B => unwrap-cwr color c
+           | from-cwr : Closure (RewriteRelation JRegistry) (efunc f mediator) B => unwrap-cwr color c
       \in Closure.compose joined from-cwr
 
   \func unwrap-cwr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -204,19 +204,19 @@
                    (color : Maybe Color)
                    {A B : Term env context s mc}
                    (A=>B : SwitchingReduction gc color A B)
-    : Closure (RewriteRelation {env} JRegistry) A B \elim color, A=>B
+    : Closure (RewriteRelation JRegistry) A B \elim color, A=>B
     | nothing, cr-skip idp => c-trivial idp
     | just color, cr-rewrite A->B p =>
-      Closure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation {env} JRegistry} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B
+      Closure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation JRegistry} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B
 
   \func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                      (color : Color)
                      {A B : Term env context s mc}
                      (A=>B : TopLevelColoredReduction color A B)
-    : RewriteRelation {env} JRegistry A B \elim color, A, B, A=>B
-    | red, A, B, rewrite-with-rule-colored h idx substitution left-coherence right-coherence => \let q : Sort {env {tc}} = tc.Sort' => idp \in
+    : RewriteRelation JRegistry A B \elim color, A, B, A=>B
+    | red, A, B, rewrite-with-rule-colored h idx substitution left-coherence right-coherence => \let q : Sort = tc.Sort' => idp \in
       rewrite-with-rule (inl idx) substitution (rewrite (unwrap-injection {_} {red}) left-coherence) right-coherence
-    | blue, A, B, rewrite-with-rule-colored h idx substitution left-coherence right-coherence => \let q : Sort {env {tc}} = tc.Sort' => idp \in
+    | blue, A, B, rewrite-with-rule-colored h idx substitution left-coherence right-coherence => \let q : Sort = tc.Sort' => idp \in
       rewrite-with-rule (inr idx) substitution (rewrite (unwrap-injection {_} {blue}) left-coherence) right-coherence
     | color, func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f-colored idp p1 index A=>B eq =>
       rewrite-with-parameter-f idp index (unembed-tlcr color A=>B) eq

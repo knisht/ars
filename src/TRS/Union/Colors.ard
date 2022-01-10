@@ -61,7 +61,7 @@
       | blue => index
   }
 
-  \func colored-rule-registry (color : Color) : LinearRegistry (colored-env {\this} color) \elim color
+  \func colored-rule-registry (color : Color) : LinearRegistry (colored-env color) \elim color
     | red => L-rules
     | blue => R-rules
 
@@ -99,8 +99,8 @@
     \where {
       \data InjectionWitness (color : Color) {context : List Sort'} {s : Sort'} {msig : MetaContext Sort'} (t : Term env context s msig) \elim t
         | func f arguments => iw-func (color-of-root f = color)
-                                      (\Pi (i : Index (env.domain f)) -> InjectionWitness color (arguments i))
-        | metavar m arguments => iw-mvar (\Pi (i : Index (msig.m-domain m)) -> InjectionWitness color (arguments i))
+                                      (\Pi (i : Index (domain f)) -> InjectionWitness color (arguments i))
+        | metavar m arguments => iw-mvar (\Pi (i : Index (m-domain m)) -> InjectionWitness color (arguments i))
         | var _ _ => iw-var
 
       \lemma generate-injection-witness (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -113,13 +113,15 @@
         | blue, func f arguments => iw-func idp (\lam i => generate-injection-witness blue (arguments i))
     }
 
+  \instance env : FSignature => JointFSignature envL envR
+
   \data HasColoredRoot (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (term : Term env context s mc) \elim color, term
     | red, func (inl _) _ => red-func-root
     | blue, func (inr _) _ => blue-func-root
     \where {
       \lemma equalize-colors (color color' : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-                             (f : env.symbol s)
-                             (arguments arguments' : DArray {env.arity f} (\lam (index : Index (env.domain f)) => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc))
+                             (f : symbol s)
+                             (arguments arguments' : DArray {env.arity f} (\lam (index : Index (domain f)) => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc))
                              (hcl1 : HasColoredRoot color (func f arguments))
                              (hcl2 : HasColoredRoot color' (func f arguments'))
         : color = color' \elim color, color', f, hcl1, hcl2
@@ -129,43 +131,40 @@
         | blue, red, inl a, (), hcl2
 
       \lemma reorganize (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-                        {f : env.symbol s}
-                        {arguments : DArray {env.arity f} (\lam (index : Index (env.domain f)) => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)}
+                        {f : symbol s}
+                        {arguments : DArray {env.arity f} (\lam (index : Index (domain f)) => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)}
                         (hcl : HasColoredRoot color (func f arguments))
         : color-of-root f = color \elim color, f, hcl
         | red, inl s1, red-func-root => idp
         | blue, inr s1, blue-func-root => idp
     }
 
-  \func color-of-root {s : Sort'} (f : env.symbol s) : Color \elim f
+  \func color-of-root {s : Sort'} (f : symbol s) : Color \elim f
     | inl _ => red
     | inr _ => blue
-
-  \func env : FSignature => JointFSignature envL envR
-
 }
 
 \open TheoremContext
 
 \func convert-to-injected-term
   {tc : TheoremContext} {allow-variables : \Prop}
-  (color : Color) {context : List tc.Sort'} {s : tc.Sort'}
-  (term : GenericLinearTerm (TheoremContext.colored-env {tc} color) context s allow-variables)
-  : Term (TheoremContext.env {tc}) context s (LinearMetaContext {TheoremContext.colored-env {tc} color} term)
+  (color : Color) {context : List Sort'} {s : Sort'}
+  (term : GenericLinearTerm (colored-env color) context s allow-variables)
+  : Term env context s (LinearMetaContext {colored-env color} term)
 \elim color, term
-  | red, l-func f arguments => func (inl f) (\lam i => ModularMetaContext.upgrade-metavariables {TheoremContext.env} (\lam i => LinearMetaContext {envL} (arguments i)) (convert-to-injected-term red (arguments i)))
+  | red, l-func f arguments => func (inl f) (\lam i => ModularMetaContext.upgrade-metavariables (\lam i => LinearMetaContext {envL} (arguments i)) (convert-to-injected-term red (arguments i)))
   | red, l-full-metavar => metavar idp (\lam i => var i idp)
   | red, l-var index p _ => var index p
-  | blue, l-func f arguments => func (inr f) (\lam i => ModularMetaContext.upgrade-metavariables {TheoremContext.env} (\lam i => LinearMetaContext {envR} (arguments i)) (convert-to-injected-term blue (arguments i)))
+  | blue, l-func f arguments => func (inr f) (\lam i => ModularMetaContext.upgrade-metavariables (\lam i => LinearMetaContext {envR} (arguments i)) (convert-to-injected-term blue (arguments i)))
   | blue, l-full-metavar => metavar idp (\lam i => var i idp)
   | blue, l-var index p _ => var index p
 
 \lemma unwrap-injection {tc : TheoremContext} {color : Color} {context : List Sort'} {s : Sort'} {allow-variables : \Prop} (t : GenericLinearTerm (colored-env color) context s allow-variables) :
   inject-monochrome-term color (Linear.convert-to-term {colored-env color} t) = convert-to-injected-term color {context} {s} t \elim color, t
-  | red, l-func f arguments => Term.fext {env} (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index))))
+  | red, l-func f arguments => Term.fext (\lam index => rewriteI (unwrap-injection {_} {red} (arguments index)) (swap red (\lam i => LinearMetaContext {envL} (arguments i)) (Linear.convert-to-term {envL} (arguments index))))
   | red, l-full-metavar => idp
   | red, l-var index p _ => idp
-  | blue, l-func f arguments => Term.fext {env} (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index))))
+  | blue, l-func f arguments => Term.fext (\lam index => rewriteI (unwrap-injection {_} {blue} (arguments index)) (swap blue (\lam i => LinearMetaContext {envR} (arguments i)) (Linear.convert-to-term {envR} (arguments index))))
   | blue, l-full-metavar => idp
   | blue, l-var index p _ => idp
   \where {
@@ -173,17 +172,17 @@
       {tc : TheoremContext} (color : Color) {context : List Sort'} {s : Sort'} {n : Nat} {i : Fin n} (msigs : \Pi (i : Fin n) -> MetaContext Sort')
       (t : Term (colored-env color) context s (msigs i)) :
       inject-monochrome-term color (ModularMetaContext.upgrade-metavariables {colored-env color} msigs t) =
-      ModularMetaContext.upgrade-metavariables {env} msigs (inject-monochrome-term color t) \elim color, t
+      ModularMetaContext.upgrade-metavariables msigs (inject-monochrome-term color t) \elim color, t
       | red, var index p => idp
       | red, metavar m arguments =>
-        \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
+        \let extt : (\lam i1 => inject-monochrome-term red (ModularMetaContext.upgrade-metavariables {envL} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables msigs (Injections.inject-term-left envL envR (arguments i1))) => ext (\lam i => swap red msigs (arguments i))
         \in rewrite extt idp
-      | red, func f arguments => Term.fext {env} (\lam index => swap red msigs (arguments index))
+      | red, func f arguments => Term.fext (\lam index => swap red msigs (arguments index))
       | blue, var index p => idp
       | blue, metavar m arguments =>
-        \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables {env} msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
+        \let extt : (\lam i1 => inject-monochrome-term blue (ModularMetaContext.upgrade-metavariables {envR} msigs (arguments i1))) = (\lam i1 => ModularMetaContext.upgrade-metavariables msigs (Injections.inject-term-right envL envR (arguments i1))) => ext (\lam i => swap blue msigs (arguments i))
         \in rewrite extt idp
-      | blue, func f arguments => Term.fext {env} (\lam index => swap blue msigs (arguments index))
+      | blue, func f arguments => Term.fext (\lam index => swap blue msigs (arguments index))
   }
 
 \func color-of-idx {tc : TheoremContext}
