@@ -9,8 +9,6 @@
 \import TRS.HRS
 \import TRS.MetaContexts
 \import TRS.Substitutions
-\import TRS.Union
-\import TRS.Union.TopLevel
 \import TRS.Utils
 \open FSignature
 

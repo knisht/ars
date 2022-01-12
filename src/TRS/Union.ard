@@ -1,82 +1,25 @@
-\import Algebra.Meta
-\import Algebra.Ring.Localization
-\import Confluence
-\import Data.Bool
-\import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
-\import Data.Maybe
-\import Data.Or
-\import Function.Meta (repeat)
-\import Logic
-\import Logic.Meta
+\import Data.List(List)
 \import Meta
-\import Paths
-\import Paths.Meta
-\import TRS.Data.Fin
-\import TRS.Data.Shifts
-\import TRS.Data.SubList
 \import TRS.HRS
-\import TRS.Linearity
-\import TRS.Maybe
-\import TRS.MetaContexts
-\import TRS.Substitutions
-\import TRS.Union.Confluence
-\import TRS.Union.Embedding
-\import TRS.Union.TopLevel
-\import TRS.Utils
 
-\func JointFSignature {Sort : \Set} (A B : FSignature Sort) : FSignature Sort \cowith
-  | symbol s => A.symbol s `Or` B.symbol s
-  | domain symb => \case \elim symb \with {
-    | inl a => A.domain a
-    | inr b => B.domain b
-  }
+\func SumFSignature {J Sort : \Set} (S : J -> FSignature Sort) : FSignature Sort \cowith
+  | symbol s => \Sigma (j : J) (symbol {S j} s)
+  | domain symb => domain {S symb.1} symb.2
 
-\func JointRegistry {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) (L : RuleRegistry envL) (R : RuleRegistry envR)
-  : RuleRegistry (JointFSignature envL envR) \cowith
-  | rule-J s => L.rule-J s `Or` R.rule-J s
-  | rule-container j => \case \elim j \with {
-    | inl a => inject-rule-container-left envL envR (L.rule-container a)
-    | inr b => inject-rule-container-right envL envR (R.rule-container b)
-  }
+\func inject-term {J Sort : \Set} (S : J -> FSignature Sort) {s : Sort} {c : List Sort} {mc : MetaContext Sort}
+                  {j : J} (t : Term (S j) c s mc) : Term (SumFSignature S) c s mc \elim t
+  | var index p => var index p
+  | metavar m args => metavar m (\lam i => inject-term S (args i))
+  | func f args => func (j,f) (\lam i => inject-term S (args i))
 
-\func inject-rule-container-left {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} (L : RewriteRule {envL} s) : RewriteRule {JointFSignature envL envR} s \cowith
-  | rr-mc => L.rr-mc
-  | rr-l => Injections.inject-term-left envL envR L.rr-l
-  | rr-r => Injections.inject-term-left envL envR L.rr-r
-  | rr-l-func-root => inject-functional-root-left envL envR rr-l-func-root
-
-\func inject-functional-root-left {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} {mc : MetaContext Sort} {t : Term envL nil s mc} (fr : FunctionRoot {envL} t)
-  : FunctionRoot {JointFSignature envL envR} (Injections.inject-term-left envL envR t) \elim t, fr
-  | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
-
-\func inject-rule-container-right {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} (R : RewriteRule {envR} s) : RewriteRule {JointFSignature envL envR} s \cowith
+\func inject-rule-container {J Sort : \Set} (S : J -> FSignature Sort) {s : Sort} {j : J} (R : RewriteRule {S j} s) : RewriteRule {SumFSignature S} s \cowith
   | rr-mc => R.rr-mc
-  | rr-l => Injections.inject-term-right envL envR R.rr-l
-  | rr-r => Injections.inject-term-right envL envR R.rr-r
-  | rr-l-func-root => inject-functional-root-right envL envR rr-l-func-root
+  | rr-l => inject-term S R.rr-l
+  | rr-r => inject-term S R.rr-r
+  | rr-l-func-root => cases (R.rr-l, R.rr-l-func-root) \with {
+    | func f arguments, T-has-functional-root => T-has-functional-root {SumFSignature S}
+  }
 
-\func inject-functional-root-right {Sort : \Set} (envL : FSignature Sort) (envR : FSignature Sort) {s : Sort} {mc : MetaContext Sort} {t : Term envR nil s mc} (fr : FunctionRoot {envR} t)
-  : FunctionRoot {JointFSignature envL envR} (Injections.inject-term-right envL envR t) \elim t, fr
-  | func f arguments, T-has-functional-root => T-has-functional-root {JointFSignature envL envR}
-
-\module Injections \where {
-  \func inject-term-left {Sort : \Set}
-                         (envL envR : FSignature Sort)
-                         {s : Sort} {c : List Sort} {mc : MetaContext Sort}
-                         (term : Term envL c s mc) : Term (JointFSignature envL envR) c s mc \elim term
-    | var index p => var index p
-    | metavar m arguments => metavar m (\lam i => inject-term-left envL envR (arguments i))
-    | func f arguments => func (inl f) (\lam i => inject-term-left envL envR (arguments i))
-
-  \func inject-term-right {Sort : \Set}
-                          (envL envR : FSignature Sort)
-                          {s : Sort}
-                          {c : List Sort}
-                          {mc : MetaContext Sort}
-                          (term : Term envR c s mc) : Term (JointFSignature envL envR) c s mc \elim term
-    | var index p => var index p
-    | metavar m arguments => metavar m (\lam i => inject-term-right envL envR (arguments i))
-    | func f arguments => func (inr f) (\lam i => inject-term-right envL envR (arguments i))
-}
-
-
+\func SumRegistry {J Sort : \Set} (S : J -> FSignature Sort) (L : \Pi (j : J) -> RuleRegistry (S j)) : RuleRegistry (SumFSignature S) \cowith
+  | rule-J s => \Sigma (j : J) (rule-J {L j} s)
+  | rule-container p => inject-rule-container S (rule-container p.2)

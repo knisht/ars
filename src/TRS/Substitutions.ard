@@ -1,6 +1,5 @@
 \import Arith.Nat
 \import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, nil)
-\import Data.Or
 \import Function.Meta
 \import Logic
 \import Logic.Meta
@@ -11,8 +10,6 @@
 \import TRS.Data.Shifts
 \import TRS.Data.SubList
 \import TRS.HRS
-\import TRS.Union
-\import TRS.Union.TopLevel
 \import TRS.Utils
 
 \func plain-identity {env : FSignature} {context : List Sort} {mc : MetaContext Sort}

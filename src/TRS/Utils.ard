@@ -16,22 +16,6 @@
 
 \meta impossible-lambda => \lam e => contradiction
 
-\func transport2-to-transport {A B : \Type} {C : A -> B -> \Type} (a a' : A) (eq : a = a') (b : B) (c : C a b) : transport2 C eq idp c = transport (C __ b) eq c \elim eq
-  | idp => idp
-
-\func flip-or {A B : \Type} (x : Or A B) : Or B A \elim x
-  | inl a => inr a
-  | inr b => inl b
-
-\data TripleOr (A B C : \Type)
-  | in1 A
-  | in2 B
-  | in3 C
-
-\func inl-injection {A B : \Type} {a b : A} (eq : inl {_} {B} a = inl b) : a = b => pmap (destruct-inl a) eq
-
-\func inr-injection {A B : \Type} {a b : B} (eq : inr {A} a = inr b) : a = b => pmap (destruct-inr a) eq
-
 \func destruct-inl {A B : \Type} (default : A) (or : A `Or` B) : A \elim or
   | inl a => a
   | inr b => default
@@ -39,12 +23,6 @@
 \func destruct-inr {A B : \Type} (default : B) (or : A `Or` B) : B \elim or
   | inl a => default
   | inr b => b
-
-\func or-contradiction {A B : \Type} {a : A} {b : B} (eq : inl a = inr b) : Empty => contradiction
-
-\func destruct-just {A : \Type} (default : A) (j : Maybe A) : A \elim j
-  | nothing => default
-  | just a => a
 
 \func extract-from-or {A : \Type} {a b : A} (or : Or (just a = nothing) (just a = just b)) : a = b
   | inl a1 => contradiction
@@ -58,5 +36,5 @@
   | metavar m arguments1 => inl 0
   | func f1 arguments1 => inr (f1, arguments1)
 
-\func sigma-set-equalizer {A : \Set} (B : A -> \Type) {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b' =>
+\func sigma-set-equalizer {A : \Set} {B : A -> \Type} {a : A} {b b' : B a} (p : (a,b) = {\Sigma (x : A) (B x)} (a,b')) : b = b' =>
   pmap (transport B __ b) (Path.inProp idp (pmap __.1 p)) *> pmapd __.2 p
