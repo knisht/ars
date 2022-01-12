@@ -12,7 +12,6 @@
 \import Set
 \import TRS.Data.Fin
 \import TRS.Data.SubList
-\import TRS.HRS
 \import TRS.Substitutions
 \import TRS.Utils
 
