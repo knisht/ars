@@ -18,12 +18,15 @@
 -- | The family of functional term symbols
 \class FSignature {
   -- | All possible groups of functional symbols
+
   | Sort : \Set
 
   -- | All functional symbols, gathered by sort
+
   | symbol : Sort -> \Set
 
   -- | For each functional symbols, a signature of its arguments: the sort of the argument and the domain of the argument
+
   | domain : \Pi {s : Sort} (symbol s) -> List (\Sigma (List Sort) Sort)
 
   \func \infix 7 !!domain {s : Sort} (m : symbol s) (index : Index (domain m)) : List Sort =>
@@ -60,18 +63,17 @@
   | func
     (f : symbol termSort)
     (arguments : DArray {env.arity f} (\lam index => Term env (context ++ f !!domain index) (f !!sort index) mc))
-\where {
-  \func fext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {f : symbol termSort}
-             {args args' : DArray {env.arity f} (\lam index => Term env (context ++ f !!domain index) (f !!sort index) mc)}
-             (eq : \Pi (index : Fin (env.arity f)) -> args index = args' index)
-    : func f args = func f args' => pmap (func f) (extext eq)
+  \where {
+    \func fext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {f : symbol termSort}
+               {args args' : DArray {env.arity f} (\lam index => Term env (context ++ f !!domain index) (f !!sort index) mc)}
+               (eq : \Pi (index : Fin (env.arity f)) -> args index = args' index)
+      : func f args = func f args' => pmap (func f) (extext eq)
 
-  \func mext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {m : mc.metaname termSort}
-             {args args' : DArray {mc.arity m} (\lam index => Term env context (mc.m-domain m !! index) mc)}
-             (eq : \Pi (index : Fin (mc.arity m)) -> args index = args' index)
-    : metavar m args = metavar m args' => pmap (metavar m) (extext eq)
-}
-
+    \func mext {env : FSignature} {context : List Sort} {termSort : Sort} {mc : MetaContext Sort} {m : mc.metaname termSort}
+               {args args' : DArray {mc.arity m} (\lam index => Term env context (mc.m-domain m !! index) mc)}
+               (eq : \Pi (index : Fin (mc.arity m)) -> args index = args' index)
+      : metavar m args = metavar m args' => pmap (metavar m) (extext eq)
+  }
 
 -- | Substitution of regular variables
 \func Substitution {env : FSignature} (old-context new-context : List Sort) (mc : MetaContext Sort) : \Set =>
@@ -102,6 +104,14 @@
       | var index p => var index p
       | metavar m arguments => Substitution.apply (subst m) (extend-substitution-left sublist (\lam i => apply (arguments i) sublist subst))
       | func f arguments => func f (\lam i => apply (arguments i) (SubList.extend-right-single sublist) subst)
+
+    \func over-transport-sort {env : FSignature} {context core-context : List Sort} {s s' : Sort} {old-metacontext new-metacontext : MetaContext Sort}
+                              (eq : s = s')
+                              (t : Term env context s old-metacontext)
+                              (sublist : SubList core-context context)
+                              (subst : MetaSubstitution env core-context old-metacontext new-metacontext)
+      : MetaSubstitution.apply (transport (Term env context __ old-metacontext) eq t) sublist subst = transport (Term env context __ new-metacontext) eq (MetaSubstitution.apply t sublist subst) \elim eq
+      | idp => idp
   }
 
 \record RuleRegistry (env : FSignature) {
@@ -109,8 +119,11 @@
   | rule-container : \Pi {s : Sort} (id : rule-J s) -> RewriteRule {env} s
 
   \func rule-mc {s : Sort} (id : rule-J s) : MetaContext Sort => rr-mc {rule-container id}
+
   \func rule-l {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-l {rule-container id}
+
   \func rule-r {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-r {rule-container id}
+
   \lemma rule-func-root {s : Sort} (id : rule-J s) : FunctionRoot (rule-l id) => rr-l-func-root {rule-container id}
 }
 

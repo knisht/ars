@@ -45,6 +45,24 @@
       (t : Term env context-a a mc) (sl : SubList context-a big-context) (eq : big-context = big-context')
       : transport (Term env __ a mc) eq (weakening t sl) = weakening t (transport (SubList context-a) eq sl) \elim eq | idp => idp
 
+    \lemma over-metasubstitution
+      {env : FSignature} {s : Sort} {mc mc' : MetaContext Sort} {context context' : List Sort}
+      (t : Term env context s mc)
+      (msubst : MetaSubstitution env nil mc mc')
+      (sublist : SubList context context')
+      : weakening (MetaSubstitution.apply t SubList.sublist-trivial-free msubst) sublist =
+    MetaSubstitution.apply (weakening t sublist) SubList.sublist-trivial-free msubst \elim t
+      | var index p => idp
+      | metavar m arguments =>
+        \let | inductive-ext : (\lam i => MetaSubstitution.apply (weakening (arguments i) sublist) SubList.sublist-trivial-free msubst) =
+                               (\lam i => weakening (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) sublist)
+                               => ext (\lam i => inv (over-metasubstitution (arguments i) msubst sublist))
+             | induced : (\lam i => weakening (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) sublist) =
+                         (\lam i => Substitution.apply (MetaSubstitution.apply (arguments i) SubList.sublist-trivial-free msubst) (weakening.substitution sublist))
+                         => ext (\lam i => rewrite weakening.substitution-eq idp)
+        \in rewrite (inductive-ext, weakening.substitution-eq, induced, subst-comm) idp
+      | func f arguments => Term.fext (\lam index => rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (rewrite (trivial-sublist-contractible (SubList.extend-right-single SubList.sublist-trivial-free) SubList.sublist-trivial-free) (over-metasubstitution (arguments index) msubst (SubList.extend-right-both sublist))))
+
     \lemma composition
       {env : FSignature} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
       {a : Sort}
@@ -135,10 +153,10 @@
           | var index idp => idp
           | metavar m arguments => Term.mext (\lam index => subst-comm-for-weakening subst (arguments index) sublist)
           | func f arguments => Term.fext (\lam index =>
-                  \let inductive => subst-comm-for-weakening (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
-                  \in rewrite append-context-right-after-subst
-                      (inductive *> pmap (Substitution.apply (arguments index))
-                                        (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension subst sublist index1)))))
+              \let inductive => subst-comm-for-weakening (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
+              \in rewrite append-context-right-after-subst
+                  (inductive *> pmap (Substitution.apply (arguments index))
+                                    (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension subst sublist index1)))))
 
         \func subst-comm-for-weakening-2
           {env : FSignature} {context-a context-b context-c : List Sort} {s : Sort} {ms : MetaContext Sort}
@@ -152,8 +170,8 @@
           | var index idp => idp
           | metavar m arguments => Term.mext (\lam index => subst-comm-for-weakening-2 subst (arguments index) sublist)
           | func f arguments => Term.fext (\lam index =>
-                  \let inductive => subst-comm-for-weakening-2 (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
-                  \in rewrite append-context-right-after-subst (inductive *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension-2 subst sublist index1)))))
+              \let inductive => subst-comm-for-weakening-2 (append-context-right subst) (arguments index) (SubList.extend-right-both sublist)
+              \in rewrite append-context-right-after-subst (inductive *> pmap (Substitution.apply (arguments index)) (ext (\lam index1 => rewriteI append-context-right-after-subst (wsubst-over-right-extension-2 subst sublist index1)))))
 
         \func wsubst-over-right-extension
           {env : FSignature} {context-a context-b context-c context-add : List Sort} {ms : MetaContext Sort}
@@ -499,7 +517,7 @@
               \Pi (index : Index ctx) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc)
               (inv (path (\lam (i : I) => a :: eq @ i))) (append-context-right subst) (suc i1) = transport (\lam (ctx : List env.Sort) =>
               \Pi (index : Index ctx) -> Term env (context-res ++ context-b ++ context-add) (ctx !! index) mc) (inv eq)
-                                                                                                       (append-context-right (\lam (i : Index context-a) => subst (suc i))) i1 \elim eq
+                                                                                                     (append-context-right (\lam (i : Index context-a) => subst (suc i))) i1 \elim eq
           | idp => idp
 
         \func push-transport-into-var
@@ -730,6 +748,38 @@
 
 \func to-var {env : FSignature} {some-context : List Sort} {s : Sort} {msig : MetaContext Sort} (sig : \Sigma (ind : Index some-context) (s = some-context !! ind))
   : Term env some-context s msig => var sig.1 sig.2
+
+\lemma subst-comm {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
+                  (t : Term env context-a s mc)
+                  (subst-a : Substitution context-a context-b mc)
+                  (subst-b : Substitution context-b context-c mc) :
+  Substitution.apply (Substitution.apply t subst-a) subst-b = Substitution.apply t (\lam i => Substitution.apply (subst-a i) subst-b) \elim t
+  | var index idp => idp
+  | metavar m arguments => Term.mext (\lam index => subst-comm (arguments index) subst-a subst-b)
+  | func f arguments => Term.fext (\lam index => subst-comm (arguments index) (append-context-right subst-a) (append-context-right subst-b) *> pmap (Substitution.apply (arguments index)) (ext (\lam i => commutation-with-right-extension subst-a subst-b i)))
+  \where {
+    \func commutation-with-right-extension {env : FSignature} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
+                                           (subst-a : Substitution context-a context-b mc)
+                                           (subst-b : Substitution context-b context-c mc)
+                                           (i : Index (context-a ++ add-context))
+      : Substitution.apply (append-context-right subst-a i) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) i =>
+      partial-fin-induction
+          (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) ind)
+          (\lam i1 => repeat {2} (rewrite append-context-right.on-begin) (rewrite weakening.combine-with-append-right (equating-lemma subst-a subst-b i1 _)))
+          (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening.combine-with-append-left subst-b (var i1 (expand-fin-right.correct i1))) idp))
+          i
+      \where {
+        \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
+                              (subst-a : Substitution context-a context-b mc)
+                              (subst-b : Substitution context-b context-c mc)
+                              (i1 : Index context-a)
+                              (eq : s = context-a !! i1)
+          : weakening (Substitution.apply (coe (\lam (i : I) => Term env context-b (inv eq @ i) mc) (subst-a i1) right) subst-b)
+            (SubList.extend-right-single SubList.identity {add-context}) = weakening (transport (\lam (p0 : Sort) => Term env context-c p0 mc) (inv eq) (Substitution.apply (subst-a i1) subst-b))
+                                                                               (SubList.extend-right-single SubList.identity) \elim eq
+          | idp => idp
+      }
+  }
 
 \func var-extensionality
   {env : FSignature} {context : List Sort} {s : Sort} {ms : MetaContext Sort}

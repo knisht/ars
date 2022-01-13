@@ -557,38 +557,6 @@
           \in rewrite inductive (subst-comm-different subst _ i))))
       | func f arguments => Term.fext (\lam index => \let inductive => commutation (arguments index) subst metasubst \in rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite Transports.lb-ls-to-ls (rewrite Transports.rs-rs-to-rs (rewrite append-context-right.composition (inductive-step (arguments index) ++-assoc ++-assoc idp idp _ _ _ _ metasubst subst inductive))))))
       \where {
-        \lemma subst-comm {env : FSignature} {s : Sort} {context-a context-b context-c : List Sort} {mc : MetaContext Sort}
-                          (t : Term env context-a s mc)
-                          (subst-a : Substitution context-a context-b mc)
-                          (subst-b : Substitution context-b context-c mc) :
-          Substitution.apply (Substitution.apply t subst-a) subst-b = Substitution.apply t (\lam i => Substitution.apply (subst-a i) subst-b) \elim t
-          | var index idp => idp
-          | metavar m arguments => Term.mext (\lam index => subst-comm (arguments index) subst-a subst-b)
-          | func f arguments => Term.fext (\lam index => subst-comm (arguments index) (append-context-right subst-a) (append-context-right subst-b) *> pmap (Substitution.apply (arguments index)) (ext (\lam i => commutation-with-right-extension subst-a subst-b i)))
-          \where {
-            \func commutation-with-right-extension {env : FSignature} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
-                                                   (subst-a : Substitution context-a context-b mc)
-                                                   (subst-b : Substitution context-b context-c mc)
-                                                   (i : Index (context-a ++ add-context))
-              : Substitution.apply (append-context-right subst-a i) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) i =>
-              partial-fin-induction
-                  (\lam ind => Substitution.apply (append-context-right subst-a ind) (append-context-right subst-b) = append-context-right (\lam (i : Index context-a) => Substitution.apply (subst-a i) subst-b) ind)
-                  (\lam i1 => repeat {2} (rewrite append-context-right.on-begin) (rewrite weakening.combine-with-append-right (equating-lemma subst-a subst-b i1 _)))
-                  (\lam i1 => repeat {2} (rewrite append-context-right.on-end) (rewrite (weakening.combine-with-append-left subst-b (var i1 (expand-fin-right.correct i1))) idp))
-                  i
-              \where {
-                \func equating-lemma  {env : FSignature} {s : Sort} {context-a context-b context-c add-context : List Sort} {mc : MetaContext Sort}
-                                      (subst-a : Substitution context-a context-b mc)
-                                      (subst-b : Substitution context-b context-c mc)
-                                      (i1 : Index context-a)
-                                      (eq : s = context-a !! i1)
-                  : weakening (Substitution.apply (coe (\lam (i : I) => Term env context-b (inv eq @ i) mc) (subst-a i1) right) subst-b)
-                    (SubList.extend-right-single SubList.identity {add-context}) = weakening (transport (\lam (p0 : Sort) => Term env context-c p0 mc) (inv eq) (Substitution.apply (subst-a i1) subst-b))
-                                                                                       (SubList.extend-right-single SubList.identity) \elim eq
-                  | idp => idp
-              }
-          }
-
         \lemma subst-comm-different
           {env : FSignature} {context-a context-b context-c context-d : List Sort} {mc : MetaContext Sort}
           (subst : Substitution context-a context-b mc)
