@@ -71,6 +71,9 @@
         : f.1 = color \elim hcl
         | func-root p => p
     }
+
+  \data HasExcludedColoredRoot (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (term : Term env context s mc) \elim term
+    | func f _ => ex-func-root (Not (f.1 = color))
 }
 
 \open TheoremContext

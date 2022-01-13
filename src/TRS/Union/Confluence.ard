@@ -328,7 +328,7 @@
   (B : Term env context s mc)
   (teq : MetaSubstitution.apply (inject-term envs t) SubList.sublist-trivial-free rho = A)
   (A~>*B : Closure (TopLevelColoredReduction color) A B)
-  (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasColoredRoot (flip color) (rho m))
+  (root-colors : \Pi {s : Sort'} (m : inner-mc.metaname s) -> HasExcludedColoredRoot color (rho m))
   : \Sigma
     (u : Term (envs color) context s inner-mc)
     (MetaSubstitution.apply (inject-term envs u) SubList.sublist-trivial-free rho = B)
