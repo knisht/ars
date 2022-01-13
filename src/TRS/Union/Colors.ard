@@ -16,9 +16,6 @@
 \class TheoremContext \noclassifying
   (Color : DecSet)
   (Sort' : \Set)
-  (flip : Color -> Color)
-  (atMost2 : \Pi {c c' : Color} -> c /= c' -> c = flip c')
-  (atLeast2 : \Pi {c : Color} -> flip c /= c)
   (envs : Color -> FSignature Sort')
   (rules : \Pi (c : Color) -> LinearRegistry (envs c)) {
 

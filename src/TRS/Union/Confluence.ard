@@ -51,6 +51,10 @@
       | func f-A arguments-A, func f-B arguments-B, rewrite-with-parameter-f-colored p p1 i tlcr eq => func-root p1
   }
 
+\data OppositeColored {tc : TheoremContext} (maybe : Maybe Color) (negated : Color) : \Prop \elim maybe
+  | nothing => colored-nothing
+  | just color => colored-opposite (color /= negated)
+
 \data BorderedParallelReduction
   {tc : TheoremContext}
   (global-color : Color)
@@ -64,7 +68,7 @@
         Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
     (\Pi (i : env.index-in f) -> \Sigma
       (someColor : Maybe Color)
-      ((someColor = nothing) `Or` (someColor = just (flip f.1)))
+      (OppositeColored someColor f.1)
       (BorderedParallelReduction global-color someColor (arguments i) (mediator i)))
     (SwitchingReduction global-color color (func f mediator) B)
   \where {
@@ -81,7 +85,7 @@
       | color, A, equal-trees idp => \case Closure.extract B~>*C \with {
         | inl eq => rewrite eq (nothing, equal-trees idp)
         | inr (inter, rd) => \case \elim B, \elim B~>*C, TopLevelColoredReduction.extract-root-coloring rd \with {
-          | func _ arguments, B~>*C, func-root _ => (just global-color, parallelization-f arguments (\lam i => (nothing, inl idp, equal-trees idp)) (cr-rewrite B~>*C idp))
+          | func _ arguments, B~>*C, func-root _ => (just global-color, parallelization-f arguments (\lam i => (nothing, colored-nothing, equal-trees idp)) (cr-rewrite B~>*C idp))
         }
       }
       | nothing, func f arguments, parallelization-f mediator _x (cr-skip idp) => (just global-color, parallelization-f mediator _x (cr-rewrite B~>*C idp))
@@ -292,7 +296,7 @@
   (A~>B : Closure (TopLevelColoredReduction color) (efunc f arguments-A) B)
   (inner-reductions : \Pi (i : env.index-in f) ->
       \Sigma (someColor : Maybe Color)
-             ((someColor = nothing) `Or` (someColor = just (flip f.1)))
+             (OppositeColored someColor f.1)
              (BorderedParallelReduction color' someColor (arguments-A i) (arguments-over-f idp arguments-C i)))
   : \Sigma (X : PureTerm env context s)
            (Closure (TopLevelColoredReduction color) (efunc f arguments-C) X)
@@ -302,7 +306,7 @@
     | (t, rho, t[rho]=A, root-colors) => decompose-term color (func f arguments-A)
     | (u, lu[rho]=B, t~>*u) => iterate-decomposition (Linear.convert-to-term {envs color} t) rho B (rewrite unwrap-injection t[rho]=A) A~>B root-colors
     | injected-u : Term env context s (LinearMetaContext {envs color} t) => inject-term envs u
-    | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f arguments-C) t rho root-colors nothing (inl idp) (rewriteI (inv t[rho]=A) (parallelization-f arguments-C inner-reductions (cr-skip idp)))
+    | (sigma, C=t[sigma], reds) => alternate-subst {_} color color' (func f arguments-C) t rho root-colors nothing colored-nothing (rewriteI (inv t[rho]=A) (parallelization-f arguments-C inner-reductions (cr-skip idp)))
     | uni-right => Closure.lift {_} {_}
         {\lam x y => \Sigma (rrd : monochrome-reduction color x y) (FunctionalWitness {envs color} {rules color} rrd)}
         {TopLevelColoredReduction color}
@@ -349,9 +353,9 @@
   (C : Term env context s mc)
   (t : LinearTerm (envs gc) context s)
   (rho : MetaSubstitution env nil (LinearMetaContext {envs gc} t) mc)
-  (root-colors : \Pi {s1 : Sort'} -> \Pi (m : metaname {LinearMetaContext {envs gc} t} s1) -> HasColoredRoot (flip gc) (rho m))
+  (root-colors : \Pi {s1 : Sort'} -> \Pi (m : metaname {LinearMetaContext {envs gc} t} s1) -> HasExcludedColoredRoot gc (rho m))
   (someColor : Maybe Color)
-  (some-color-diff : (someColor = nothing) `Or` (someColor = just (flip gc)))
+  (some-color-diff : OppositeColored someColor gc)
   (A=>C : BorderedParallelReduction rcolor someColor (MetaSubstitution.apply (convert-to-injected-term gc {context} {s} t) SubList.sublist-trivial-free rho) C)
   : \Sigma (sigma : MetaSubstitution env nil (LinearMetaContext {envs gc} t) mc)
            (C = MetaSubstitution.apply (convert-to-injected-term gc {context} {s} t) SubList.sublist-trivial-free sigma)
@@ -383,10 +387,9 @@
                    (modular-commutation (\lam j => LinearMetaContext {envs gc} (arguments j)) index (SubList.extend-right-single SubList.sublist-trivial-free) (convert-to-injected-term gc (arguments index)) (\lam {s1} mvar => (induc mvar.1).1 mvar.2))
                    (rewrite invariant-through-empty-subst (induc index).2)),
            \lam {s1} m => (induc m.1).3 m.2)
-    | inr (_, rd) =>
-      \let | coloring-from-tlcr => HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd)
-           | extracted => coloring-from-tlcr *> extract-from-or some-color-diff
-      \in absurd (atLeast2 (inv extracted))
+    | inr (_, rd) => \case \elim some-color-diff \with {
+      | colored-opposite gc/=color => absurd (gc/=color (inv (HasColoredRoot.reorganize color (TopLevelColoredReduction.extract-root-coloring rd))))
+    }
   }
 
   | l-func f arguments, someColor, equal-trees p => (rho, inv p, \lam {s1} m => (nothing, equal-trees idp))
@@ -730,7 +733,7 @@
       Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
   (\Pi (i : env.index-in f) -> \Sigma
     (someColor : Maybe Color)
-    ((someColor = nothing) `Or` (someColor = just (flip f.1)))
+    (OppositeColored someColor f.1)
     (BorderedParallelReduction gc someColor (arguments-A i) (mediator i)))
   (SwitchingReduction gc someColor (func f mediator) C) =>
   \let | common-reduction i => unfold-bpr f.1 (arguments-A i) (arguments-B i) (tlcrs i).2
@@ -817,16 +820,16 @@
       : \Sigma (midterm : Term env context s mc)
                (new-color : Maybe Color)
                (bpr : BorderedParallelReduction gc new-color A midterm)
-               ((new-color = nothing) `Or` (new-color = just (flip required-color)))
+               (OppositeColored new-color required-color)
                (nc' : Maybe Color)
                ((nc' = nothing) `Or` (nc' = just required-color))
                (cwr : SwitchingReduction gc nc' midterm B)
     \elim someColor, A, bpr
-      | _, A, equal-trees p => (A, nothing, equal-trees idp, inl idp, nothing, inl idp, cr-skip p)
-      | nothing, func f arguments, parallelization-f mediator _x c => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), inl idp, nothing, inl idp, c)
+      | _, A, equal-trees p => (A, nothing, equal-trees idp, colored-nothing, nothing, inl idp, cr-skip p)
+      | nothing, func f arguments, parallelization-f mediator _x c => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), colored-nothing, nothing, inl idp, c)
       | just _, func f arguments, parallelization-f mediator _x (cr-rewrite t idp) => \case decideEq gc required-color \with {
-        | yes e => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), inl idp, just gc, inr (pmap just e), cr-rewrite t idp)
-        | no n => (B, just gc, parallelization-f mediator _x (cr-rewrite t idp), inr (pmap just (atMost2 n)), nothing, inl idp, cr-skip idp)
+        | yes e => (func f mediator, nothing, parallelization-f mediator _x (cr-skip idp), colored-nothing, just gc, inr (pmap just e), cr-rewrite t idp)
+        | no n => (B, just gc, parallelization-f mediator _x (cr-rewrite t idp), colored-opposite n, nothing, inl idp, cr-skip idp)
       }
   }
 
@@ -842,7 +845,7 @@
       Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
   (\Pi (i : env.index-in f) -> \Sigma
     (someColor : Maybe Color)
-    ((someColor = nothing) `Or` (someColor = just (flip f.1)))
+    (OppositeColored someColor f.1)
     (BorderedParallelReduction gc someColor (arguments-A i) (mediator i)))
   (SwitchingReduction gc someColor (func f mediator) (func f arguments-B)) =>
   collect-reductions-together-tlcr nothing f arguments-A arguments-B tlcrs (func f arguments-B) (cr-skip idp)

@@ -101,7 +101,7 @@
          just idx.1,
          parallelization-f
              arguments1
-             (\lam i1 => (nothing, inl idp, equal-trees idp))
+             (\lam i1 => (nothing, colored-nothing, equal-trees idp))
              (cr-rewrite (c-basic (rewrite-with-rule-colored
                  (func-root color-eq)
                  idx.2
