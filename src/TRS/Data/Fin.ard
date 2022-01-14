@@ -40,10 +40,6 @@
     \func correct {A : \Type} {a b : List A} (i : Index b) : (a ++ b) !! expand-fin-right i = b !! i \elim a
       | nil => idp
       | :: a a1 => correct i
-
-    \func split {A : \Type} {a b c : List A} (i : Index c) : expand-fin-right {_} {a ++ b} i = transport Index (inv ++-assoc) (expand-fin-right (expand-fin-right i)) \elim c, i
-      | :: a1 c, 0 => {?}
-      | :: a1 c, suc f => {?}
   }
 
 \func partial-fin-induction
