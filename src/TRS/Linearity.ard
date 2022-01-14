@@ -1,5 +1,4 @@
 \import Data.List (!!, ++, ::, List, length, nil)
-\import Data.Or
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -9,7 +8,6 @@
 \import TRS.HRS
 \import TRS.MetaContexts
 \import TRS.Substitutions
-\import TRS.Utils
 \open FSignature
 
 \data GenericLinearTerm
@@ -19,7 +17,7 @@
   (allow-variables : \Prop)
   | l-func
     (f : symbol termSort)
-    (arguments : \Pi (index : Index (domain f)) -> GenericLinearTerm env (context ++ (f !!domain index)) (f !!sort index) allow-variables)
+    (arguments : DArray {arity f} (\lam index => GenericLinearTerm env (context ++ (f !!domain index)) (f !!sort index) allow-variables))
   | l-full-metavar
   | l-var (index : Index context) (termSort = context !! index) allow-variables
 
@@ -40,21 +38,15 @@
   | l-var index p _ => EmptyMetaContext
   | l-full-metavar => SingularMetaContext s context
 
-\func LinearTerm (env : FSignature)
-                 (context : List Sort)
-                 (termSort : Sort) : \Type => GenericLinearTerm env context termSort (\Sigma)
-
+\func LinearTerm (env : FSignature) (context : List Sort) (termSort : Sort) : \Type
+  => GenericLinearTerm env context termSort (\Sigma)
 
 \cons lt-var {env : FSignature} {context : List Sort} {termSort : Sort} (index : Index context) (p : termSort = context !! index)
 : LinearTerm env context termSort
 => l-var index p ()
 
-\func LinearPattern
-  (env : FSignature)
-  (context : List Sort)
-  (termSort : Sort)
-  : \Type =>
-  GenericLinearTerm env context termSort Empty
+\func LinearPattern (env : FSignature) (context : List Sort) (termSort : Sort) : \Type
+  => GenericLinearTerm env context termSort Empty
 
 \lemma modular-commutation {env : FSignature} {subcontext context : List Sort} {s : Sort} {msig : MetaContext Sort}
                            {n : Nat}
@@ -93,7 +85,6 @@
       : MetaSubstitution.apply term sublist rho = MetaSubstitution.apply term sublist' rho \elim eq
       | idp => idp
   }
-
 
 \record LinearRewriteRule \extends RewriteRule {
   | rr-pattern : LinearPattern env nil s

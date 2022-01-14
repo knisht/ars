@@ -2,8 +2,12 @@
 \import Data.Or
 \import Logic
 \import Logic.Meta
+\import Paths
+\import Paths.Meta
 \import TRS.Data.Fin
+\import TRS.Data.SubList
 \import TRS.HRS
+\import TRS.Substitutions
 
 \func ModularMetaContext {env : FSignature} {n : Nat} (meta-contexts : Fin n -> MetaContext Sort) : MetaContext Sort
 \cowith
@@ -55,3 +59,14 @@
   | m-domain e => contradiction
 
 \func PureTerm (env : FSignature) (context : List Sort) (s : Sort) : \Type => Term env context s EmptyMetaContext
+
+\lemma apply-modularity {env : FSignature} {context subst-context pattern-context : List Sort} {s : Sort} {mc : MetaContext Sort} {n : Nat} {index : Fin n}
+                        (producer : Fin n -> MetaContext Sort)
+                        (substitutions : \Pi (i : Fin n) -> MetaSubstitution env subst-context (producer i) mc)
+                        (sublist : SubList subst-context context)
+                        (pat-sublist : SubList pattern-context context)
+                        (t : Term env pattern-context s (producer index)) :
+  MetaSubstitution.apply (weakening t pat-sublist) sublist (substitutions index) = MetaSubstitution.apply (weakening (ModularMetaContext.upgrade-metavariables producer t) pat-sublist) sublist (\lam m => substitutions m.1 m.2) \elim t
+  | var index1 p => idp
+  | metavar m arguments => pmap (\lam e => Substitution.apply (substitutions index m) (extend-substitution-left sublist e)) (ext (\lam i => apply-modularity producer substitutions sublist pat-sublist (arguments i)))
+  | func f arguments => Term.fext (\lam i => apply-modularity producer substitutions (SubList.extend-right-single sublist) (SubList.extend-right-both pat-sublist) (arguments i))

@@ -1,10 +1,7 @@
-\import Data.List (::, List, nil)
-\import Logic.Meta
-\import Paths
-\import Paths.Meta
 \import TRS.HRS
 \import TRS.MetaContexts
 \import TRS.Utils
+\import Data.List (nil, ::)
 
 \data SingularSort | lc-term
 

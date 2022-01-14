@@ -1,8 +1,5 @@
-\import Algebra.Meta
 \import Data.List \hiding (Sort)
 \import Logic
-\import Logic.Meta
-\import Meta
 \import Paths
 \import Paths.Meta
 \import Set
@@ -11,7 +8,6 @@
 \import TRS.Linearity
 \import TRS.MetaContexts
 \import TRS.Union
-\import TRS.Utils
 
 \class TheoremContext \noclassifying
   (Color : DecSet)
@@ -21,34 +17,19 @@
 
   \instance env : FSignature => SumFSignature envs
 
-  \func ifunc (c : Color) => func {envs c}
-
-  \func efunc => func {env}
-
   \func monochrome-reduction (c : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (A B : Term (envs c) context s mc) : \Type
     => RewriteRelation {envs c} (rules c) A B
 
   \func JRegistry : RuleRegistry env => SumRegistry envs rules
 
-  \func bare-pattern' {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : LinearPattern (envs c) nil s =>
+  \func get-rule-pattern {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : LinearPattern (envs c) nil s =>
     LinearRegistry.rule-pattern {rules c} idx
 
-  \func linear-mc' {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : MetaContext Sort' =>
-      LinearMetaContext {envs c} (bare-pattern' idx)
+  \func rule-linear-mc {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : MetaContext Sort' =>
+      LinearMetaContext {envs c} (get-rule-pattern idx)
 
-  \func bare-right-rule' {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : Term (envs c) nil s (linear-mc' idx) =>
+  \func rule-right-linear {s : Sort'} {c : Color} (idx : rule-J {rules c} s) : Term (envs c) nil s (rule-linear-mc idx) =>
     LinearRegistry.rule-r {rules c} idx
-
-  \data InjectionWitness (color : Color) {context : List Sort'} {s : Sort'} {msig : MetaContext Sort'} (t : Term env context s msig) \elim t
-    | func f arguments => iw-func (f.1 = color) (\Pi (i : Index (domain f)) -> InjectionWitness color (arguments i))
-    | metavar m arguments => iw-mvar (\Pi (i : Index (m-domain m)) -> InjectionWitness color (arguments i))
-    | var _ _ => iw-var
-
-  \lemma generate-injection-witness (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
-                                    (t : Term (envs color) context s mc) : InjectionWitness color (inject-term envs t) \elim t
-    | var index p => iw-var
-    | metavar m arguments => iw-mvar (\lam i => generate-injection-witness color (arguments i))
-    | func f arguments => iw-func idp (\lam i => generate-injection-witness color (arguments i))
 
   \data HasColoredRoot (color : Color) {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'} (term : Term env context s mc) \elim term
     | func f _ => func-root (f.1 = color)

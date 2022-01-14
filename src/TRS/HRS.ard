@@ -1,15 +1,10 @@
 \import ARS
 \import Data.List (!!, ++, ++-assoc, ++_nil, ::, List, length, map, nil)
 \import Data.Or
-\import Equiv
-\import Equiv.Univalence
-\import Function
 \import Logic
 \import Logic.Meta
-\import Meta
 \import Paths
 \import Paths.Meta
-\import Set
 \import TRS.Data.Fin
 \import TRS.Data.SubList
 \import TRS.Substitutions
@@ -18,15 +13,12 @@
 -- | The family of functional term symbols
 \class FSignature {
   -- | All possible groups of functional symbols
-
   | Sort : \Set
 
   -- | All functional symbols, gathered by sort
-
   | symbol : Sort -> \Set
 
   -- | For each functional symbols, a signature of its arguments: the sort of the argument and the domain of the argument
-
   | domain : \Pi {s : Sort} (symbol s) -> List (\Sigma (List Sort) Sort)
 
   \func \infix 7 !!domain {s : Sort} (m : symbol s) (index : Index (domain m)) : List Sort =>
@@ -53,7 +45,7 @@
 
 -- | Term of higher-order TRS
 \data Term (env : FSignature)
-           (context : List Sort) -- | what if context will be a function from a sort to a number of disjoint indices? will it complicate the substitution?
+           (context : List Sort)
            (termSort : Sort)
            (mc : MetaContext Sort): \Set
   | var (index : Index context) (termSort = context !! index)
@@ -79,14 +71,22 @@
 \func Substitution {env : FSignature} (old-context new-context : List Sort) (mc : MetaContext Sort) : \Set =>
   \Pi (index : Index old-context) -> Term env new-context (old-context !! index) mc
   \where {
-    \func apply {env : FSignature} {s : Sort} {old-context : List Sort} {old-meta-context : MetaContext Sort}
-                (target : Term env old-context s old-meta-context)
+    \func apply {env : FSignature} {s : Sort} {old-context : List Sort} {mc : MetaContext Sort}
+                (target : Term env old-context s mc)
                 {new-context : List Sort}
-                (map : Substitution old-context new-context old-meta-context)
-      : Term env new-context s old-meta-context \elim target
+                (map : Substitution old-context new-context mc)
+      : Term env new-context s mc \elim target
       | var index idp => map index
       | metavar m arguments => metavar m (\lam i => Substitution.apply (arguments i) map)
       | func f arguments => func f (\lam i => Substitution.apply (arguments i) (append-context-right map))
+
+    \func over-transport-sort {env : FSignature} {s s' : Sort} {old-context : List Sort} {mc : MetaContext Sort}
+                              {target : Term env old-context s mc}
+                              {new-context : List Sort}
+                              {map : Substitution old-context new-context mc}
+                              (eq : s = s')
+                              : Substitution.apply (transport (Term env old-context __ mc) eq target) map = transport (Term env new-context __ mc) eq (Substitution.apply target map) \elim eq
+      | idp => idp
   }
 
 \data FunctionRoot {env : FSignature} {s : Sort} {context : List Sort} {mc : MetaContext Sort}
@@ -119,11 +119,8 @@
   | rule-container : \Pi {s : Sort} (id : rule-J s) -> RewriteRule {env} s
 
   \func rule-mc {s : Sort} (id : rule-J s) : MetaContext Sort => rr-mc {rule-container id}
-
   \func rule-l {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-l {rule-container id}
-
   \func rule-r {s : Sort} (id : rule-J s) : Term env nil s (rr-mc {rule-container id}) => rr-r {rule-container id}
-
   \lemma rule-func-root {s : Sort} (id : rule-J s) : FunctionRoot (rule-l id) => rr-l-func-root {rule-container id}
 }
 
@@ -158,8 +155,8 @@
   rewrite-with-rule
     (idx : set-of-rules.rule-J s)
     (substitution : MetaSubstitution env context (set-of-rules.rule-mc idx) mc)
-    (left-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-l idx) SubList.sublist-trivial-free) SubList.identity substitution = A)
-    (right-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-r idx) SubList.sublist-trivial-free) SubList.identity substitution = B)
+    (left-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-l idx) SubList.sublist-nil-free) SubList.identity substitution = A)
+    (right-coherence : MetaSubstitution.apply (weakening (set-of-rules.rule-r idx) SubList.sublist-nil-free) SubList.identity substitution = B)
 
   | func f-A arguments-A, func f-B arguments-B =>
   rewrite-with-parameter-f

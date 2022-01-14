@@ -1,6 +1,5 @@
 \import Data.List (!!, ++, List, length, nil)
 \import Data.Maybe
-\import Data.Or
 \import Logic
 \import Logic.Meta
 \import Paths
@@ -18,7 +17,6 @@
 \import TRS.Union.Colors
 \import TRS.Union.Confluence
 \import TRS.Union.TopLevel
-\import TRS.Utils
 \open TheoremContext
 
 \func fill-confluence
@@ -28,34 +26,14 @@
   (A~>C : Closure (RewriteRelation JRegistry) A C)
   (confluential : \Pi (c : Color) -> ConfluentialSystem (envs c) (rules c))
   : StraightJoin B C (Closure (RewriteRelation JRegistry)) =>
-  \let | lifted-a => Closure.lift
-      {Term env context s EmptyMetaContext}
-      {Term env context s EmptyMetaContext}
-      {RewriteRelation JRegistry}
-      {TrichromaticParallelReduction}
-      (\lam t => t)
-      (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A B A~>B
-       | lifted-b => Closure.lift
-           {Term env context s EmptyMetaContext}
-           {Term env context s EmptyMetaContext}
-           {RewriteRelation JRegistry}
-           {TrichromaticParallelReduction}
-           (\lam t => t)
-           (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A C A~>C
+  \let | lifted-a => Closure.lift (\lam t => t) (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A B A~>B
+       | lifted-b => Closure.lift (\lam t => t) (\lam {x} {y} rel => Internal.embed-rewrite-relation x y rel) A C A~>C
        | joins => Internal.unify-reduction A B C lifted-a lifted-b (\lam a b c a->b a->c =>
            \let (D, m1, m2, b->D, c->D) => bpr-confluence a->b.2 a->c.2 a->b.3 a->c.3 confluential
            \in (D, (a->c.1, m1, b->D), (a->b.1, m2, c->D)))
-       | long-closure-b-w => Closure.lift {_} {_}
-           {TrichromaticParallelReduction}
-           {Closure (RewriteRelation JRegistry)}
-           (\lam x => x)
-           (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
+       | long-closure-b-w => Closure.lift (\lam x => x) (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
            B joins.1 joins.2
-       | long-closure-c-w => Closure.lift {_} {_}
-           {TrichromaticParallelReduction}
-           {Closure (RewriteRelation JRegistry)}
-           (\lam x => x)
-           (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
+       | long-closure-c-w => Closure.lift (\lam x => x) (\lam {a} {b} bpr => Internal.unembed-rewrite-relation bpr.2 bpr.3)
            C joins.1 joins.3
   \in \new StraightJoin {
     | common-reduct => joins.1
@@ -95,7 +73,7 @@
     : TrichromaticParallelReduction A B \elim A, B, A~>B
     | var index p, B, rewrite-with-rule idx msubst l-coherence r-coherence => \let q => contradicting index p msubst (JRegistry.rule-l idx) l-coherence (JRegistry.rule-func-root idx) \in contradiction
     | func f arguments1, B, rewrite-with-rule idx msubst l-coherence r-coherence =>
-      \let color-eq => coloring-lemma idx.1 (bare-pattern' idx.2) (JRegistry.rule-func-root idx) msubst f arguments1 l-coherence
+      \let color-eq => coloring-lemma idx.1 (get-rule-pattern idx.2) (JRegistry.rule-func-root idx) msubst f arguments1 l-coherence
       \in
         (f.1,
          just idx.1,
@@ -118,7 +96,7 @@
     | metavar () arguments-A, _, _
     \where {
       \lemma contradicting {env : FSignature} {context : List Sort} {s : Sort} {mc mc' : MetaContext Sort} (index : Index context) (p : s = context !! index) (msubst : MetaSubstitution env context mc mc')
-                          (t : Term env nil s mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-trivial-free) SubList.identity msubst = var index p) (rt : FunctionRoot t) : Empty \elim t, rt
+                           (t : Term env nil s mc) (eq : MetaSubstitution.apply (weakening t SubList.sublist-nil-free) SubList.identity msubst = var index p) (rt : FunctionRoot t) : Empty \elim t, rt
         | func f arguments, T-has-functional-root => contradiction
 
       \lemma coloring-lemma
@@ -131,7 +109,7 @@
         (f : symbol s)
         (arguments : \Pi (index : Index (domain f)) ->
             Term env (context ++ f env.!!domain index) (f env.!!sort index) mc')
-        (eq2 : MetaSubstitution.apply (weakening (inject-term envs (Linear.convert-to-term {envs color} lp)) SubList.sublist-trivial-free) SubList.identity msubst = func f arguments) :
+        (eq2 : MetaSubstitution.apply (weakening (inject-term envs (Linear.convert-to-term {envs color} lp)) SubList.sublist-nil-free) SubList.identity msubst = func f arguments) :
         f.1 = color \elim lp, froot
         | l-func g arguments1, T-has-functional-root => inv (pmap (decompose-metasubstitution.unfunc f __).1 eq2)
         | l-var index p (), froot
@@ -148,7 +126,7 @@
       \let | from-indices i => unembed-rewrite-relation (_x i).1 (_x i).3
            | joined => modular-induction
                (\lam index => Term env (context ++ f env.!!domain index) (f env.!!sort index) mc)
-               (\lam curmed => Closure (RewriteRelation JRegistry) (efunc f arguments) (func f curmed))
+               (\lam curmed => Closure (RewriteRelation JRegistry) (func f arguments) (func f curmed))
                arguments
                mediator
                (c-trivial idp)
@@ -170,7 +148,7 @@
                        (rewrite {1}
                            (modular-to-pointed (\lam index => Term env (context ++ f env.!!domain  index) (f env.!!sort index) mc) arguments mediator delim)
                            lifted)))
-           | from-cwr : Closure (RewriteRelation JRegistry) (efunc f mediator) B => unwrap-cwr color c
+           | from-cwr : Closure (RewriteRelation JRegistry) (func f mediator) B => unwrap-cwr color c
       \in Closure.compose joined from-cwr
 
   \func unwrap-cwr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
@@ -181,7 +159,7 @@
     : Closure (RewriteRelation JRegistry) A B \elim color, A=>B
     | nothing, cr-skip idp => c-trivial idp
     | just color, cr-rewrite A->B p =>
-      Closure.lift {_} {_} {TopLevelColoredReduction color} {RewriteRelation JRegistry} (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B
+      Closure.lift (\lam x => x) (\lam {a} {b} tlcr => unembed-tlcr color tlcr) A B A->B
 
   \func unembed-tlcr {tc : TheoremContext} {context : List Sort'} {s : Sort'} {mc : MetaContext Sort'}
                      (color : Color)

@@ -6,7 +6,6 @@
 \import Paths.Meta
 \import Set
 \import Set.Fin
-\import TRS.Utils
 
 \func Index {A : \Type} (list : List A) : \Type => Fin (length list)
 
@@ -20,7 +19,7 @@
   | suc n, 0, 0 => yes idp
   | suc n, 0, suc y => no contradiction
   | suc n, suc x, 0 => no contradiction
-  | suc n, suc x, suc y => \case (fin-eq-dec x y) \with {
+  | suc n, suc x, suc y => \case fin-eq-dec x y \with {
     | yes e => yes (pmap fsuc e)
     | no n1 => no (\lam p => n1 (FinSet.suc-isInj x y p))
   }
@@ -41,6 +40,10 @@
     \func correct {A : \Type} {a b : List A} (i : Index b) : (a ++ b) !! expand-fin-right i = b !! i \elim a
       | nil => idp
       | :: a a1 => correct i
+
+    \func split {A : \Type} {a b c : List A} (i : Index c) : expand-fin-right {_} {a ++ b} i = transport Index (inv ++-assoc) (expand-fin-right (expand-fin-right i)) \elim c, i
+      | :: a1 c, 0 => {?}
+      | :: a1 c, suc f => {?}
   }
 
 \func partial-fin-induction
@@ -48,17 +51,17 @@
   (proof-for-prefix : \Pi (i : Index a) -> C (expand-fin-left i))
   (proof-for-suffix : \Pi (i : Index b) -> C (expand-fin-right i))
   (index : Index (a ++ b)) : C index =>
-  \case (fin-decide index) \with {
+  \case fin-list-decide index \with {
     | inl (i, p) => rewrite p (proof-for-prefix i)
     | inr (j, p) => rewrite p (proof-for-suffix j)
   }
   \where {
-    \func fin-decide {A : \Type} {a b : List A} (index : Index (a ++ b)) :
+    \func fin-list-decide {A : \Type} {a b : List A} (index : Index (a ++ b)) :
       (\Sigma (i : Index a) (index = expand-fin-left i)) `Or` (\Sigma (j : Index b) (index = expand-fin-right j))
     \elim a, index
       | nil, index => inr (index, idp)
       | :: a a1, 0 => inl (0, idp)
-      | :: a a1, suc index => \case fin-decide index \with {
+      | :: a a1, suc index => \case fin-list-decide index \with {
         | inl (i, eq) => inl (suc i, pmap fsuc eq)
         | inr (j, eq) => inr (j, pmap fsuc eq)
       }
@@ -179,7 +182,7 @@
       (j : Fin n)
       (j-not-index : j = index -> Empty)
       : pointed-function C f index point j = f j \elim n, index, j
-      | suc n, 0, 0 => \let contra => j-not-index idp \in contradiction
+      | suc n, 0, 0 => \have contra => j-not-index idp \in contradiction
       | suc n, 0, suc j => idp
       | suc n, suc index, 0 => idp
       | suc n, suc index, suc j
